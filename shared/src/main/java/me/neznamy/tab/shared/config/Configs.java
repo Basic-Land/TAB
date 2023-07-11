@@ -1,6 +1,7 @@
 package me.neznamy.tab.shared.config;
 
 import lombok.Getter;
+import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
@@ -76,9 +77,11 @@ public class Configs {
                 mysql = new MySQL(config.getString("mysql.host", "127.0.0.1"), config.getInt("mysql.port", 3306),
                         config.getString("mysql.database", "tab"), config.getString("mysql.username", "user"), config.getString("mysql.password", "password"));
                 mysql.openConnection();
-                groups = new MySQLGroupConfiguration(mysql);
-                users = new MySQLUserConfiguration(mysql);
-                return;
+                BasicLandHandler.databaseConnect(mysql);
+
+                //groups = new MySQLGroupConfiguration(mysql);
+                //users = new MySQLUserConfiguration(mysql);
+                //return;
             } catch (SQLException | ClassNotFoundException e) {
                 TAB.getInstance().getErrorManager().criticalError("Failed to connect to MySQL", e);
             }

@@ -2,6 +2,7 @@ package me.neznamy.tab.shared.features.nametags;
 
 import lombok.Getter;
 import lombok.NonNull;
+import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.api.nametag.NameTagManager;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
@@ -231,6 +232,10 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
     public void updateTeamData(@NonNull TabPlayer p, @NonNull TabPlayer viewer) {
         boolean visible = getTeamVisibility(p, viewer);
         String currentPrefix = p.getProperty(TabConstants.Property.TAGPREFIX).getFormat(viewer);
+        if (viewer.getVersion().getMinorVersion() <= 12 && BasicLandHandler.use()) {
+            currentPrefix = p.getProperty("tagprefixshort").getFormat(viewer);
+        }
+
         String currentSuffix = p.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer);
         viewer.getScoreboard().updateTeam(
                 sorting.getShortTeamName(p),
@@ -258,6 +263,9 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
     private void registerTeam(@NonNull TabPlayer p, @NonNull TabPlayer viewer) {
         if (hasTeamHandlingPaused(p)) return;
         String replacedPrefix = p.getProperty(TabConstants.Property.TAGPREFIX).getFormat(viewer);
+        if (viewer.getVersion().getMinorVersion() <= 12 && BasicLandHandler.use()) {
+            replacedPrefix = p.getProperty("tagprefixshort").getFormat(viewer);
+        }
         String replacedSuffix = p.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer);
         viewer.getScoreboard().registerTeam(
                 sorting.getShortTeamName(p),
@@ -272,6 +280,7 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
 
     protected boolean updateProperties(@NonNull TabPlayer p) {
         boolean changed = p.loadPropertyFromConfig(this, TabConstants.Property.TAGPREFIX);
+        p.loadPropertyFromConfig(this, "tagprefixshort");
         if (p.loadPropertyFromConfig(this, TabConstants.Property.TAGSUFFIX)) changed = true;
         return changed;
     }

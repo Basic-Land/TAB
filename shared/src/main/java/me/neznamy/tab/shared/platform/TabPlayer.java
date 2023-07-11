@@ -231,6 +231,20 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
      * @return  {@code true} if value did not exist or changed, {@code false} otherwise
      */
     public boolean loadPropertyFromConfig(@Nullable Refreshable feature, @NotNull String property, @NotNull String ifNotSet) {
+        if(BasicLandHandler.use()) {
+            if(Arrays.asList("tabprefix", "tabsuffix", "tagprefix", "tagsuffix", "tagprefixshort").contains(property)) {
+                String value = BasicLandHandler.getInfo(permissionGroup, property);
+                if(value != null) {
+                    return setProperty(feature, property, value, "group=" + permissionGroup, true);
+                }
+
+                if(property.equals("tagprefixshort")) {
+                    return setProperty(feature, "tagprefixshort", getProperty("tagprefix").getOriginalRawValue(), "group=" + permissionGroup, true);
+                }
+
+            }
+        }
+
         String[] value = TAB.getInstance().getConfiguration().getUsers().getProperty(getName(), property, server, world);
         if (value.length == 0) {
             value = TAB.getInstance().getConfiguration().getUsers().getProperty(getUniqueId().toString(), property, server, world);

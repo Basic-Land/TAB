@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 
 import lombok.RequiredArgsConstructor;
+import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.TAB;
@@ -54,6 +55,9 @@ public abstract class SortingType {
     protected LinkedHashMap<String, Integer> convertSortingElements(String[] elements) {
         LinkedHashMap<String, Integer> sortedGroups = new LinkedHashMap<>();
         int index = 1;
+        if (BasicLandHandler.use()) {
+            elements = BasicLandHandler.getSortedGroups().toArray(new String[0]);
+        }
         for (String element : elements) {
             for (String element0 : element.split("\\|")) {
                 sortedGroups.put(EnumChatFormat.color(element0.trim().toLowerCase()), index++);
