@@ -1,13 +1,15 @@
 package me.neznamy.tab.platforms.sponge8;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.hook.ViaVersionHook;
+import me.neznamy.tab.shared.backend.BackendTabPlayer;
+import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
+import me.neznamy.tab.shared.backend.entityview.EntityView;
 import me.neznamy.tab.shared.platform.bossbar.AdventureBossBar;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.Scoreboard;
-import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.platform.bossbar.BossBar;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.api.data.Keys;
 import org.spongepowered.api.effect.potion.PotionEffect;
@@ -20,15 +22,15 @@ import java.util.Collections;
 import java.util.List;
 
 @Getter
-public final class SpongeTabPlayer extends TabPlayer {
+public class SpongeTabPlayer extends BackendTabPlayer {
 
     private final Scoreboard<SpongeTabPlayer> scoreboard = new SpongeScoreboard(this);
     private final TabList tabList = new SpongeTabList(this);
-    private final AdventureBossBar bossBar = new AdventureBossBar(this);
+    private final BossBar bossBar = new AdventureBossBar(this);
+    private final EntityView entityView = new DummyEntityView();
 
     public SpongeTabPlayer(ServerPlayer player) {
-        super(player, player.uniqueId(), player.name(), TAB.getInstance().getConfiguration().getServerName(),
-                player.world().key().value(), ViaVersionHook.getInstance().getPlayerVersion(player.uniqueId(), player.name()), true);
+        super(player, player.uniqueId(), player.name(), player.world().key().value());
     }
 
     @Override
@@ -62,7 +64,7 @@ public final class SpongeTabPlayer extends TabPlayer {
     @Override
     public TabList.Skin getSkin() {
         List<ProfileProperty> list = getPlayer().profile().properties();
-        if (list.isEmpty()) return null;
+        if (list.isEmpty()) return null; // Offline mode
         return new TabList.Skin(list.get(0).value(), list.get(0).signature().orElse(null));
     }
 
@@ -87,5 +89,15 @@ public final class SpongeTabPlayer extends TabPlayer {
         if (getPlayer().gameMode().get() == GameModes.ADVENTURE.get()) return 2;
         if (getPlayer().gameMode().get() == GameModes.SPECTATOR.get()) return 3;
         return 0;
+    }
+
+    @Override
+    public double getHealth() {
+        return getPlayer().health().get();
+    }
+
+    @Override
+    public String getDisplayName() {
+        return PlainTextComponentSerializer.plainText().serialize(getPlayer().displayName().get());
     }
 }

@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.Function;
 
 import lombok.NonNull;
+import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.types.Refreshable;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
@@ -59,8 +60,11 @@ public class PlayerPlaceholderImpl extends TabPlaceholder implements PlayerPlace
         }
         if (!lastValues.containsKey(p) || (!ERROR_VALUE.equals(newValue) && !identifier.equals(newValue) && !newValue.equals(lastValues.getOrDefault(p, null)))) {
             lastValues.put(p, ERROR_VALUE.equals(newValue) ? identifier : newValue);
-            updateParents(p);
-            TAB.getInstance().getPlaceholderManager().getTabExpansion().setPlaceholderValue(p, identifier, newValue);
+            TAB.getInstance().getCPUManager().runMeasuredTask(TAB.getInstance().getPlaceholderManager().getFeatureName(),
+                    TabConstants.CpuUsageCategory.PLACEHOLDER_REFRESHING, () -> {
+                        updateParents(p);
+                        TAB.getInstance().getPlaceholderManager().getTabExpansion().setPlaceholderValue(p, identifier, newValue);
+                    });
             return true;
         }
         return false;
@@ -137,7 +141,7 @@ public class PlayerPlaceholderImpl extends TabPlaceholder implements PlayerPlace
         } finally {
             long timeDiff = System.currentTimeMillis() - time;
             if (timeDiff > TabConstants.Placeholder.RETURN_TIME_WARN_THRESHOLD) {
-                TAB.getInstance().sendConsoleMessage("&c[WARN] Placeholder " + identifier + " took " + timeDiff + "ms to return value for player " + p.getName(), true);
+                TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("Placeholder " + identifier + " took " + timeDiff + "ms to return value for player " + p.getName()));
             }
         }
     }

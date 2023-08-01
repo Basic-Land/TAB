@@ -24,7 +24,6 @@ public class GlobalPlayerList extends TabFeature implements JoinListener, QuitLi
     private final boolean othersAsSpectators = TAB.getInstance().getConfiguration().getConfig().getBoolean("global-playerlist.display-others-as-spectators", false);
     private final boolean vanishedAsSpectators = TAB.getInstance().getConfiguration().getConfig().getBoolean("global-playerlist.display-vanished-players-as-spectators", true);
     private final boolean isolateUnlistedServers = TAB.getInstance().getConfiguration().getConfig().getBoolean("global-playerlist.isolate-unlisted-servers", false);
-    private final boolean updateLatency = TAB.getInstance().getConfiguration().getConfig().getBoolean("global-playerlist.update-latency", false);
 
     private final PlayerList playerlist = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PLAYER_LIST);
     @Getter private final String featureName = "Global PlayerList";
@@ -38,7 +37,7 @@ public class GlobalPlayerList extends TabFeature implements JoinListener, QuitLi
 
     @Override
     public void load() {
-        if (updateLatency) TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.GLOBAL_PLAYER_LIST_LATENCY, new LatencyRefresher());
+        TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.GLOBAL_PLAYER_LIST_LATENCY, new LatencyRefresher());
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
             List<TabList.Entry> entries = new ArrayList<>();
             for (TabPlayer displayed : TAB.getInstance().getOnlinePlayers()) {
@@ -117,14 +116,14 @@ public class GlobalPlayerList extends TabFeature implements JoinListener, QuitLi
 
     public @NotNull TabList.Entry getAddInfoData(@NotNull TabPlayer p, @NotNull TabPlayer viewer) {
         IChatBaseComponent format = null;
-        if (playerlist != null) {
+        if (playerlist != null && !playerlist.getDisableChecker().isDisabledPlayer(p)) {
             format = playerlist.getTabFormat(p, viewer);
         }
         int gameMode = (othersAsSpectators && !p.getServer().equals(viewer.getServer())) ||
                 (vanishedAsSpectators && p.isVanished()) ? 3 : p.getGamemode();
         return new TabList.Entry(
                 p.getTablistId(),
-                p.getName(),
+                p.getNickname(),
                 p.getSkin(),
                 p.getPing(),
                 gameMode,

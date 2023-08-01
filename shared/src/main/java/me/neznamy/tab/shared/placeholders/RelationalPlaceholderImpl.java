@@ -5,6 +5,7 @@ import java.util.WeakHashMap;
 import java.util.function.BiFunction;
 
 import lombok.NonNull;
+import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.types.Refreshable;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
@@ -58,8 +59,11 @@ public class RelationalPlaceholderImpl extends TabPlaceholder implements Relatio
         String newValue = getReplacements().findReplacement(String.valueOf(output));
         if (!lastValues.computeIfAbsent(viewer, v -> new WeakHashMap<>()).containsKey(target) || !lastValues.get(viewer).get(target).equals(newValue)) {
             lastValues.get(viewer).put(target, newValue);
-            updateParents(viewer);
-            updateParents(target);
+            TAB.getInstance().getCPUManager().runMeasuredTask(TAB.getInstance().getPlaceholderManager().getFeatureName(),
+                    TabConstants.CpuUsageCategory.PLACEHOLDER_REFRESHING, () -> {
+                        updateParents(viewer);
+                        updateParents(target);
+                    });
             return true;
         }
         return false;
@@ -116,8 +120,11 @@ public class RelationalPlaceholderImpl extends TabPlaceholder implements Relatio
      * @return  last known value for entered player duo
      */
     public String getLastValue(@NonNull TabPlayer viewer, @NonNull TabPlayer target) {
-        if (!lastValues.computeIfAbsent(viewer, v -> new WeakHashMap<>()).containsKey(target)) update(viewer, target);
-        return setPlaceholders(replacements.findReplacement(EnumChatFormat.color(lastValues.computeIfAbsent(viewer, v -> new WeakHashMap<>()).get(target))), target);
+        if (!lastValues.computeIfAbsent(viewer, v -> new WeakHashMap<>()).containsKey(target)) {
+            lastValues.get(viewer).put(target, getReplacements().findReplacement(identifier));
+            update(viewer, target);
+        }
+        return setPlaceholders(EnumChatFormat.color(lastValues.computeIfAbsent(viewer, v -> new WeakHashMap<>()).get(target)), target);
     }
 
     @Override
@@ -153,7 +160,7 @@ public class RelationalPlaceholderImpl extends TabPlaceholder implements Relatio
         } finally {
             long timeDiff = System.currentTimeMillis() - time;
             if (timeDiff > TabConstants.Placeholder.RETURN_TIME_WARN_THRESHOLD) {
-                TAB.getInstance().sendConsoleMessage("&c[WARN] Placeholder " + identifier + " took " + timeDiff + "ms to return value for " + viewer.getName() + " and " + target.getName(), true);
+                TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("Placeholder " + identifier + " took " + timeDiff + "ms to return value for " + viewer.getName() + " and " + target.getName()));
             }
         }
     }

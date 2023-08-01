@@ -48,6 +48,8 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
         Condition disableCondition = Condition.getCondition(TAB.getInstance().getConfig().getString("scoreboard-teams.disable-condition"));
         disableChecker = new DisableChecker(featureName, disableCondition, this::onDisableConditionChange);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.NAME_TAGS + "-Condition", disableChecker);
+        if (!TAB.getInstance().getConfig().getBoolean("scoreboard-teams.anti-override", true))
+            TAB.getInstance().getMisconfigurationHelper().teamAntiOverrideDisabled();
     }
 
     @Override
@@ -273,7 +275,7 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
                 replacedSuffix,
                 getTeamVisibility(p, viewer) ? NameVisibility.ALWAYS : NameVisibility.NEVER,
                 collisionManager.getCollision(p) ? CollisionRule.ALWAYS : CollisionRule.NEVER,
-                Collections.singletonList(p.getName()),
+                Collections.singletonList(p.getNickname()),
                 getTeamOptions()
         );
     }

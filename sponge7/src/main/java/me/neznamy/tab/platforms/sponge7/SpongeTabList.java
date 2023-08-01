@@ -9,9 +9,13 @@ import org.spongepowered.api.entity.living.player.gamemode.GameMode;
 import org.spongepowered.api.entity.living.player.gamemode.GameModes;
 import org.spongepowered.api.profile.GameProfile;
 import org.spongepowered.api.profile.property.ProfileProperty;
+import org.spongepowered.api.text.Text;
 
 import java.util.UUID;
 
+/**
+ * TabList implementation for Sponge 7 and lower
+ */
 @RequiredArgsConstructor
 public class SpongeTabList implements TabList {
 
@@ -26,7 +30,7 @@ public class SpongeTabList implements TabList {
     @Override
     public void updateDisplayName(@NotNull UUID entry, @Nullable IChatBaseComponent displayName) {
         player.getPlayer().getTabList().getEntry(entry).ifPresent(
-                e -> e.setDisplayName(displayName == null ? null : Sponge7TAB.getTextCache().get(displayName, player.getVersion())));
+                e -> e.setDisplayName(displayName == null ? null : Text.of(displayName.toLegacyText())));
     }
 
     @Override
@@ -49,25 +53,21 @@ public class SpongeTabList implements TabList {
                 .profile(profile)
                 .latency(entry.getLatency())
                 .gameMode(convertGameMode(entry.getGameMode()))
-                .displayName(entry.getDisplayName() == null ? null : Sponge7TAB.getTextCache().get(entry.getDisplayName(), player.getVersion()))
+                .displayName(entry.getDisplayName() == null ? null : Text.of(entry.getDisplayName().toLegacyText()))
                 .build());
     }
 
     @Override
     public void setPlayerListHeaderFooter(@NotNull IChatBaseComponent header, @NotNull IChatBaseComponent footer) {
-        player.getPlayer().getTabList().setHeaderAndFooter(
-                Sponge7TAB.getTextCache().get(header, player.getVersion()),
-                Sponge7TAB.getTextCache().get(footer, player.getVersion())
-        );
+        player.getPlayer().getTabList().setHeaderAndFooter(Text.of(header.toLegacyText()), Text.of(footer.toLegacyText()));
     }
 
     private GameMode convertGameMode(int mode) {
         switch (mode) {
-            case 0: return GameModes.SURVIVAL;
             case 1: return GameModes.CREATIVE;
             case 2: return GameModes.ADVENTURE;
             case 3: return GameModes.SPECTATOR;
-            default: return GameModes.NOT_SET;
+            default: return GameModes.SURVIVAL;
         }
     }
 }

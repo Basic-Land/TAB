@@ -251,6 +251,15 @@ public class FeatureManager {
         }
     }
 
+    public void onEntryAdd(TabPlayer packetReceiver, UUID id, String name) {
+        for (TabFeature f : values) {
+            if (!(f instanceof EntryAddListener)) continue;
+            long time = System.nanoTime();
+            ((EntryAddListener)f).onEntryAdd(packetReceiver, id, name);
+            TAB.getInstance().getCPUManager().addTime(f, TabConstants.CpuUsageCategory.PACKET_PLAYER_INFO, System.nanoTime() - time);
+        }
+    }
+
     public void registerFeature(@NotNull String featureName, @NotNull TabFeature featureHandler) {
         features.put(featureName, featureHandler);
         values = features.values().toArray(new TabFeature[0]);
@@ -340,6 +349,12 @@ public class FeatureManager {
         // Must be loaded after: Sorting
         if (minorVersion >= 8 && configuration.getConfig().getBoolean("layout.enabled", false)) {
             featureManager.registerFeature(TabConstants.Feature.LAYOUT, new LayoutManagerImpl());
+            if (configuration.getConfig().getBoolean("yellow-number-in-tablist.enabled", true)) {
+                TAB.getInstance().getMisconfigurationHelper().layoutBreaksYellowNumber();
+            }
+            if (configuration.getConfig().getBoolean("prevent-spectator-effect.enabled", false)) {
+                TAB.getInstance().getMisconfigurationHelper().layoutIncludesPreventSpectatorEffect();
+            }
         }
 
         // Must be loaded after: Layout
@@ -363,5 +378,7 @@ public class FeatureManager {
         // Must be loaded after: Global PlayerList, PlayerList, NameTags, YellowNumber, BelowName
         RedisSupport redis = TAB.getInstance().getPlatform().getRedisSupport();
         if (redis != null) TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.REDIS_BUNGEE, redis);
+
+        featureManager.registerFeature(TabConstants.Feature.NICK_COMPATIBILITY, new NickCompatibility());
     }
 }

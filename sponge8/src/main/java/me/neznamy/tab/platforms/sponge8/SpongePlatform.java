@@ -14,7 +14,10 @@ import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.server.ServerPlayer;
 
-public final class SpongePlatform implements BackendPlatform {
+/**
+ * Platform implementation for Sponge 8 and up
+ */
+public class SpongePlatform implements BackendPlatform {
 
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
@@ -29,17 +32,7 @@ public final class SpongePlatform implements BackendPlatform {
     }
 
     @Override
-    public void registerPlaceholders() {
-        new SpongePlaceholderRegistry().registerPlaceholders(TAB.getInstance().getPlaceholderManager());
-    }
-
-    @Override
     public @Nullable PipelineInjector createPipelineInjector() {
-        return null;
-    }
-
-    @Override
-    public @Nullable TabFeature getPerWorldPlayerList() {
         return null;
     }
 
@@ -54,13 +47,34 @@ public final class SpongePlatform implements BackendPlatform {
     }
 
     @Override
-    public void sendConsoleMessage(@NotNull IChatBaseComponent message) {
+    public @Nullable TabFeature getPerWorldPlayerList() {
+        return null;
+    }
+
+    @Override
+    public void logInfo(@NotNull IChatBaseComponent message) {
         Sponge.systemSubject().sendMessage(Component.text("[TAB] ").append(
                 message.toAdventureComponent(TAB.getInstance().getServerVersion())));
     }
 
     @Override
+    public void logWarn(@NotNull IChatBaseComponent message) {
+        Sponge.systemSubject().sendMessage(Component.text("[TAB] [WARN] ").append(
+                message.toAdventureComponent(TAB.getInstance().getServerVersion()))); // Sponge console does not support colors
+    }
+
+    @Override
     public String getServerVersionInfo() {
         return "[Sponge] " + Sponge.platform().minecraftVersion().name();
+    }
+
+    @Override
+    public double getTPS() {
+        return Sponge.server().ticksPerSecond();
+    }
+
+    @Override
+    public double getMSPT() {
+        return Sponge.server().averageTickTime();
     }
 }

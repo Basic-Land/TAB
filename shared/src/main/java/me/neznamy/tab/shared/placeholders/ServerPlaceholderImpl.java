@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 
 import lombok.Getter;
 import lombok.NonNull;
+import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.types.Refreshable;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.api.placeholder.ServerPlaceholder;
@@ -58,10 +59,13 @@ public class ServerPlaceholderImpl extends TabPlaceholder implements ServerPlace
         }
         if (!"ERROR".equals(newValue) && !identifier.equals(newValue) && (lastValue == null || !lastValue.equals(newValue))) {
             lastValue = newValue;
-            for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                updateParents(player);
-                TAB.getInstance().getPlaceholderManager().getTabExpansion().setPlaceholderValue(player, identifier, newValue);
-            }
+            TAB.getInstance().getCPUManager().runMeasuredTask(TAB.getInstance().getPlaceholderManager().getFeatureName(),
+                    TabConstants.CpuUsageCategory.PLACEHOLDER_REFRESHING, () -> {
+                        for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
+                            updateParents(player);
+                            TAB.getInstance().getPlaceholderManager().getTabExpansion().setPlaceholderValue(player, identifier, newValue);
+                        }
+                    });
             return true;
         }
         return false;
@@ -131,7 +135,7 @@ public class ServerPlaceholderImpl extends TabPlaceholder implements ServerPlace
         } finally {
             long timeDiff = System.currentTimeMillis() - time;
             if (timeDiff > TabConstants.Placeholder.RETURN_TIME_WARN_THRESHOLD) {
-                TAB.getInstance().sendConsoleMessage("&c[WARN] Placeholder " + identifier + " took " + timeDiff + "ms to return value", true);
+                TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("Placeholder " + identifier + " took " + timeDiff + "ms to return value"));
             }
         }
     }

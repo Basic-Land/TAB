@@ -2,6 +2,7 @@ package me.neznamy.tab.platforms.sponge8;
 
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.Scoreboard;
+import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.api.scoreboard.*;
 import org.spongepowered.api.scoreboard.criteria.Criteria;
@@ -13,16 +14,18 @@ import java.util.Collection;
 
 public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
 
+    /** Scoreboard of the player */
+    private final org.spongepowered.api.scoreboard.Scoreboard sb = org.spongepowered.api.scoreboard.Scoreboard.builder().build();
+    
     public SpongeScoreboard(SpongeTabPlayer player) {
         super(player);
         // Make sure each player is in different scoreboard for per-player view
-        player.getPlayer().setScoreboard(org.spongepowered.api.scoreboard.Scoreboard.builder().build());
+        player.getPlayer().setScoreboard(sb);
     }
 
     @Override
     public void setDisplaySlot(@NotNull DisplaySlot slot, @NotNull String objective) {
-        player.getPlayer().scoreboard().objective(objective).ifPresent(
-                o -> player.getPlayer().scoreboard().updateDisplaySlot(o, convertDisplaySlot(slot)));
+        sb.objective(objective).ifPresent(o -> sb.updateDisplaySlot(o, convertDisplaySlot(slot)));
     }
 
     private org.spongepowered.api.scoreboard.displayslot.DisplaySlot convertDisplaySlot(DisplaySlot slot) {
@@ -35,62 +38,73 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
 
     @Override
     public void registerObjective0(@NotNull String objectiveName, @NotNull String title, boolean hearts) {
-        Objective objective = Objective.builder()
+        sb.addObjective(Objective.builder()
                 .name(objectiveName)
-                .displayName(IChatBaseComponent.optimizedComponent(title).toAdventureComponent(player.getVersion()))
+                .displayName(adventure(title))
                 .objectiveDisplayMode(hearts ? ObjectiveDisplayModes.HEARTS : ObjectiveDisplayModes.INTEGER)
                 .criterion(Criteria.DUMMY)
-                .build();
-        player.getPlayer().scoreboard().addObjective(objective);
+                .build());
     }
 
     @Override
     public void unregisterObjective0(@NotNull String objectiveName) {
-        player.getPlayer().scoreboard().objective(objectiveName).ifPresent(o ->
-                player.getPlayer().scoreboard().removeObjective(o));
+        sb.objective(objectiveName).ifPresent(sb::removeObjective);
     }
 
     @Override
     public void updateObjective0(@NotNull String objectiveName, @NotNull String title, boolean hearts) {
-        Objective obj = player.getPlayer().scoreboard().objective(objectiveName).orElseThrow(IllegalStateException::new);
-        obj.setDisplayName(IChatBaseComponent.optimizedComponent(title).toAdventureComponent(player.getVersion()));
+        Objective obj = sb.objective(objectiveName).orElseThrow(IllegalStateException::new);
+        obj.setDisplayName(adventure(title));
         obj.setDisplayMode(hearts ? ObjectiveDisplayModes.HEARTS.get() : ObjectiveDisplayModes.INTEGER.get());
     }
 
     @Override
-    public void registerTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix, @NotNull NameVisibility visibility, @NotNull CollisionRule collision, @NotNull Collection<String> players, int options) {
+    public void registerTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix,
+                              @NotNull NameVisibility visibility, @NotNull CollisionRule collision,
+                              @NotNull Collection<String> players, int options) {
         Team team = Team.builder()
                 .name(name)
-                .displayName(IChatBaseComponent.optimizedComponent(name).toAdventureComponent(player.getVersion()))
-                .prefix(IChatBaseComponent.optimizedComponent(prefix).toAdventureComponent(player.getVersion()))
-                .suffix(IChatBaseComponent.optimizedComponent(suffix).toAdventureComponent(player.getVersion()))
+                .displayName(adventure(name))
+                .prefix(adventure(prefix))
+                .suffix(adventure(suffix))
                 .allowFriendlyFire((options & 0x01) != 0)
                 .canSeeFriendlyInvisibles((options & 0x02) != 0)
                 .collisionRule(convertCollisionRule(collision))
                 .nameTagVisibility(convertVisibility(visibility))
                 .build();
         for (String member : players) {
-            team.addMember(IChatBaseComponent.optimizedComponent(member).toAdventureComponent(player.getVersion()));
+            team.addMember(adventure(member));
         }
-        player.getPlayer().scoreboard().registerTeam(team);
+        sb.registerTeam(team);
     }
 
     @Override
     public void unregisterTeam0(@NotNull String name) {
-        player.getPlayer().scoreboard().team(name).ifPresent(Team::unregister);
+        sb.team(name).ifPresent(Team::unregister);
     }
 
     @Override
-    public void updateTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix, @NotNull NameVisibility visibility, @NotNull CollisionRule collision, int options) {
-        Team team = player.getPlayer().scoreboard().team(name).orElse(null);
-        if (team == null) return;
-        team.setDisplayName(IChatBaseComponent.optimizedComponent(name).toAdventureComponent(player.getVersion()));
-        team.setPrefix(IChatBaseComponent.optimizedComponent(prefix).toAdventureComponent(player.getVersion()));
-        team.setSuffix(IChatBaseComponent.optimizedComponent(suffix).toAdventureComponent(player.getVersion()));
-        team.setAllowFriendlyFire((options & 0x01) != 0);
-        team.setCanSeeFriendlyInvisibles((options & 0x02) != 0);
-        team.setCollisionRule(convertCollisionRule(collision));
-        team.setNameTagVisibility(convertVisibility(visibility));
+    public void updateTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix,
+                            @NotNull NameVisibility visibility, @NotNull CollisionRule collision, int options) {
+        sb.team(name).ifPresent(team -> {
+            team.setDisplayName(adventure(name));
+            team.setPrefix(adventure(prefix));
+            team.setSuffix(adventure(suffix));
+            team.setAllowFriendlyFire((options & 0x01) != 0);
+            team.setCanSeeFriendlyInvisibles((options & 0x02) != 0);
+            team.setCollisionRule(convertCollisionRule(collision));
+            team.setNameTagVisibility(convertVisibility(visibility));
+        });
+    }
+
+    @Override
+    public void setScore0(@NotNull String objective, @NotNull String playerName, int score) {
+        sb.objective(objective).ifPresent(o -> o.findOrCreateScore(adventure(playerName)).setScore(score));
+    }
+
+    @Override
+    public void removeScore0(@NotNull String objective, @NotNull String playerName) {
+        sb.objective(objective).ifPresent(o -> o.removeScore(adventure(playerName)));
     }
 
     private org.spongepowered.api.scoreboard.CollisionRule convertCollisionRule(CollisionRule rule) {
@@ -113,15 +127,14 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
         }
     }
 
-    @Override
-    public void setScore0(@NotNull String objective, @NotNull String playerName, int score) {
-        player.getPlayer().scoreboard().objective(objective).ifPresent(o -> o.findOrCreateScore(
-                IChatBaseComponent.optimizedComponent(playerName).toAdventureComponent(player.getVersion())).setScore(score));
-    }
-
-    @Override
-    public void removeScore0(@NotNull String objective, @NotNull String playerName) {
-        player.getPlayer().scoreboard().objective(objective).ifPresent(o -> o.removeScore(
-                IChatBaseComponent.optimizedComponent(playerName).toAdventureComponent(player.getVersion())));
+    /**
+     * Converts text to Adventure component.
+     *
+     * @param   text
+     *          Text to convert
+     * @return  Converted text
+     */
+    private Component adventure(String text) {
+        return IChatBaseComponent.optimizedComponent(text).toAdventureComponent(player.getVersion());
     }
 }

@@ -3,6 +3,7 @@ package me.neznamy.tab.platforms.sponge7;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.backend.BackendPlatform;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.nametags.NameTag;
@@ -14,9 +15,13 @@ import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.entity.living.player.Player;
 
+/**
+ * Platform implementation for Sponge 7 and lower
+ */
 @RequiredArgsConstructor
-public final class SpongePlatform implements BackendPlatform {
+public class SpongePlatform implements BackendPlatform {
 
+    /** Plugin reference */
     private final Sponge7TAB plugin;
 
     @Override
@@ -32,12 +37,9 @@ public final class SpongePlatform implements BackendPlatform {
     }
 
     @Override
-    public void registerPlaceholders() {
-        new SpongePlaceholderRegistry().registerPlaceholders(TAB.getInstance().getPlaceholderManager());
+    public @Nullable PipelineInjector createPipelineInjector() {
+        return null;
     }
-
-    @Override
-    public @Nullable PipelineInjector createPipelineInjector() { return null; }
 
     @Override
     public @NotNull NameTag getUnlimitedNameTags() {
@@ -50,15 +52,32 @@ public final class SpongePlatform implements BackendPlatform {
     }
 
     @Override
-    public @Nullable TabFeature getPerWorldPlayerList() { return null; }
+    public @Nullable TabFeature getPerWorldPlayerList() {
+        return null;
+    }
 
     @Override
-    public void sendConsoleMessage(@NotNull IChatBaseComponent message) {
+    public void logInfo(@NotNull IChatBaseComponent message) {
         plugin.getLogger().info(message.toLegacyText());
+    }
+
+    @Override
+    public void logWarn(@NotNull IChatBaseComponent message) {
+        plugin.getLogger().warn(EnumChatFormat.RED.getFormat() + message.toLegacyText());
     }
 
     @Override
     public String getServerVersionInfo() {
         return "[Sponge] " + Sponge.getPlatform().getMinecraftVersion().getName();
+    }
+
+    @Override
+    public double getTPS() {
+        return Sponge.getServer().getTicksPerSecond();
+    }
+
+    @Override
+    public double getMSPT() {
+        return -1; // Not available
     }
 }

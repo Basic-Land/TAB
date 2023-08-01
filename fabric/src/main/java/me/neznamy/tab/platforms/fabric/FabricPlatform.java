@@ -1,5 +1,6 @@
 package me.neznamy.tab.platforms.fabric;
 
+import me.neznamy.tab.platforms.fabric.features.FabricNameTagX;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
@@ -15,7 +16,10 @@ import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public final class FabricPlatform implements BackendPlatform {
+/**
+ * Platform implementation for Fabric
+ */
+public record FabricPlatform(MinecraftServer server) implements BackendPlatform {
 
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
@@ -24,24 +28,19 @@ public final class FabricPlatform implements BackendPlatform {
 
     @Override
     public void loadPlayers() {
-        for (ServerPlayer player : PlayerLookup.all(FabricTAB.getInstance().getServer())) {
+        for (ServerPlayer player : PlayerLookup.all(server)) {
             TAB.getInstance().addPlayer(new FabricTabPlayer(player));
         }
     }
 
     @Override
-    public void registerPlaceholders() {
-        new FabricPlaceholderRegistry().registerPlaceholders(TAB.getInstance().getPlaceholderManager());
+    public @NotNull PipelineInjector createPipelineInjector() {
+        return new FabricPipelineInjector();
     }
 
     @Override
     public @NotNull NameTag getUnlimitedNameTags() {
-        return new NameTag();
-    }
-
-    @Override
-    public @Nullable PipelineInjector createPipelineInjector() {
-        return null;
+        return new FabricNameTagX();
     }
 
     @Override
@@ -55,12 +54,27 @@ public final class FabricPlatform implements BackendPlatform {
     }
 
     @Override
-    public void sendConsoleMessage(@NotNull IChatBaseComponent message) {
+    public void logInfo(@NotNull IChatBaseComponent message) {
         MinecraftServer.LOGGER.info("[TAB] " + message.toRawText());
+    }
+
+    @Override
+    public void logWarn(@NotNull IChatBaseComponent message) {
+        MinecraftServer.LOGGER.warn("[TAB] " + message.toRawText()); // Fabric console does not support colors
     }
 
     @Override
     public String getServerVersionInfo() {
         return "[Fabric] " + SharedConstants.getCurrentVersion().getName();
+    }
+
+    @Override
+    public double getTPS() {
+        return -1; // Not available
+    }
+
+    @Override
+    public double getMSPT() {
+        return server.getAverageTickTime();
     }
 }

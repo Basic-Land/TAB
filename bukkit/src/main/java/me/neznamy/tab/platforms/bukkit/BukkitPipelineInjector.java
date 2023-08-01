@@ -9,7 +9,7 @@ import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.platforms.bukkit.nms.storage.nms.NMSStorage;
+import me.neznamy.tab.platforms.bukkit.nms.NMSStorage;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.features.injection.NettyPipelineInjector;
 import me.neznamy.tab.shared.features.sorting.Sorting;
@@ -100,6 +100,9 @@ public class BukkitPipelineInjector extends NettyPipelineInjector {
                 if (newDisplayName != null) displayName = nms.toNMSComponent(newDisplayName, receiver.getVersion());
                 if (!nms.is1_19_3Plus()) BukkitTabList.PlayerInfoData_DisplayName.set(nmsData, displayName);
             }
+            if (actions.contains(TabList.Action.ADD_PLAYER.name())) {
+                TAB.getInstance().getFeatureManager().onEntryAdd(receiver, profile.getId(), profile.getName());
+            }
             if (nms.is1_19_3Plus()) {
                 // 1.19.3 is using records, which do not allow changing final fields, need to rewrite the list entirely
                 updatedList.add(BukkitTabList.newPlayerInfoData.newInstance(
@@ -130,7 +133,7 @@ public class BukkitPipelineInjector extends NettyPipelineInjector {
         //creating a new list to prevent NoSuchFieldException in minecraft packet encoder when a player is removed
         Collection<String> newList = new ArrayList<>();
         for (String entry : players) {
-            TabPlayer p = TAB.getInstance().getPlayer(entry);
+            TabPlayer p = getPlayer(entry);
             if (p == null) {
                 newList.add(entry);
                 continue;
