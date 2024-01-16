@@ -4,13 +4,15 @@ import lombok.Getter;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
-import me.neznamy.tab.shared.platform.bossbar.AdventureBossBar;
+import me.neznamy.tab.shared.hook.AdventureHook;
+import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.Scoreboard;
-import me.neznamy.tab.shared.platform.bossbar.BossBar;
+import me.neznamy.tab.shared.platform.BossBar;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.data.Keys;
 import org.spongepowered.api.effect.potion.PotionEffect;
 import org.spongepowered.api.effect.potion.PotionEffectTypes;
@@ -21,16 +23,34 @@ import org.spongepowered.api.profile.property.ProfileProperty;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * TabPlayer implementation for Sponge 8.
+ */
 @Getter
 public class SpongeTabPlayer extends BackendTabPlayer {
 
+    @NotNull
     private final Scoreboard<SpongeTabPlayer> scoreboard = new SpongeScoreboard(this);
+
+    @NotNull
     private final TabList tabList = new SpongeTabList(this);
+
+    @NotNull
     private final BossBar bossBar = new AdventureBossBar(this);
+
+    @NotNull
     private final EntityView entityView = new DummyEntityView();
 
-    public SpongeTabPlayer(ServerPlayer player) {
-        super(player, player.uniqueId(), player.name(), player.world().key().value());
+    /**
+     * Constructs new instance with given parameters.
+     *
+     * @param   platform
+     *          Server platform
+     * @param   player
+     *          Platform's player object
+     */
+    public SpongeTabPlayer(@NotNull SpongePlatform platform, @NotNull ServerPlayer player) {
+        super(platform, player, player.uniqueId(), player.name(), player.world().key().value());
     }
 
     @Override
@@ -45,7 +65,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
 
     @Override
     public void sendMessage(@NotNull IChatBaseComponent message) {
-        getPlayer().sendMessage(message.toAdventureComponent(getVersion()));
+        getPlayer().sendMessage(AdventureHook.toAdventureComponent(message, getVersion()));
     }
 
     @Override
@@ -62,6 +82,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
+    @Nullable
     public TabList.Skin getSkin() {
         List<ProfileProperty> list = getPlayer().profile().properties();
         if (list.isEmpty()) return null; // Offline mode
@@ -69,13 +90,19 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public @NotNull ServerPlayer getPlayer() {
+    @NotNull
+    public ServerPlayer getPlayer() {
         return (ServerPlayer) player;
     }
 
     @Override
     public boolean isOnline() {
         return getPlayer().isOnline();
+    }
+
+    @Override
+    public SpongePlatform getPlatform() {
+        return (SpongePlatform) platform;
     }
 
     @Override
@@ -97,6 +124,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
+    @NotNull
     public String getDisplayName() {
         return PlainTextComponentSerializer.plainText().serialize(getPlayer().displayName().get());
     }

@@ -23,31 +23,43 @@ import java.util.UUID;
 /**
  * Feature handler for TabList display names
  */
+@Getter
 public class PlayerList extends TabFeature implements TabListFormatManager, JoinListener, DisplayNameListener, Loadable,
         UnLoadable, WorldSwitchListener, ServerSwitchListener, Refreshable, VanishListener {
 
-    @Getter protected final String featureName = "Tablist name formatting";
-    @Getter private final String refreshDisplayName = "Updating TabList format";
+    protected final String featureName = "Tablist name formatting";
+    private final String refreshDisplayName = "Updating TabList format";
 
     /** Config option toggling anti-override which prevents other plugins from overriding TAB */
-    @Getter protected final boolean antiOverrideTabList = TAB.getInstance().getConfiguration().getConfig().getBoolean("tablist-name-formatting.anti-override", true);
+    protected final boolean antiOverrideTabList = config().getBoolean("tablist-name-formatting.anti-override", true);
 
     private final LayoutManagerImpl layoutManager = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.LAYOUT);
     private RedisSupport redis;
-    @Getter protected final DisableChecker disableChecker;
+    protected final DisableChecker disableChecker;
 
     /**
      * Flag tracking when the plugin is disabling to properly clear
      * display name by setting it to null value and not force the value back
      * with the anti-override.
      */
-    private boolean disabling = false;
+    private boolean disabling;
 
+    /**
+     * Constructs new instance, registers disable checker into feature manager and starts anti-override.
+     */
     public PlayerList() {
-        Condition disableCondition = Condition.getCondition(TAB.getInstance().getConfig().getString("tablist-name-formatting.disable-condition"));
+        Condition disableCondition = Condition.getCondition(config().getString("tablist-name-formatting.disable-condition"));
         disableChecker = new DisableChecker(featureName, disableCondition, this::onDisableConditionChange);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.PLAYER_LIST + "-Condition", disableChecker);
-        if (!antiOverrideTabList) TAB.getInstance().getMisconfigurationHelper().tablistAntiOverrideDisabled();
+        if (antiOverrideTabList) {
+            TAB.getInstance().getCPUManager().startRepeatingMeasuredTask(500, featureName, TabConstants.CpuUsageCategory.ANTI_OVERRIDE, () -> {
+                for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
+                    p.getTabList().checkDisplayNames();
+                }
+            });
+        } else {
+            TAB.getInstance().getConfigHelper().startup().tablistAntiOverrideDisabled();
+        }
     }
 
     /**
@@ -179,6 +191,14 @@ public class PlayerList extends TabFeature implements TabListFormatManager, Join
         if (updateProperties(changed) && !disableChecker.isDisabledPlayer(changed)) updatePlayer(changed, true);
     }
 
+    /**
+     * Processes disable condition change.
+     *
+     * @param   p
+     *          Player who the condition has changed for
+     * @param   disabledNow
+     *          Whether the feature is disabled now or not
+     */
     public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
         updatePlayer(p, !disabledNow);
     }
@@ -238,8 +258,9 @@ public class PlayerList extends TabFeature implements TabListFormatManager, Join
 
     @Override
     public void onVanishStatusChange(@NotNull TabPlayer player) {
-        if (player.isVanished()) return;
+        if (player.isVanished() || disableChecker.isDisabledPlayer(player)) return;
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+            if (viewer.getVersion().getMinorVersion() < 8) continue;
             viewer.getTabList().updateDisplayName(player.getTablistId(), getTabFormat(player, viewer));
         }
     }

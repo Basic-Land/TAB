@@ -18,8 +18,17 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Command handler for plugin's command for Fabric.
+ */
 public class FabricTabCommand {
 
+    /**
+     * Handles command register request from server and registers own command.
+     *
+     * @param   dispatcher
+     *          Dispatcher to register command to
+     */
     public void onRegisterCommands(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
         LiteralCommandNode<CommandSourceStack> command = Commands.literal(TabConstants.COMMAND_BACKEND)
                 .executes(context -> executeCommand(context.getSource(), new String[0]))
@@ -32,6 +41,7 @@ public class FabricTabCommand {
         dispatcher.getRoot().addChild(command);
     }
 
+    @NotNull
     private String[] getArguments(@NotNull CommandContext<CommandSourceStack> context) {
         String input = context.getInput();
         int firstSpace = input.indexOf(' ');
@@ -45,12 +55,14 @@ public class FabricTabCommand {
         return args;
     }
 
+    @SuppressWarnings("SameReturnValue") // Unused by plugin
     private int executeCommand(@NotNull CommandSourceStack source, @NotNull String[] args) {
         if (TAB.getInstance().isPluginDisabled()) {
-            boolean hasReloadPermission = FabricTAB.hasPermission(source, TabConstants.Permission.COMMAND_RELOAD);
-            boolean hasAdminPermission = FabricTAB.hasPermission(source, TabConstants.Permission.COMMAND_ALL);
+            boolean hasReloadPermission = ((FabricPlatform)TAB.getInstance().getPlatform()).hasPermission(source, TabConstants.Permission.COMMAND_RELOAD);
+            boolean hasAdminPermission = ((FabricPlatform)TAB.getInstance().getPlatform()).hasPermission(source, TabConstants.Permission.COMMAND_ALL);
             for (String message : TAB.getInstance().getDisabledCommand().execute(args, hasReloadPermission, hasAdminPermission)) {
-                source.sendSystemMessage(FabricTAB.toComponent(IChatBaseComponent.optimizedComponent(message), TAB.getInstance().getServerVersion()));
+                FabricMultiVersion.sendMessage2.accept(source, ((FabricPlatform)TAB.getInstance().getPlatform()).toComponent(
+                        IChatBaseComponent.optimizedComponent(message), TAB.getInstance().getServerVersion()));
             }
         } else {
             if (source.getEntity() == null) {
@@ -63,20 +75,23 @@ public class FabricTabCommand {
         return 0;
     }
 
-    private @NotNull CompletableFuture<Suggestions> getSuggestions(@NotNull CommandSourceStack source, @NotNull String[] args, @NotNull SuggestionsBuilder builder) {
+    @NotNull
+    private CompletableFuture<Suggestions> getSuggestions(@NotNull CommandSourceStack source, @NotNull String[] args,
+                                                          @NotNull SuggestionsBuilder builder) {
         TabPlayer player = null;
         if (source.getEntity() != null) {
             player = TAB.getInstance().getPlayer(source.getEntity().getUUID());
             if (player == null) return Suggestions.empty();
         }
 
-        int lastSpace = builder.getRemaining().lastIndexOf(' ');
+        SuggestionsBuilder newBuilder = builder;
+        int lastSpace = newBuilder.getRemaining().lastIndexOf(' ');
         if (lastSpace != -1) {
-            builder = builder.createOffset(lastSpace + 1 + builder.getStart());
+            newBuilder = newBuilder.createOffset(lastSpace + 1 + newBuilder.getStart());
         }
         for (String suggestion : TAB.getInstance().getCommand().complete(player, args)) {
-            builder.suggest(suggestion);
+            newBuilder.suggest(suggestion);
         }
-        return builder.buildFuture();
+        return newBuilder.buildFuture();
     }
 }

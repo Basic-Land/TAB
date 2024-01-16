@@ -2,12 +2,12 @@ package me.neznamy.tab.shared.config.file;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -26,9 +26,6 @@ import me.neznamy.yamlassist.YamlAssist;
  */
 public class YamlConfigurationFile extends ConfigurationFile {
 
-    /** SnakeYAML instance */
-    private final Yaml yaml;
-
     /**
      * Constructs new instance and attempts to load specified configuration file.
      * If file does not exist, default file is copied from {@code source}.
@@ -46,15 +43,12 @@ public class YamlConfigurationFile extends ConfigurationFile {
      * @throws  IOException
      *          if I/O operation with the file unexpectedly fails
      */
-    public YamlConfigurationFile(@Nullable InputStream source, @NonNull File destination) throws YAMLException, IOException {
+    public YamlConfigurationFile(@Nullable InputStream source, @NonNull File destination) throws IOException {
         super(source, destination);
         FileInputStream input = null;
         try {
             input = new FileInputStream(file);
-            DumperOptions options = new DumperOptions();
-            options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-            yaml = new Yaml(options);
-            values = yaml.load(input);
+            values = new Yaml().load(input);
             if (values == null) values = new LinkedHashMap<>();
             input.close();
         } catch (YAMLException e) {
@@ -77,8 +71,10 @@ public class YamlConfigurationFile extends ConfigurationFile {
     @Override
     public void save() {
         try {
-            Writer writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8);
-            yaml.dump(values, writer);
+            Writer writer = new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8);
+            DumperOptions options = new DumperOptions();
+            options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+            new Yaml(options).dump(values, writer);
             writer.close();
             fixHeader();
         } catch (IOException e) {

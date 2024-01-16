@@ -1,32 +1,27 @@
 package me.neznamy.tab.platforms.bukkit;
 
-import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
 import lombok.Getter;
-import lombok.SneakyThrows;
-import me.neznamy.tab.platforms.bukkit.nms.PacketEntityView;
+import me.neznamy.tab.platforms.bukkit.bossbar.BossBarLoader;
+import me.neznamy.tab.platforms.bukkit.hook.LibsDisguisesHook;
+import me.neznamy.tab.platforms.bukkit.entity.PacketEntityView;
+import me.neznamy.tab.platforms.bukkit.nms.PingRetriever;
 import me.neznamy.tab.platforms.bukkit.platform.BukkitPlatform;
-import me.neznamy.tab.platforms.bukkit.scoreboard.PacketScoreboard;
+import me.neznamy.tab.platforms.bukkit.scoreboard.ScoreboardLoader;
+import me.neznamy.tab.platforms.bukkit.tablist.TabListBase;
+import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
-import me.neznamy.tab.shared.chat.rgb.RGBUtils;
-import me.neznamy.tab.shared.platform.bossbar.BossBar;
+import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.platforms.bukkit.bossbar.EntityBossBar;
-import me.neznamy.tab.platforms.bukkit.bossbar.BukkitBossBar;
-import me.neznamy.tab.platforms.bukkit.bossbar.ViaBossBar;
-import me.neznamy.tab.platforms.bukkit.nms.NMSStorage;
 import me.neznamy.tab.shared.platform.Scoreboard;
-import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
-import org.bukkit.entity.Entity;
+import me.neznamy.tab.shared.util.ReflectionUtils;
+import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Collection;
 
 /**
  * TabPlayer implementation for Bukkit platform
@@ -35,29 +30,30 @@ import java.util.Collection;
 @Getter
 public class BukkitTabPlayer extends BackendTabPlayer {
 
-    /** Player's NMS handle (EntityPlayer), preloading for speed */
-    private final Object handle;
+    private static final boolean spigot = ReflectionUtils.classExists("net.md_5.bungee.chat.ComponentSerializer");
 
-    /** Player's connection for sending packets, preloading for speed */
-    private final Object playerConnection;
+    @NotNull
+    private final Scoreboard<BukkitTabPlayer> scoreboard = ScoreboardLoader.getInstance().apply(this);
 
-    private final Scoreboard<BukkitTabPlayer> scoreboard = new PacketScoreboard(this);
-    private final TabList tabList = new BukkitTabList(this);
-    private final BossBar bossBar = TAB.getInstance().getServerVersion().getMinorVersion() >= 9 ?
-            new BukkitBossBar(this) : getVersion().getMinorVersion() >= 9 ? new ViaBossBar(this) : new EntityBossBar(this);
-    private final EntityView entityView = new PacketEntityView(this);
+    @NotNull
+    private final TabListBase tabList = TabListBase.getInstance().apply(this);
+
+    @NotNull
+    private final BossBar bossBar = BossBarLoader.findInstance(this);
+
+    @NotNull
+    private final EntityView entityView = PacketEntityView.isAvailable() ? new PacketEntityView(this) : new DummyEntityView();
 
     /**
-     * Constructs new instance with given bukkit player and protocol version
+     * Constructs new instance with given bukkit player
      *
+     * @param   platform
+     *          Server platform
      * @param   p
      *          bukkit player
      */
-    @SneakyThrows
-    public BukkitTabPlayer(Player p) {
-        super(p, p.getUniqueId(), p.getName(), p.getWorld().getName());
-        handle = NMSStorage.getInstance().getHandle.invoke(player);
-        playerConnection = NMSStorage.getInstance().PLAYER_CONNECTION.get(handle);
+    public BukkitTabPlayer(@NotNull BukkitPlatform platform, @NotNull Player p) {
+        super(platform, p, p.getUniqueId(), p.getName(), p.getWorld().getName());
     }
 
     @Override
@@ -66,24 +62,17 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    @SneakyThrows
     public int getPing() {
-        if (TAB.getInstance().getServerVersion().getMinorVersion() >= 17) {
-            return getPlayer().getPing();
-        }
-        return NMSStorage.getInstance().PING.getInt(handle);
-    }
-
-    @SneakyThrows
-    public void sendPacket(@Nullable Object nmsPacket) {
-        if (nmsPacket == null || !getPlayer().isOnline()) return;
-        NMSStorage.getInstance().sendPacket.invoke(playerConnection, nmsPacket);
+        return PingRetriever.getPing(getPlayer());
     }
 
     @Override
     public void sendMessage(@NotNull IChatBaseComponent message) {
-        getPlayer().sendMessage(RGBUtils.getInstance().convertToBukkitFormat(message.toFlatText(),
-                getVersion().getMinorVersion() >= 16 && TAB.getInstance().getServerVersion().getMinorVersion() >= 16));
+        if (spigot) {
+            getPlayer().spigot().sendMessage(ComponentSerializer.parse(message.toString(getVersion())));
+        } else {
+            getPlayer().sendMessage(BukkitUtils.toBukkitFormat(message, getVersion().supportsRGB()));
+        }
     }
 
     @Override
@@ -93,34 +82,29 @@ public class BukkitTabPlayer extends BackendTabPlayer {
 
     @Override
     public boolean isDisguised() {
-        try {
-            if (!((BukkitPlatform)TAB.getInstance().getPlatform()).isLibsDisguisesEnabled()) return false;
-            return (boolean) Class.forName("me.libraryaddict.disguise.DisguiseAPI").getMethod("isDisguised", Entity.class).invoke(null, getPlayer());
-        } catch (LinkageError | ReflectiveOperationException e) {
-            //java.lang.NoClassDefFoundError: Could not initialize class me.libraryaddict.disguise.DisguiseAPI
-            TAB.getInstance().getErrorManager().printError("Failed to check disguise status using LibsDisguises", e);
-            ((BukkitPlatform)TAB.getInstance().getPlatform()).setLibsDisguisesEnabled(false);
-            return false;
-        }
+        return LibsDisguisesHook.isDisguised(this);
     }
 
     @Override
-    @SneakyThrows
+    @Nullable
     public TabList.Skin getSkin() {
-        Collection<Property> col = ((GameProfile)NMSStorage.getInstance().getProfile.invoke(handle)).getProperties().get(TabList.TEXTURES_PROPERTY);
-        if (col.isEmpty()) return null; //offline mode
-        Property property = col.iterator().next();
-        return new TabList.Skin(property.getValue(), property.getSignature());
+        return tabList.getSkin();
     }
 
     @Override
-    public @NotNull Player getPlayer() {
+    @NotNull
+    public Player getPlayer() {
         return (Player) player;
     }
 
     @Override
     public boolean isOnline() {
         return getPlayer().isOnline();
+    }
+
+    @Override
+    public BukkitPlatform getPlatform() {
+        return (BukkitPlatform) platform;
     }
 
     @Override
@@ -139,6 +123,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     }
 
     @Override
+    @NotNull
     public String getDisplayName() {
         return getPlayer().getDisplayName();
     }

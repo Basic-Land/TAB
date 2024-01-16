@@ -18,8 +18,15 @@ import org.jetbrains.annotations.NotNull;
 public class BungeeRedisSupport extends RedisSupport implements Listener {
 
     /** Plugin reference for registering listener */
-    @NotNull private final BungeeTAB plugin;
+    @NotNull
+    private final BungeeTAB plugin;
 
+    /**
+     * Listens to messages coming from other proxies.
+     *
+     * @param   e
+     *          Message event
+     */
     @EventHandler
     public void onMessage(@NotNull PubSubMessageEvent e) {
         if (!e.getChannel().equals(TabConstants.REDIS_CHANNEL_NAME)) return;

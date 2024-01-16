@@ -24,15 +24,15 @@ import org.jetbrains.annotations.Nullable;
 
 @Getter
 public class LayoutManagerImpl extends TabFeature implements LayoutManager, JoinListener, QuitListener, VanishListener, Loadable,
-        UnLoadable, Refreshable, ServerSwitchListener {
+        UnLoadable, Refreshable, TabListClearListener {
 
     /** Config options */
-    private final Direction direction = parseDirection(TAB.getInstance().getConfig().getString("layout.direction", "COLUMNS"));
-    private final String defaultSkin = TAB.getInstance().getConfig().getString("layout.default-skin", "mineskin:1753261242");
+    private final Direction direction = parseDirection(config().getString("layout.direction", "COLUMNS"));
+    private final String defaultSkin = config().getString("layout.default-skin", "mineskin:1753261242");
     private final Map<Integer, String> defaultSkinHashMap = loadDefaultSkins();
-    private final boolean remainingPlayersTextEnabled = TAB.getInstance().getConfig().getBoolean("layout.enable-remaining-players-text", true);
-    private final String remainingPlayersText = EnumChatFormat.color(TAB.getInstance().getConfig().getString("layout.remaining-players-text", "... and %s more"));
-    private final int emptySlotPing = TAB.getInstance().getConfig().getInt("layout.empty-slot-ping-value", 1000);
+    private final boolean remainingPlayersTextEnabled = config().getBoolean("layout.enable-remaining-players-text", true);
+    private final String remainingPlayersText = EnumChatFormat.color(config().getString("layout.remaining-players-text", "... and %s more"));
+    private final int emptySlotPing = config().getInt("layout.empty-slot-ping-value", 1000);
 
     private final SkinManager skinManager = new SkinManager(defaultSkin, defaultSkinHashMap);
     private final Map<Integer, UUID> uuids = new HashMap<Integer, UUID>() {{
@@ -50,6 +50,8 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
     private final WeakHashMap<TabPlayer, LayoutView> views = new WeakHashMap<>();
     private final WeakHashMap<me.neznamy.tab.api.TabPlayer, LayoutPattern> forcedLayouts = new WeakHashMap<>();
 
+    private static boolean teamsEnabled;
+
     public String getDefaultSkin(int slot) {
         return defaultSkinHashMap.getOrDefault(slot, defaultSkin);
     }
@@ -57,7 +59,7 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
     @SuppressWarnings("unchecked")
     private Map<Integer, String> loadDefaultSkins() {
         Map<Integer, String> defaultSkins = new HashMap<>();
-        ConfigurationFile config = TAB.getInstance().getConfig();
+        ConfigurationFile config = config();
         Map<String, Map<String, Object>> section = config.getConfigurationSection("layout.default-skins");
         for (Entry<String, Map<String, Object>> entry : section.entrySet()) {
             Map<String, Object> skinData = entry.getValue();
@@ -77,6 +79,7 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
     @Override
     public void load() {
         playerList = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PLAYER_LIST);
+        teamsEnabled = TAB.getInstance().getNameTagManager() != null;
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.LAYOUT_LATENCY, new LayoutLatencyRefresher(this));
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
             onJoin(p);
@@ -87,14 +90,14 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
         try {
             return Direction.valueOf(value);
         } catch (IllegalArgumentException e) {
-            TAB.getInstance().getMisconfigurationHelper().invalidLayoutDirection(value);
+            TAB.getInstance().getConfigHelper().startup().invalidLayoutDirection(value);
             return Direction.COLUMNS;
         }
     }
 
     private @NotNull Map<String, LayoutPattern> loadLayouts() {
         Map<String, LayoutPattern> layoutMap = new LinkedHashMap<>();
-        for (Entry<Object, Map<String, Object>> layout : TAB.getInstance().getConfig().<Object, Map<String, Object>>getConfigurationSection("layout.layouts").entrySet()) {
+        for (Entry<Object, Map<String, Object>> layout : config().<Object, Map<String, Object>>getConfigurationSection("layout.layouts").entrySet()) {
             LayoutPattern pattern = new LayoutPattern(this, layout.getKey().toString(), layout.getValue());
             layoutMap.put(pattern.getName(), pattern);
             TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.layout(layout.getKey().toString()), pattern);
@@ -179,12 +182,6 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
     }
 
     @Override
-    public void onServerChange(@NotNull TabPlayer changed, @NotNull String from, @NotNull String to) {
-        LayoutView view = views.get(changed);
-        if (view != null) view.send();
-    }
-
-    @Override
     public Layout createNewLayout(String name) {
         return new LayoutPattern(this, name, Collections.emptyMap());
     }
@@ -201,6 +198,12 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
         refresh((TabPlayer) player, false);
     }
 
+    @Override
+    public void onTabListClear(@NotNull TabPlayer player) {
+        LayoutView view = views.get(player);
+        if (view != null) view.send();
+    }
+
     @RequiredArgsConstructor
     public enum Direction {
 
@@ -209,14 +212,20 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
 
         @NotNull private final Function<Integer, Integer> slotTranslator;
 
-        // 1.19.2-
         public int translateSlot(int slot) {
             return slotTranslator.apply(slot);
         }
 
-        // 1.19.3+
         public String getEntryName(TabPlayer viewer, int slot) {
-            return viewer.getVersion().getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId() ? "|slot_" + (10+slotTranslator.apply(slot)) : "";
+            if (viewer.getVersion().getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId()) {
+                if (teamsEnabled) {
+                    return "|slot_" + (10+slotTranslator.apply(slot));
+                } else {
+                    return " slot_" + (10+slotTranslator.apply(slot));
+                }
+            } else {
+                return "";
+            }
         }
     }
 }

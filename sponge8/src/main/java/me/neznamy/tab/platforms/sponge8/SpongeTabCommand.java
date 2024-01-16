@@ -21,10 +21,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Command processor for plugin's command for Sponge 8.
+ */
 public class SpongeTabCommand implements Command.Raw {
 
     @Override
-    public CommandResult process(CommandCause cause, ArgumentReader.Mutable arguments) {
+    @NotNull
+    public CommandResult process(@NotNull CommandCause cause, @NotNull ArgumentReader.Mutable arguments) {
         String[] args = arguments.input().split(" ");
 
         if (TAB.getInstance().isPluginDisabled()) {
@@ -46,7 +50,8 @@ public class SpongeTabCommand implements Command.Raw {
     }
 
     @Override
-    public @NotNull List<CommandCompletion> complete(CommandCause cause, ArgumentReader.Mutable arguments) {
+    @NotNull
+    public List<CommandCompletion> complete(@NotNull CommandCause cause, @NotNull ArgumentReader.Mutable arguments) {
         TabPlayer player = null;
         Player source = cause.context().get(EventContextKeys.PLAYER).orElse(null);
         if (source != null) {
@@ -62,22 +67,25 @@ public class SpongeTabCommand implements Command.Raw {
     }
 
     @Override
-    public boolean canExecute(CommandCause cause) {
+    public boolean canExecute(@NotNull CommandCause cause) {
         return true;
     }
 
     @Override
-    public Optional<Component> shortDescription(CommandCause cause) {
+    @NotNull
+    public Optional<Component> shortDescription(@NotNull CommandCause cause) {
         return Optional.empty();
     }
 
     @Override
-    public Optional<Component> extendedDescription(CommandCause cause) {
+    @NotNull
+    public Optional<Component> extendedDescription(@NotNull CommandCause cause) {
         return Optional.empty();
     }
 
     @Override
-    public Component usage(CommandCause cause) {
+    @NotNull
+    public Component usage(@NotNull CommandCause cause) {
         return Component.empty();
     }
 }

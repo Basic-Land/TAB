@@ -11,10 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 /**
@@ -48,7 +45,7 @@ public abstract class ConfigurationFile {
      *          if I/O operation with the file unexpectedly fails
      */
     protected ConfigurationFile(@Nullable InputStream source, @NonNull File destination) throws IOException {
-        this.file = destination;
+        file = destination;
         if (file.getParentFile() != null && !file.getParentFile().exists()) Files.createDirectories(file.getParentFile().toPath());
         if (!file.exists()) {
             if (source == null) throw new IllegalStateException("File does not exist and source is null");
@@ -186,7 +183,7 @@ public abstract class ConfigurationFile {
         Object value = getObject(path, defaultValue);
         if (value == null) return defaultValue;
         if (!(value instanceof List)) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
         List<String> fixedList = new ArrayList<>();
         for (Object key : (List<Object>)value) {
@@ -275,7 +272,7 @@ public abstract class ConfigurationFile {
      * @return  value from configuration file as {@code Map<K, V>}
      */
     public @NotNull <K, V> Map<K, V> getConfigurationSection(@NonNull String path) {
-        if (path.length() == 0) return (Map<K, V>) values;
+        if (path.isEmpty()) return (Map<K, V>) values;
         Object value = getObject(path, null);
         if (value instanceof Map) {
             return (Map<K, V>) value;
@@ -388,5 +385,33 @@ public abstract class ConfigurationFile {
         if (file.createNewFile()) {
             Files.write(file.toPath(), content);
         }
+    }
+
+    /**
+     * Sets value to specified key if key does not exist.
+     *
+     * @param   key
+     *          Map key
+     * @param   value
+     *          Value to insert if missing
+     */
+    public void setIfMissing(@NotNull String key, @NotNull String value) {
+        if (!hasConfigOption(key)) set(key, value);
+    }
+
+    /**
+     * Removes option from config if present and returns {@code true}. If option was
+     * not present, returns {@code false}.
+     *
+     * @param   key
+     *          Key to remove
+     * @return  {@code true} if option was present and removed, {@code false} if not.
+     */
+    public boolean removeOption(@NotNull String key) {
+        if (hasConfigOption(key)) {
+            set(key, null);
+            return true;
+        }
+        return false;
     }
 }

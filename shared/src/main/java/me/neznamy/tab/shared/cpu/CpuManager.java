@@ -6,10 +6,7 @@ import java.util.concurrent.*;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -35,6 +32,7 @@ public class CpuManager {
             new ThreadFactoryBuilder().setNameFormat("TAB Processing Thread").build());
 
     /** Scheduler for placeholder refreshing task to prevent inefficient placeholders from lagging the entire plugin */
+    @Getter
     private final ScheduledExecutorService placeholderThread = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat("TAB Placeholder Refreshing Thread").build());
 
@@ -42,21 +40,23 @@ public class CpuManager {
     private final Queue<Runnable> taskQueue = new ConcurrentLinkedQueue<>();
 
     /** Enabled flag used to queue incoming tasks if plugin is not enabled yet */
-    private volatile boolean enabled = false;
+    private volatile boolean enabled;
 
     /**
      * Constructs new instance and starts repeating task that resets values in configured interval
      */
     public CpuManager() {
         startRepeatingTask((int) TimeUnit.SECONDS.toMillis(UPDATE_RATE_SECONDS), () -> {
-            lastReport = new CpuReport(UPDATE_RATE_SECONDS, featureUsageCurrent, placeholderUsageCurrent);
+            CpuReport newReport = new CpuReport(UPDATE_RATE_SECONDS, featureUsageCurrent, placeholderUsageCurrent);
+            if (lastReport != null) {
+                long timeDiff = newReport.getTimeStamp() - lastReport.getTimeStamp();
+                if (timeDiff > 12000 && TAB.getInstance().getConfiguration().isDebugMode()) { // Extra time to prevent false trigger
+                    newReport.printToConsole(timeDiff);
+                }
+            }
+            lastReport = newReport;
             featureUsageCurrent = new ConcurrentHashMap<>();
             placeholderUsageCurrent = new ConcurrentHashMap<>();
-            if (lastReport.getPlaceholderUsageTotal() > 50) {
-                TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("CPU usage of placeholders is " + (int) lastReport.getPlaceholderUsageTotal() +
-                        "%. See /" + (TAB.getInstance().getServerVersion() == ProtocolVersion.PROXY ? TabConstants.COMMAND_PROXY : TabConstants.COMMAND_BACKEND) +
-                        " cpu for more info. Try increasing refresh intervals."));
-            }
         });
     }
 
@@ -73,21 +73,10 @@ public class CpuManager {
      */
     public void enable() {
         enabled = true;
-
         Runnable r;
         while ((r = taskQueue.poll()) != null) {
             submit(r);
         }
-        // This one cannot be queued to processing thread, because we want it in different thread
-        placeholderThread.scheduleAtFixedRate(() -> run(() -> {
-                    long time = System.nanoTime();
-                    TAB.getInstance().getPlaceholderManager().refresh();
-                    addTime(TAB.getInstance().getPlaceholderManager().getFeatureName(), TabConstants.CpuUsageCategory.PLACEHOLDER_REFRESHING, System.nanoTime() - time);
-                }),
-                TabConstants.Placeholder.MINIMUM_REFRESH_INTERVAL,
-                TabConstants.Placeholder.MINIMUM_REFRESH_INTERVAL,
-                TimeUnit.MILLISECONDS
-        );
     }
 
     /**

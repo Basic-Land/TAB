@@ -6,22 +6,29 @@ import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.placeholders.PlayerPlaceholderImpl;
+import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
 
 /**
- * Platform override for Folia
+ * Platform override for Folia.
  */
 public class FoliaPlatform extends BukkitPlatform {
 
-    public FoliaPlatform(JavaPlugin plugin) {
+    /**
+     * Constructs new instance with given plugin.
+     *
+     * @param   plugin
+     *          Plugin
+     */
+    public FoliaPlatform(@NotNull JavaPlugin plugin) {
         super(plugin);
     }
 
@@ -49,7 +56,7 @@ public class FoliaPlatform extends BukkitPlatform {
     }
 
     @Override
-    public void registerSyncPlaceholder(String identifier, int refresh) {
+    public void registerSyncPlaceholder(@NotNull String identifier, int refresh) {
         String syncedPlaceholder = "%" + identifier.substring(6);
         PlayerPlaceholderImpl[] ppl = new PlayerPlaceholderImpl[1];
         ppl[0] = TAB.getInstance().getPlaceholderManager().registerPlayerPlaceholder(identifier, refresh, p -> {
@@ -73,9 +80,10 @@ public class FoliaPlatform extends BukkitPlatform {
      * @param   task
      *          Task to run
      */
+    @Override
     @SneakyThrows
     @SuppressWarnings("JavaReflectionMemberAccess")
-    private void runSync(Entity entity, Runnable task) {
+    public void runSync(@NotNull Entity entity, @NotNull Runnable task) {
         Object entityScheduler = Entity.class.getMethod("getScheduler").invoke(entity);
         Consumer<?> consumer = $ -> task.run(); // Reflection and lambdas don't go together
         entityScheduler.getClass().getMethod("run", Plugin.class, Consumer.class, Runnable.class)
@@ -83,7 +91,7 @@ public class FoliaPlatform extends BukkitPlatform {
     }
 
     @Override
-    public void runEntityTask(Entity entity, Runnable task) {
+    public void runEntityTask(@NotNull Entity entity, @NotNull Runnable task) {
         runSync(entity, task);
     }
 }

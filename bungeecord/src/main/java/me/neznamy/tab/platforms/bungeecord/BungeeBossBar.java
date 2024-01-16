@@ -1,10 +1,10 @@
 package me.neznamy.tab.platforms.bungeecord;
 
 import lombok.RequiredArgsConstructor;
-import me.neznamy.tab.shared.platform.bossbar.BossBar;
+import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
@@ -18,11 +18,15 @@ import java.util.UUID;
  */
 @RequiredArgsConstructor
 public class BungeeBossBar implements BossBar {
-    
-    private final @NotNull BungeeTabPlayer player;
+
+    @NotNull
+    private final BungeeTabPlayer player;
 
     /** Both are included in the same action, need to remember and write them both */
+    @NotNull
     private final Map<UUID, Integer> colors = new HashMap<>();
+
+    @NotNull
     private final Map<UUID, Integer> styles = new HashMap<>();
 
     @Override
@@ -31,10 +35,10 @@ public class BungeeBossBar implements BossBar {
 
         net.md_5.bungee.protocol.packet.BossBar packet = new net.md_5.bungee.protocol.packet.BossBar(id, 0);
         packet.setHealth(progress);
-        packet.setTitle(IChatBaseComponent.optimizedComponent(title).toString(player.getVersion()));
+        packet.setTitle(player.getPlatform().toComponent(IChatBaseComponent.optimizedComponent(title), player.getVersion()));
         packet.setColor(color.ordinal());
         packet.setDivision(style.ordinal());
-        player.getPlayer().unsafe().sendPacket(packet);
+        player.sendPacket(packet);
 
         colors.put(id, color.ordinal());
         styles.put(id, style.ordinal());
@@ -45,8 +49,8 @@ public class BungeeBossBar implements BossBar {
         if (player.getVersion().getMinorVersion() < 9) return;
 
         net.md_5.bungee.protocol.packet.BossBar packet = new net.md_5.bungee.protocol.packet.BossBar(id, 3);
-        packet.setTitle(IChatBaseComponent.optimizedComponent(title).toString(player.getVersion()));
-        player.getPlayer().unsafe().sendPacket(packet);
+        packet.setTitle(player.getPlatform().toComponent(IChatBaseComponent.optimizedComponent(title), player.getVersion()));
+        player.sendPacket(packet);
     }
 
     @Override
@@ -55,7 +59,7 @@ public class BungeeBossBar implements BossBar {
 
         net.md_5.bungee.protocol.packet.BossBar packet = new net.md_5.bungee.protocol.packet.BossBar(id, 2);
         packet.setHealth(progress);
-        player.getPlayer().unsafe().sendPacket(packet);
+        player.sendPacket(packet);
     }
 
     @Override
@@ -65,7 +69,7 @@ public class BungeeBossBar implements BossBar {
         net.md_5.bungee.protocol.packet.BossBar packet = new net.md_5.bungee.protocol.packet.BossBar(id, 4);
         packet.setDivision(style.ordinal());
         packet.setColor(colors.get(id));
-        player.getPlayer().unsafe().sendPacket(packet);
+        player.sendPacket(packet);
 
         styles.put(id, style.ordinal());
     }
@@ -77,7 +81,7 @@ public class BungeeBossBar implements BossBar {
         net.md_5.bungee.protocol.packet.BossBar packet = new net.md_5.bungee.protocol.packet.BossBar(id, 4);
         packet.setDivision(styles.get(id));
         packet.setColor(color.ordinal());
-        player.getPlayer().unsafe().sendPacket(packet);
+        player.sendPacket(packet);
 
         colors.put(id, color.ordinal());
     }
@@ -86,7 +90,7 @@ public class BungeeBossBar implements BossBar {
     public void remove(@NotNull UUID id) {
         if (player.getVersion().getMinorVersion() < 9) return;
 
-        player.getPlayer().unsafe().sendPacket(new net.md_5.bungee.protocol.packet.BossBar(id, 1));
+        player.sendPacket(new net.md_5.bungee.protocol.packet.BossBar(id, 1));
 
         colors.remove(id);
         styles.remove(id);

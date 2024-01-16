@@ -42,11 +42,6 @@ public class RedisGlobalPlayerList extends RedisFeature {
     }
 
     @Override
-    public void onServerSwitch(@NotNull TabPlayer player) {
-        onJoin(player);
-    }
-
-    @Override
     public void onServerSwitch(@NotNull RedisPlayer player) {
         TAB.getInstance().getCPUManager().runTaskLater(200, redisSupport.getFeatureName(), TabConstants.CpuUsageCategory.SERVER_SWITCH, () -> {
             for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
@@ -93,6 +88,11 @@ public class RedisGlobalPlayerList extends RedisFeature {
         }
     }
 
+    @Override
+    public void onTabListClear(@NotNull TabPlayer player) {
+        onJoin(player);
+    }
+
     private boolean shouldSee(@NotNull TabPlayer viewer, @NotNull RedisPlayer target) {
         if (target.isVanished() && !viewer.hasPermission(TabConstants.Permission.SEE_VANISHED)) return false;
         if (globalPlayerList.isSpyServer(viewer.getServer())) return true;
@@ -103,5 +103,22 @@ public class RedisGlobalPlayerList extends RedisFeature {
         return new TabList.Entry(player.getUniqueId(), player.getNickname(), skins.get(player), 0, 0,
                 redisSupport.getRedisPlayerList() == null ? null :
                         IChatBaseComponent.optimizedComponent(redisSupport.getRedisPlayerList().getFormat(player)));
+    }
+
+    @Override
+    public void onVanishStatusChange(@NotNull RedisPlayer player) {
+        if (player.isVanished()) {
+            for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+                if (!shouldSee(all, player)) {
+                    all.getTabList().removeEntry(player.getUniqueId());
+                }
+            }
+        } else {
+            for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+                if (shouldSee(viewer, player)) {
+                    viewer.getTabList().addEntry(getEntry(player));
+                }
+            }
+        }
     }
 }

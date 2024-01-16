@@ -57,18 +57,18 @@ public class FixedSlot extends TabFeature implements Refreshable {
 
     public static @Nullable FixedSlot fromLine(@NotNull String line, @NotNull LayoutPattern pattern, @NotNull LayoutManagerImpl manager) {
         String[] array = line.split("\\|");
-        if (array.length < 2) {
-            TAB.getInstance().getMisconfigurationHelper().invalidFixedSlotDefinition(pattern.getName(), line);
+        if (array.length < 1) {
+            TAB.getInstance().getConfigHelper().startup().invalidFixedSlotDefinition(pattern.getName(), line);
             return null;
         }
         int slot;
         try {
             slot = Integer.parseInt(array[0]);
         } catch (NumberFormatException e) {
-            TAB.getInstance().getMisconfigurationHelper().invalidFixedSlotDefinition(pattern.getName(), line);
+            TAB.getInstance().getConfigHelper().startup().invalidFixedSlotDefinition(pattern.getName(), line);
             return null;
         }
-        String text = array[1];
+        String text = array.length > 1 ? array[1] : "";
         String skin = array.length > 2 ? array[2] : "";
         int ping = array.length > 3 ? TAB.getInstance().getErrorManager().parseInteger(array[3], manager.getEmptySlotPing()) : manager.getEmptySlotPing();
         FixedSlot f = new FixedSlot(
@@ -78,11 +78,11 @@ public class FixedSlot extends TabFeature implements Refreshable {
                 manager.getUUID(slot),
                 text,
                 "Layout-" + pattern.getName() + "-SLOT-" + slot,
-                skin.length() == 0 ? manager.getDefaultSkin(slot) : skin,
+                skin.isEmpty() ? manager.getDefaultSkin(slot) : skin,
                 "Layout-" + pattern.getName() + "-SLOT-" + slot + "-skin",
                 ping
         );
-        if (text.length() > 0) TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.layoutSlot(pattern.getName(), slot), f);
+        if (!text.isEmpty()) TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.layoutSlot(pattern.getName(), slot), f);
         return f;
     }
 }

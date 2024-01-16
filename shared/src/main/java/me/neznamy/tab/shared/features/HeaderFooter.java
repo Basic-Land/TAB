@@ -15,22 +15,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Feature handler for header and footer
+ * Feature handler for header and footer.
  */
 public class HeaderFooter extends TabFeature implements HeaderFooterManager, JoinListener, Loadable, UnLoadable,
         WorldSwitchListener, ServerSwitchListener, Refreshable {
 
     @Getter private final String featureName = "Header/Footer";
     @Getter private final String refreshDisplayName = "Updating header/footer";
-    private final List<Object> worldGroups = new ArrayList<>(TAB.getInstance().getConfig().getConfigurationSection("header-footer.per-world").keySet());
-    private final List<Object> serverGroups = new ArrayList<>(TAB.getInstance().getConfig().getConfigurationSection("header-footer.per-server").keySet());
+    private final List<Object> worldGroups = new ArrayList<>(config().getConfigurationSection("header-footer.per-world").keySet());
+    private final List<Object> serverGroups = new ArrayList<>(config().getConfigurationSection("header-footer.per-server").keySet());
     private final DisableChecker disableChecker;
 
+    /**
+     * Constructs new instance and registers disable condition checker to feature manager.
+     */
     public HeaderFooter() {
-        Condition disableCondition = Condition.getCondition(TAB.getInstance().getConfig().getString("header-footer.disable-condition"));
+        Condition disableCondition = Condition.getCondition(config().getString("header-footer.disable-condition"));
         disableChecker = new DisableChecker(featureName, disableCondition, this::onDisableConditionChange);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.HEADER_FOOTER + "-Condition", disableChecker);
-        TAB.getInstance().getMisconfigurationHelper().checkHeaderFooterForRedundancy(TAB.getInstance().getConfig().getConfigurationSection("header-footer"));
+        TAB.getInstance().getConfigHelper().hint().checkHeaderFooterForRedundancy(config().getConfigurationSection("header-footer"));
     }
 
     @Override
@@ -58,10 +61,8 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
 
     @Override
     public void onServerChange(@NotNull TabPlayer p, @NotNull String from, @NotNull String to) {
-        updateProperties(p);
-        // Velocity clears header/footer on server switch, which can be a problem without placeholders that change often
-        // Resend immediately instead of the next time a placeholder changes value
-        sendHeaderFooter(p, p.getProperty(TabConstants.Property.HEADER).get(), p.getProperty(TabConstants.Property.FOOTER).get());
+        // Velocity clears header/footer on server switch, resend regardless of whether values changed or not
+        refresh(p, true);
     }
 
     @Override
@@ -88,9 +89,16 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
         sendHeaderFooter(p, p.getProperty(TabConstants.Property.HEADER).updateAndGet(), p.getProperty(TabConstants.Property.FOOTER).updateAndGet());
     }
 
+    /**
+     * Processes disable condition change.
+     *
+     * @param   p
+     *          Player who the condition has changed for
+     * @param   disabledNow
+     *          Whether the feature is disabled now or not
+     */
     public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
         if (disabledNow) {
-            if (p.getVersion().getMinorVersion() < 8) return;
             p.getTabList().setPlayerListHeaderFooter(new IChatBaseComponent(""), new IChatBaseComponent(""));
         } else {
             sendHeaderFooter(p, p.getProperty(TabConstants.Property.HEADER).get(), p.getProperty(TabConstants.Property.FOOTER).get());
@@ -99,7 +107,7 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
 
     private String getProperty(TabPlayer p, String property) {
         String append = getFromConfig(p, property + "append");
-        if (append.length() > 0) append = "\n" + append;
+        if (!append.isEmpty()) append = "\n" + append;
         return getFromConfig(p, property) + append;
     }
 
@@ -116,19 +124,19 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
         if (value.length > 0) {
             return value[0];
         }
-        List<String> lines = TAB.getInstance().getConfiguration().getConfig().getStringList("header-footer.per-world." + TAB.getInstance().getConfiguration().getGroup(worldGroups, p.getWorld()) + "." + property);
+        List<String> lines = config().getStringList("header-footer.per-world." + TAB.getInstance().getConfiguration().getGroup(worldGroups, p.getWorld()) + "." + property);
         if (lines == null) {
-            lines = TAB.getInstance().getConfiguration().getConfig().getStringList("header-footer.per-server." + TAB.getInstance().getConfiguration().getGroup(serverGroups, p.getServer()) + "." + property);
+            lines = config().getStringList("header-footer.per-server." + TAB.getInstance().getConfiguration().getServerGroup(serverGroups, p.getServer()) + "." + property);
         }
         if (lines == null) {
-             lines = TAB.getInstance().getConfiguration().getConfig().getStringList("header-footer." + property);
+            lines = config().getStringList("header-footer." + property);
         }
         if (lines == null) lines = new ArrayList<>();
         return String.join("\n", lines);
     }
 
     private void sendHeaderFooter(TabPlayer player, String header, String footer) {
-        if (player.getVersion().getMinorVersion() < 8 || disableChecker.isDisabledPlayer(player)) return;
+        if (disableChecker.isDisabledPlayer(player)) return;
         player.getTabList().setPlayerListHeaderFooter(IChatBaseComponent.optimizedComponent(header), IChatBaseComponent.optimizedComponent(footer));
     }
 

@@ -19,13 +19,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Command processor for plugin's command for Sponge 7.
+ */
 public class SpongeTabCommand extends CommandElement implements CommandExecutor {
 
     protected SpongeTabCommand() {
         super(null);
     }
 
-    public @NotNull CommandResult execute(@NotNull CommandSource source, @NotNull CommandContext context) {
+    @NotNull
+    public CommandResult execute(@NotNull CommandSource source, @NotNull CommandContext context) {
         String[] args = context.<String>getOne(Text.of("arguments")).orElse("").split(" ");
 
         if (TAB.getInstance().isPluginDisabled()) {
@@ -47,12 +51,14 @@ public class SpongeTabCommand extends CommandElement implements CommandExecutor 
     }
 
     @Override
-    protected @Nullable Object parseValue(@NotNull CommandSource source, @NotNull CommandArgs args) {
+    @Nullable
+    protected Object parseValue(@NotNull CommandSource source, @NotNull CommandArgs args) {
         return null;
     }
 
     @Override
-    public @NotNull List<String> complete(@NotNull CommandSource source, @NotNull CommandArgs commandArgs, @NotNull CommandContext context) {
+    @NotNull
+    public List<String> complete(@NotNull CommandSource source, @NotNull CommandArgs commandArgs, @NotNull CommandContext context) {
         TabPlayer player = null;
         if (source instanceof Player) {
             player = TAB.getInstance().getPlayer(((Player)source).getUniqueId());

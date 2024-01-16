@@ -1,7 +1,8 @@
 package me.neznamy.tab.platforms.bukkit.features;
 
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
-import me.neznamy.tab.platforms.bukkit.nms.datawatcher.DataWatcher;
+import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
+import me.neznamy.tab.platforms.bukkit.entity.DataWatcher;
 import me.neznamy.tab.platforms.bukkit.platform.BukkitPlatform;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.backend.EntityData;
@@ -25,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -32,15 +34,36 @@ import java.util.stream.Collectors;
  */
 public class BukkitNameTagX extends BackendNameTagX implements Listener {
 
+    /** Version in which multiple passenger option was added */
+    private static final int MULTI_PASSENGER_VERSION = 11;
+
+    /**
+     * Constructs new instance and registers the class listener.
+     *
+     * @param   plugin
+     *          Plugin instance to use for registering listener
+     */
     public BukkitNameTagX(@NotNull JavaPlugin plugin) {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    /**
+     * Listener to player sneak event to sneak armor stands.
+     *
+     * @param   e
+     *          Sneak event
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSneak(PlayerToggleSneakEvent e) {
         sneak(e.getPlayer().getUniqueId(), e.isSneaking());
     }
 
+    /**
+     * Listener to respawn event to resend armor stands.
+     *
+     * @param   e
+     *          Respawn event
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRespawn(PlayerRespawnEvent e) {
         respawn(e.getPlayer().getUniqueId());
@@ -70,9 +93,10 @@ public class BukkitNameTagX extends BackendNameTagX implements Listener {
 
     @SuppressWarnings("deprecation")
     @Override
-    public @NotNull List<Integer> getPassengers(@NotNull Object entity) {
+    @NotNull
+    public List<Integer> getPassengers(@NotNull Object entity) {
         Entity vehicle = (Entity) entity;
-        if (TAB.getInstance().getServerVersion().getMinorVersion() >= 11) {
+        if (BukkitReflection.getMinorVersion() >= MULTI_PASSENGER_VERSION) {
             return vehicle.getPassengers().stream().map(Entity::getEntityId).collect(Collectors.toList());
         } else {
             if (vehicle.getPassenger() != null) {
@@ -84,7 +108,8 @@ public class BukkitNameTagX extends BackendNameTagX implements Listener {
     }
 
     @Override
-    public @Nullable Object getVehicle(@NotNull TabPlayer player) {
+    @Nullable
+    public Object getVehicle(@NotNull TabPlayer player) {
         return ((Player)player.getPlayer()).getVehicle();
     }
 
@@ -94,8 +119,9 @@ public class BukkitNameTagX extends BackendNameTagX implements Listener {
     }
 
     @Override
-    public @NotNull String getEntityType(@NotNull Object entity) {
-        return ((Entity) entity).getType().toString().toLowerCase();
+    @NotNull
+    public String getEntityType(@NotNull Object entity) {
+        return ((Entity) entity).getType().toString().toLowerCase(Locale.US);
     }
 
     @Override
@@ -106,13 +132,13 @@ public class BukkitNameTagX extends BackendNameTagX implements Listener {
     @Override
     public boolean isSwimming(@NotNull TabPlayer player) {
         Player p = (Player) player.getPlayer();
-        if (TAB.getInstance().getServerVersion().getMinorVersion() >= 14 && p.getPose() == Pose.SWIMMING) return true;
-        return TAB.getInstance().getServerVersion().getMinorVersion() == 13 && p.isSwimming();
+        if (BukkitReflection.getMinorVersion() >= 14 && p.getPose() == Pose.SWIMMING) return true;
+        return BukkitReflection.getMinorVersion() == 13 && p.isSwimming();
     }
 
     @Override
     public boolean isGliding(@NotNull TabPlayer player) {
-        return TAB.getInstance().getServerVersion().getMinorVersion() >= 9 && ((Player)player.getPlayer()).isGliding();
+        return BukkitReflection.getMinorVersion() >= 9 && ((Player)player.getPlayer()).isGliding();
     }
 
     @Override
@@ -121,7 +147,8 @@ public class BukkitNameTagX extends BackendNameTagX implements Listener {
     }
 
     @Override
-    public @NotNull Object getArmorStandType() {
+    @NotNull
+    public Object getArmorStandType() {
         return EntityType.ARMOR_STAND;
     }
 
@@ -141,22 +168,23 @@ public class BukkitNameTagX extends BackendNameTagX implements Listener {
     }
 
     @Override
+    @NotNull
     public EntityData createDataWatcher(@NotNull TabPlayer viewer, byte flags, @NotNull String displayName, boolean nameVisible) {
         DataWatcher datawatcher = new DataWatcher();
-        datawatcher.getHelper().setEntityFlags(flags);
-        datawatcher.getHelper().setCustomName(displayName, viewer.getVersion());
-        datawatcher.getHelper().setCustomNameVisible(nameVisible);
-        datawatcher.getHelper().setArmorStandFlags((byte)16);
+        datawatcher.setEntityFlags(flags);
+        datawatcher.setCustomName(displayName, viewer.getVersion());
+        datawatcher.setCustomNameVisible(nameVisible);
+        datawatcher.setArmorStandFlags(datawatcher.MARKER_FLAG);
         return datawatcher;
     }
 
     @Override
-    public void runInEntityScheduler(Object entity, Runnable task) {
+    public void runInEntityScheduler(@NotNull Object entity, @NotNull Runnable task) {
         ((BukkitPlatform)TAB.getInstance().getPlatform()).runEntityTask((Entity) entity, task);
     }
 
     @Override
-    public boolean isDead(TabPlayer player) {
+    public boolean isDead(@NotNull TabPlayer player) {
         return ((BukkitTabPlayer)player).getPlayer().isDead();
     }
 }

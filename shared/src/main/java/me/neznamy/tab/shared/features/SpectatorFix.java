@@ -12,9 +12,11 @@ import org.jetbrains.annotations.NotNull;
  * the bottom of TabList with transparent name. Does not work on self as that would result
  * in players not being able to clip through walls.
  */
-public class SpectatorFix extends TabFeature implements JoinListener, GameModeListener, Loadable, UnLoadable, ServerSwitchListener {
+@Getter
+public class SpectatorFix extends TabFeature implements JoinListener, GameModeListener, Loadable, UnLoadable,
+        ServerSwitchListener, WorldSwitchListener, VanishListener {
 
-    @Getter private final String featureName = "Spectator fix";
+    private final String featureName = "Spectator fix";
 
     /**
      * Sends GameMode update of all players to either their real GameMode if
@@ -78,5 +80,24 @@ public class SpectatorFix extends TabFeature implements JoinListener, GameModeLi
                 updatePlayer(all, false, true);
             }
         });
+    }
+
+    @Override
+    public void onWorldChange(@NotNull TabPlayer changed, @NotNull String from, @NotNull String to) {
+        // Some server versions may resend gamemode on world switch, resend false value again
+        if (changed.getGamemode() != 3) return;
+        for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+            if (viewer == changed || viewer.hasPermission(TabConstants.Permission.SPECTATOR_BYPASS)) continue;
+            viewer.getTabList().updateGameMode(changed.getTablistId(), 0);
+        }
+    }
+
+    @Override
+    public void onVanishStatusChange(@NotNull TabPlayer player) {
+        if (player.isVanished() || player.getGamemode() != 3) return;
+        for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+            if (viewer == player || viewer.hasPermission(TabConstants.Permission.SPECTATOR_BYPASS)) continue;
+            viewer.getTabList().updateGameMode(player.getTablistId(), 0);
+        }
     }
 }

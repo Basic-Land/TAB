@@ -1,12 +1,13 @@
 package me.neznamy.tab.shared.command;
 
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.Lists;
 
 import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.command.bossbar.BossBarCommand;
 import me.neznamy.tab.shared.command.scoreboard.ScoreboardCommand;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.TAB;
@@ -24,7 +25,6 @@ public class TabCommand extends SubCommand {
      */
     public TabCommand() {
         super(null, null);
-        registerSubCommand(new AnnounceCommand());
         registerSubCommand(new BossBarCommand());
         registerSubCommand(new CpuCommand());
         registerSubCommand(new DebugCommand());
@@ -36,11 +36,8 @@ public class TabCommand extends SubCommand {
         registerSubCommand(new PlayerCommand());
         registerSubCommand(new PlayerUUIDCommand());
         registerSubCommand(new ReloadCommand());
-        registerSubCommand(new SendCommand());
         registerSubCommand(new SetCollisionCommand());
         registerSubCommand(new ScoreboardCommand());
-        registerSubCommand(new WidthCommand());
-        registerSubCommand(new WidthCheckCommand());
         List<String> properties = Lists.newArrayList(TabConstants.Property.TABPREFIX, TabConstants.Property.TABSUFFIX, TabConstants.Property.TAGPREFIX, TabConstants.Property.TAGSUFFIX, TabConstants.Property.CUSTOMTABNAME, TabConstants.Property.ABOVENAME, TabConstants.Property.BELOWNAME, TabConstants.Property.CUSTOMTAGNAME);
         properties.addAll(((DebugCommand) getSubcommands().get("debug")).getExtraLines());
         SubCommand.setAllProperties(properties);
@@ -84,7 +81,7 @@ public class TabCommand extends SubCommand {
 
     @Override
     public @NotNull List<String> complete(@Nullable TabPlayer sender, @NotNull String[] arguments) {
-        if (!hasPermission(sender, TabConstants.Permission.COMMAND_AUTOCOMPLETE)) return new ArrayList<>();
+        if (!hasPermission(sender, TabConstants.Permission.COMMAND_AUTOCOMPLETE)) return Collections.emptyList();
         return super.complete(sender, arguments);
     }
 }

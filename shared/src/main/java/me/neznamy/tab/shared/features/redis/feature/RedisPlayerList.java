@@ -51,16 +51,6 @@ public class RedisPlayerList extends RedisFeature {
     }
 
     @Override
-    public void onServerSwitch(@NotNull RedisPlayer player) {
-        // No action is needed
-    }
-
-    @Override
-    public void onQuit(@NotNull RedisPlayer player) {
-        // No action is needed
-    }
-
-    @Override
     public void write(@NotNull ByteArrayDataOutput out, @NotNull TabPlayer player) {
         out.writeUTF(player.getProperty(TabConstants.Property.TABPREFIX).get() +
                 player.getProperty(TabConstants.Property.CUSTOMTABNAME).get() +
@@ -74,6 +64,15 @@ public class RedisPlayerList extends RedisFeature {
 
     public String getFormat(@NotNull RedisPlayer player) {
         return values.get(player);
+    }
+
+    @Override
+    public void onVanishStatusChange(@NotNull RedisPlayer player) {
+        if (player.isVanished()) return;
+        for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+            if (viewer.getVersion().getMinorVersion() < 8) continue;
+            viewer.getTabList().updateDisplayName(player.getUniqueId(), IChatBaseComponent.optimizedComponent(getFormat(player)));
+        }
     }
 
     @NoArgsConstructor

@@ -1,74 +1,57 @@
 package me.neznamy.tab.platforms.fabric;
 
-import me.lucko.fabric.api.permissions.v0.Permissions;
+import lombok.SneakyThrows;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import net.fabricmc.api.DedicatedServerModInitializer;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.contents.LiteralContents;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
+/**
+ * Main class for Fabric.
+ */
 public class FabricTAB implements DedicatedServerModInitializer {
 
-    private static final boolean fabricPermissionsApi = FabricLoader.getInstance().isModLoaded("fabric-permissions-api-v0");
+    /** Minecraft version string */
+    public static final String minecraftVersion = getServerVersion();
 
     @Override
+    @SneakyThrows
     public void onInitializeServer() {
-        new FabricEventListener().register();
-        CommandRegistrationCallback.EVENT.register((dispatcher, $, $$) -> new FabricTabCommand().onRegisterCommands(dispatcher));
-        ServerLifecycleEvents.SERVER_STARTING.register(server -> {
-            TAB.setInstance(new TAB(
-                    new FabricPlatform(server),
-                    ProtocolVersion.fromNetworkId(SharedConstants.getCurrentVersion().getProtocolVersion()),
-                    FabricLoader.getInstance().getConfigDir().resolve(TabConstants.PLUGIN_ID).toFile())
-            );
-            TAB.getInstance().load();
-        });
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> TAB.getInstance().unload());
-    }
-
-    public static boolean hasPermission(@NotNull CommandSourceStack source, @NotNull String permission) {
-        if (source.hasPermission(4)) return true;
-        return fabricPermissionsApi && Permissions.check(source, permission);
-    }
-
-    public static @NotNull Component toComponent(@NotNull IChatBaseComponent component, @NotNull ProtocolVersion clientVersion) {
-        // Text
-        MutableComponent comp = MutableComponent.create(new LiteralContents(component.getText()));
-
-        // Color and style
-        List<ChatFormatting> formats = new ArrayList<>();
-        if (component.getModifier().isUnderlined())     formats.add(ChatFormatting.UNDERLINE);
-        if (component.getModifier().isObfuscated())     formats.add(ChatFormatting.OBFUSCATED);
-        if (component.getModifier().isStrikethrough())  formats.add(ChatFormatting.STRIKETHROUGH);
-        if (component.getModifier().isItalic())         formats.add(ChatFormatting.ITALIC);
-        if (component.getModifier().isBold())           formats.add(ChatFormatting.BOLD);
-        Style style = comp.getStyle().applyFormats(formats.toArray(new ChatFormatting[0]));
-        if (component.getModifier().getColor() != null) {
-            if (clientVersion.getMinorVersion() >= 16) {
-                style = style.withColor(component.getModifier().getColor().getRgb());
-            } else {
-                style = style.withColor(ChatFormatting.valueOf(component.getModifier().getColor().getLegacyColor().name()));
-            }
+        for (String module : Arrays.asList("1_14_4", "1_18_2", "1_19_2", "1_20_4")) {
+            Class.forName("me.neznamy.tab.platforms.fabric.loader.Loader_" + module)
+                    .getConstructor(ProtocolVersion.class).newInstance(ProtocolVersion.fromFriendlyName(minecraftVersion));
         }
-        comp.withStyle(style);
+        if (ProtocolVersion.fromFriendlyName(minecraftVersion).getMinorVersion() >= 19) {
+            net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register((dispatcher, $, $$) -> new FabricTabCommand().onRegisterCommands(dispatcher));
+        } else {
+            net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback.EVENT.register((dispatcher, $) -> new FabricTabCommand().onRegisterCommands(dispatcher));
+        }
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> TAB.create(new FabricPlatform(server)));
+        ServerLifecycleEvents.SERVER_STOPPING.register($ -> TAB.getInstance().unload());
+    }
 
-        // Extra
-        comp.getSiblings().addAll(component.getExtra().stream().map(c -> toComponent(c, clientVersion)).toList());
+    @SneakyThrows
+    private static String getServerVersion() {
+        try {
+            // 1.19.4+
+            return SharedConstants.getCurrentVersion().getName();
+        } catch (Throwable e) {
+            // 1.19.3-
+            @SuppressWarnings("JavaReflectionMemberAccess") // Fabric-mapped method name
+            Object gameVersion = SharedConstants.class.getMethod("method_16673").invoke(null);
+            return (String) gameVersion.getClass().getMethod("getName").invoke(gameVersion);
+        }
+    }
 
-        return comp;
+    /**
+     * Returns {@code true} if fabric api contains entity events, {@code false} if not.
+     *
+     * @return  {@code true} if supports entity events, {@code false} if not
+     */
+    public static boolean supportsEntityEvents() {
+        return ProtocolVersion.fromFriendlyName(minecraftVersion).getMinorVersion() >= 16;
     }
 }

@@ -28,7 +28,7 @@ public class NameTagCommand extends SubCommand {
             sendMessages(sender, getMessages().getNameTagHelpMenu());
             return;
         }
-        boolean silent = args.length >= 3 && args[2].equals("-s");
+        boolean silent = args.length == 3 && args[2].equals("-s");
 
         switch (args[0].toLowerCase(Locale.US)) {
             case "preview":
@@ -91,6 +91,6 @@ public class NameTagCommand extends SubCommand {
         if (arguments.length == 1) return getStartingArgument(Arrays.asList("toggle", "preview"), arguments[0]);
         if (arguments.length == 2) return getOnlinePlayers(arguments[1]);
         if (arguments.length == 3) return getStartingArgument(Collections.singletonList("-s"), arguments[2]);
-        return new ArrayList<>();
+        return Collections.emptyList();
     }
 }

@@ -2,6 +2,7 @@ package me.neznamy.tab.shared.features.scoreboard.lines;
 
 import lombok.Getter;
 import lombok.NonNull;
+import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
@@ -34,8 +35,7 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
      *          text to display
      */
     public StableDynamicLine(@NonNull ScoreboardImpl parent, int lineNumber, @NonNull String text) {
-        super(parent, lineNumber);
-        this.text = text;
+        super(parent, lineNumber, text);
     }
 
     @Override
@@ -43,13 +43,21 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
         if (!parent.getPlayers().contains(refreshed)) return; //player has different scoreboard displayed
         String[] prefixSuffix = replaceText(refreshed, force, false);
         if (prefixSuffix.length == 0) return;
-        refreshed.getScoreboard().updateTeam(teamName, prefixSuffix[0], prefixSuffix[1], Scoreboard.NameVisibility.NEVER,
-                Scoreboard.CollisionRule.NEVER, 0);
+        refreshed.getScoreboard().updateTeam(
+                teamName,
+                prefixSuffix[0],
+                prefixSuffix[1],
+                Scoreboard.NameVisibility.NEVER,
+                Scoreboard.CollisionRule.NEVER,
+                0,
+                EnumChatFormat.RESET
+        );
     }
 
     @Override
     public void register(@NonNull TabPlayer p) {
         p.setProperty(this, parent.getName() + "-" + teamName, text);
+        getScoreRefresher().registerProperties(p);
         String[] prefixSuffix = replaceText(p, true, true);
         if (prefixSuffix.length == 0) return;
         addLine(p, getPlayerName(), prefixSuffix[0], prefixSuffix[1]);
@@ -57,7 +65,7 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
 
     @Override
     public void unregister(@NonNull TabPlayer p) {
-        if (parent.getPlayers().contains(p) && p.getProperty(parent.getName() + "-" + teamName).get().length() > 0) {
+        if (parent.getPlayers().contains(p) && !p.getProperty(parent.getName() + "-" + teamName).get().isEmpty()) {
             removeLine(p, getPlayerName());
         }
     }
@@ -72,19 +80,19 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
      *          if action should be done despite update seemingly not needed
      * @param   suppressToggle
      *          if line should NOT be removed despite being empty
-     * @return  list of 2 elements for prefix/suffix
+     * @return  array of 2 elements for prefix/suffix
      */
     private String[] replaceText(TabPlayer p, boolean force, boolean suppressToggle) {
         Property scoreProperty = p.getProperty(parent.getName() + "-" + teamName);
         if (scoreProperty == null) return EMPTY_ARRAY; //not actually loaded yet (force refresh called from placeholder manager register method)
-        boolean emptyBefore = scoreProperty.get().length() == 0;
+        boolean emptyBefore = scoreProperty.get().isEmpty();
         if (!scoreProperty.update() && !force) return EMPTY_ARRAY;
         String replaced = scoreProperty.get();
-        if (p.getVersion().getMinorVersion() < 16) {
+        if (!p.getVersion().supportsRGB()) {
             replaced = RGBUtils.getInstance().convertRGBtoLegacy(replaced); //converting RGB to legacy here to avoid splitting in the middle of RGB code
         }
         String[] split = split(p, replaced);
-        if (replaced.length() > 0) {
+        if (!replaced.isEmpty()) {
             if (emptyBefore) {
                 //was "", now it is not
                 addLine(p, getPlayerName(), split[0], split[1]);
@@ -113,8 +121,9 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
      * @return  array of 2 elements for prefix and suffix
      */
     private String[] split(@NonNull TabPlayer p, @NonNull String text) {
-        int charLimit = 16;
-        if (text.length() > charLimit && p.getVersion().getMinorVersion() < 13) {
+        if (p.getVersion().getMinorVersion() >= 13) return new String[] {text, ""};
+        int charLimit = Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13;
+        if (text.length() > charLimit) {
             StringBuilder prefix = new StringBuilder(text);
             StringBuilder suffix = new StringBuilder(text);
             prefix.setLength(charLimit);

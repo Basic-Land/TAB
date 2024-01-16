@@ -4,11 +4,12 @@ import lombok.Getter;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
-import me.neznamy.tab.shared.platform.bossbar.BossBar;
+import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.data.key.Keys;
 import org.spongepowered.api.data.manipulator.mutable.PotionEffectData;
 import org.spongepowered.api.effect.potion.PotionEffectTypes;
@@ -20,16 +21,34 @@ import org.spongepowered.api.text.Text;
 
 import java.util.Collection;
 
+/**
+ * TabPlayer implementation for Sponge 7.
+ */
 @Getter
 public class SpongeTabPlayer extends BackendTabPlayer {
 
+    @NotNull
     private final Scoreboard<SpongeTabPlayer> scoreboard = new SpongeScoreboard(this);
+
+    @NotNull
     private final TabList tabList = new SpongeTabList(this);
+
+    @NotNull
     private final BossBar bossBar = new SpongeBossBar(this);
+
+    @NotNull
     private final EntityView entityView = new DummyEntityView();
 
-    public SpongeTabPlayer(final Player player) {
-        super(player, player.getUniqueId(), player.getName(), player.getWorld().getName());
+    /**
+     * Constructs new instance with given parameters.
+     *
+     * @param   platform
+     *          Server platform
+     * @param   player
+     *          Platform's player object
+     */
+    public SpongeTabPlayer(@NotNull SpongePlatform platform, @NotNull Player player) {
+        super(platform, player, player.getUniqueId(), player.getName(), player.getWorld().getName());
     }
 
     @Override
@@ -60,6 +79,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
+    @Nullable
     public TabList.Skin getSkin() {
         Collection<ProfileProperty> properties = getPlayer().getProfile().getPropertyMap().get(TabList.TEXTURES_PROPERTY);
         if (properties.isEmpty()) return null; // Offline mode
@@ -68,13 +88,19 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public @NotNull Player getPlayer() {
+    @NotNull
+    public Player getPlayer() {
         return (Player) player;
     }
 
     @Override
     public boolean isOnline() {
         return getPlayer().isOnline();
+    }
+
+    @Override
+    public SpongePlatform getPlatform() {
+        return (SpongePlatform) platform;
     }
 
     @Override
@@ -97,6 +123,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
+    @NotNull
     public String getDisplayName() {
         return getPlayer().getDisplayNameData().displayName().get().toPlain();
     }

@@ -1,19 +1,24 @@
 package me.neznamy.tab.shared.platform;
 
 import me.neznamy.tab.shared.GroupManager;
+import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.features.types.TabFeature;
+import me.neznamy.tab.shared.hook.PremiumVanishHook;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
+
 /**
  * An interface with methods that are called in universal code,
- * but require platform-specific API calls
+ * but require platform-specific API calls.
  */
 public interface Platform {
 
@@ -112,4 +117,48 @@ public interface Platform {
      * @return  Server version information
      */
     String getServerVersionInfo();
+
+    /**
+     * Registers event listener for platform's events
+     */
+    void registerListener();
+
+    /**
+     * Registers plugin's command
+     */
+    void registerCommand();
+
+    /**
+     * Starts metrics
+     */
+    void startMetrics();
+
+    /**
+     * Returns server's version
+     *
+     * @return  server's version
+     */
+    ProtocolVersion getServerVersion();
+
+    /**
+     * Returns plugin's data folder for configuration files
+     *
+     * @return  plugin's data folder
+     */
+    File getDataFolder();
+
+    /**
+     * Returns {@code true} if the viewer can see the target, {@code false} otherwise.
+     * This includes all vanish, permission & plugin API checks.
+     *
+     * @param   viewer
+     *          Player who is viewing
+     * @param   target
+     *          Player who is being viewed
+     * @return  {@code true} if can see, {@code false} if not.
+     */
+    default boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
+        if (PremiumVanishHook.getInstance() != null && PremiumVanishHook.getInstance().canSee(viewer, target)) return true;
+        return !target.isVanished() || viewer.hasPermission(TabConstants.Permission.SEE_VANISHED);
+    }
 }

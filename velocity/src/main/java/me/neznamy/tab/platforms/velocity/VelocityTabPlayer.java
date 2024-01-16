@@ -3,11 +3,13 @@ package me.neznamy.tab.platforms.velocity;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.util.GameProfile;
 import lombok.Getter;
-import me.neznamy.tab.shared.platform.bossbar.AdventureBossBar;
-import me.neznamy.tab.shared.platform.bossbar.BossBar;
+import me.neznamy.tab.shared.hook.AdventureHook;
+import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
+import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.platform.impl.BridgeScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -21,27 +23,32 @@ import java.util.List;
 public class VelocityTabPlayer extends ProxyTabPlayer {
 
     /** Player's scoreboard */
-    private final @NotNull Scoreboard<VelocityTabPlayer> scoreboard = new VelocityScoreboard(this);
+    @NotNull
+    private final Scoreboard<ProxyTabPlayer> scoreboard = new BridgeScoreboard(this);
 
     /** Player's tab list */
-    private final @NotNull TabList tabList = new VelocityTabList(this);
+    @NotNull
+    private final TabList tabList = new VelocityTabList(this);
 
     /** Player's boss bar view */
-    private final @NotNull BossBar bossBar = new AdventureBossBar(this);
+    @NotNull
+    private final BossBar bossBar = new AdventureBossBar(this);
 
     /**
      * Constructs new instance for given player
      *
+     * @param   platform
+     *          Server platform
      * @param   p
      *          velocity player
      */
-    public VelocityTabPlayer(Player p) {
-        super(p, p.getUniqueId(), p.getUsername(), p.getCurrentServer().map(s ->
+    public VelocityTabPlayer(@NotNull VelocityPlatform platform, @NotNull Player p) {
+        super(platform, p, p.getUniqueId(), p.getUsername(), p.getCurrentServer().map(s ->
                 s.getServerInfo().getName()).orElse("null"), p.getProtocolVersion().getProtocol());
     }
     
     @Override
-    public boolean hasPermission0(String permission) {
+    public boolean hasPermission0(@NotNull String permission) {
         return getPlayer().hasPermission(permission);
     }
     
@@ -52,18 +59,20 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
 
     @Override
     public void sendMessage(@NotNull IChatBaseComponent message) {
-        getPlayer().sendMessage(message.toAdventureComponent(getVersion()));
+        getPlayer().sendMessage(AdventureHook.toAdventureComponent(message, getVersion()));
     }
 
     @Override
-    public @Nullable TabList.Skin getSkin() {
+    @Nullable
+    public TabList.Skin getSkin() {
         List<GameProfile.Property> properties = getPlayer().getGameProfile().getProperties();
-        if (properties.size() == 0) return null; //Offline mode
+        if (properties.isEmpty()) return null; //Offline mode
         return new TabList.Skin(properties.get(0).getValue(), properties.get(0).getSignature());
     }
     
     @Override
-    public @NotNull Player getPlayer() {
+    @NotNull
+    public Player getPlayer() {
         return (Player) player;
     }
     
@@ -73,10 +82,15 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
     }
 
     @Override
+    public VelocityPlatform getPlatform() {
+        return (VelocityPlatform) platform;
+    }
+
+    @Override
     public void sendPluginMessage(byte[] message) {
         try {
             getPlayer().getCurrentServer().ifPresentOrElse(
-                    server -> server.sendPluginMessage(VelocityTAB.getMinecraftChannelIdentifier(), message),
+                    server -> server.sendPluginMessage(getPlatform().getMCI(), message),
                     () -> errorNoServer(message)
             );
         } catch (IllegalStateException VelocityBeingVelocityException) {

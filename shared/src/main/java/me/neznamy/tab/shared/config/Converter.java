@@ -65,7 +65,7 @@ public class Converter {
         ConfigurationFile newConfig = new YamlConfigurationFile(null, new File(folder, "config.yml"));
 
         convertHeaderFooter(oldConfig, newConfig);
-        convertTabListFormatting(oldConfig, newConfig, premiumConfig);
+        convertTabListFormatting(oldConfig, newConfig);
         convertTeamOptions(oldConfig, newConfig, premiumConfig);
         convertYellowNumber(oldConfig, newConfig);
         convertBelowName(oldConfig, newConfig);
@@ -151,23 +151,16 @@ public class Converter {
         newConfig.set("scoreboard-teams.sorting-types", sortingTypes);
     }
 
-    private void convertTabListFormatting(@NotNull ConfigurationFile oldConfig, @NotNull ConfigurationFile newConfig, @Nullable ConfigurationFile premiumConfig) {
+    private void convertTabListFormatting(@NotNull ConfigurationFile oldConfig, @NotNull ConfigurationFile newConfig) {
         newConfig.set("tablist-name-formatting.enabled", oldConfig.getBoolean("change-tablist-prefix-suffix", true));
         newConfig.set("tablist-name-formatting.anti-override", oldConfig.getBoolean("anti-override.tablist-names", true));
         newConfig.set("tablist-name-formatting.disable-in-worlds", oldConfig.getStringList("disable-features-in-worlds.tablist-names", Collections.singletonList("disabledworld")));
         if (TAB.getInstance().getServerVersion() == ProtocolVersion.PROXY)
             newConfig.set("tablist-name-formatting.disable-in-servers", oldConfig.getStringList("disable-features-in-servers.tablist-names", Collections.singletonList("disabledserver")));
-        if (premiumConfig != null) {
-            newConfig.set("tablist-name-formatting.align-tabsuffix-on-the-right", premiumConfig.getBoolean("align-tabsuffix-on-the-right", false));
-            newConfig.set("tablist-name-formatting.character-width-overrides", premiumConfig.getConfigurationSection("character-width-overrides"));
-        } else {
-            newConfig.set("tablist-name-formatting.align-tabsuffix-on-the-right", false);
-            newConfig.set("tablist-name-formatting.character-width-overrides", new HashMap<Integer, Integer>());
-        }
     }
 
     private void convertYellowNumber(@NotNull ConfigurationFile oldConfig, @NotNull ConfigurationFile newConfig) {
-        newConfig.set("yellow-number-in-tablist.enabled", !oldConfig.getString("yellow-number-in-tablist", TabConstants.Placeholder.PING).equals(""));
+        newConfig.set("yellow-number-in-tablist.enabled", !oldConfig.getString("yellow-number-in-tablist", TabConstants.Placeholder.PING).isEmpty());
         newConfig.set("yellow-number-in-tablist.value", oldConfig.getString("yellow-number-in-tablist", TabConstants.Placeholder.PING));
         newConfig.set("yellow-number-in-tablist.disable-in-worlds", oldConfig.getStringList("disable-features-in-worlds.yellow-number", Collections.singletonList("disabledworld")));
         if (TAB.getInstance().getServerVersion() == ProtocolVersion.PROXY)
@@ -352,22 +345,22 @@ public class Converter {
     }
 
     public void convert301to302(@NotNull ConfigurationFile config) {
-        if (!config.hasConfigOption("placeholders.remove-strings")) return;
-        TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 3.0.1 to 3.0.2"));
-        config.set("placeholders.remove-strings", null);
+        if (config.removeOption("placeholders.remove-strings")) {
+            TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 3.0.1 to 3.0.2"));
+        }
     }
 
     public void convert331to332(@NotNull ConfigurationFile config) {
-        if (!config.hasConfigOption("scoreboard-teams.unlimited-nametag-mode.use-marker-tag-for-1-8-x-clients")) return;
-        TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 3.3.1 to 3.3.2)"));
-        config.set("scoreboard-teams.unlimited-nametag-mode.use-marker-tag-for-1-8-x-clients", null);
+        if (config.removeOption("scoreboard-teams.unlimited-nametag-mode.use-marker-tag-for-1-8-x-clients")) {
+            TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 3.3.1 to 3.3.2)"));
+        }
     }
 
     @SuppressWarnings("unchecked")
     public void convert332to400(@NotNull ConfigurationFile config) throws IOException {
-        if (config.hasConfigOption("ping-spoof.enabled")) {
+        // Removed config options
+        if (config.hasConfigOption("fix-pet-names")) {
             TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 3.3.2 to 4.0.0"));
-            config.set("ping-spoof", null);
             config.set("fix-pet-names", null);
             config.set("bossbar.disable-in-worlds", null);
             config.set("bossbar.disable-in-servers", null);
@@ -376,25 +369,29 @@ public class Converter {
             config.set("remove-ghost-players", null);
             config.set("global-playerlist.fill-profile-key", null);
         }
-        if (config.hasConfigOption("placeholderapi-refresh-intervals.server")) {
-            Map<String, Object> intervals = config.getConfigurationSection("placeholderapi-refresh-intervals");
-            Map<String, Object> server = config.getConfigurationSection("placeholderapi-refresh-intervals.server");
-            Map<String, Object> player = config.getConfigurationSection("placeholderapi-refresh-intervals.player");
-            Map<String, Object> relational = config.getConfigurationSection("placeholderapi-refresh-intervals.relational");
-            intervals.remove("server");
-            intervals.remove("player");
-            intervals.remove("relational");
-            intervals.putAll(server);
-            intervals.putAll(player);
-            intervals.putAll(relational);
-            config.save();
+
+        // Merged refresh intervals
+        Map<Object, Object> intervals = config.getConfigurationSection("placeholderapi-refresh-intervals");
+        boolean updated = false;
+        for (Map.Entry<?, ?> entry : new ArrayList<>(intervals.entrySet())) {
+            Object value = entry.getValue();
+            if (value instanceof Map) {
+                intervals.remove(entry.getKey());
+                intervals.putAll(((Map<Object, Object>)value));
+                updated = true;
+            }
         }
+        if (updated) config.save();
+
+        // Merge layout to config
         File layoutFile = new File(TAB.getInstance().getDataFolder(), "layout.yml");
         if (layoutFile.exists()) {
             ConfigurationFile layout = new YamlConfigurationFile(null, layoutFile);
             config.set("layout", layout.getValues());
             Files.delete(layoutFile.toPath());
         }
+
+        // Convert disabled worlds/servers into disable condition
         Consumer<Map<String, Object>> disabledConditionConverter = (map -> {
             List<String> newConditions = new ArrayList<>();
             boolean update = false;
@@ -421,13 +418,28 @@ public class Converter {
         disabledConditionConverter.accept(config.getConfigurationSection("scoreboard-teams.unlimited-nametag-mode"));
         disabledConditionConverter.accept(config.getConfigurationSection("yellow-number-in-tablist"));
         disabledConditionConverter.accept(config.getConfigurationSection("belowname-objective"));
-        if (config.hasConfigOption("layout.hide-vanished-players")) config.set("layout.hide-vanished-players", null);
+
+        // Removed config option
+        config.removeOption("layout.hide-vanished-players");
     }
 
     public void convert403to404(@NotNull ConfigurationFile config) {
-        if (config.hasConfigOption("global-playerlist.update-latency")) {
+        if (config.removeOption("global-playerlist.update-latency")) {
             TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 4.0.3 to 4.0.4"));
-            config.set("global-playerlist.update-latency", null);
         }
+    }
+
+    public void convert409to410(@NotNull ConfigurationFile config) {
+        if (config.hasConfigOption("yellow-number-in-tablist")) {
+            TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&ePerforming configuration conversion from 4.0.9 to 4.1.0"));
+            Map<Object, Object> section = config.getConfigurationSection("yellow-number-in-tablist");
+            section.put("fancy-value", "&7Ping: %ping%");
+            config.set("yellow-number-in-tablist", null);
+            config.set("playerlist-objective", section);
+        }
+        config.setIfMissing("belowname-objective.fancy-display-default", "NPC");
+        config.setIfMissing("belowname-objective.fancy-display-players", "&c" + TabConstants.Placeholder.HEALTH);
+        config.removeOption("tablist-name-formatting.align-tabsuffix-on-the-right");
+        config.removeOption("tablist-name-formatting.character-width-overrides");
     }
 }

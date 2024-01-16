@@ -1,8 +1,7 @@
 package me.neznamy.tab.shared.features.layout;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.ProtocolVersion;
-import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabList;
@@ -32,8 +31,8 @@ public class LayoutView {
         this.manager = manager;
         this.viewer = viewer;
         this.pattern = pattern;
-        this.fixedSlots = pattern.getFixedSlots().values();
-        this.displayCondition = pattern.getCondition();
+        fixedSlots = pattern.getFixedSlots().values();
+        displayCondition = pattern.getCondition();
         for (FixedSlot slot : fixedSlots) {
             emptySlots.remove((Integer) slot.getSlot());
         }
@@ -50,14 +49,16 @@ public class LayoutView {
             viewer.getTabList().addEntry(slot.createEntry(viewer));
         }
         for (int slot : emptySlots) {
-            viewer.getTabList().addEntry(new TabList.Entry(manager.getUUID(slot), getEntryName(viewer, slot), manager.getSkinManager().getDefaultSkin(slot),
-                    manager.getEmptySlotPing(), 0, new IChatBaseComponent("")));
+            viewer.getTabList().addEntry(new TabList.Entry(
+                    manager.getUUID(slot),
+                    manager.getDirection().getEntryName(viewer, slot),
+                    manager.getSkinManager().getDefaultSkin(slot),
+                    manager.getEmptySlotPing(),
+                    0,
+                    new IChatBaseComponent("")
+            ));
         }
         tick();
-    }
-
-    public String getEntryName(@NotNull TabPlayer viewer, long slot) {
-        return viewer.getVersion().getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId() ? "|slot_" + (10+slot) : "";
     }
 
     public void destroy() {
@@ -66,10 +67,8 @@ public class LayoutView {
     }
 
     public void tick() {
-        Stream<TabPlayer> str = manager.getSortedPlayers().keySet().stream();
-        if (!viewer.hasPermission(TabConstants.Permission.SEE_VANISHED)) {
-            str = str.filter(player -> !player.isVanished());
-        }
+        Stream<TabPlayer> str = manager.getSortedPlayers().keySet().stream().filter(
+                player -> TAB.getInstance().getPlatform().canSee(viewer, player));
         List<TabPlayer> players = str.collect(Collectors.toList());
         for (ParentGroup group : groups) {
             group.tick(players);

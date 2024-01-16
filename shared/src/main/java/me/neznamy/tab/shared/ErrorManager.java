@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -27,7 +28,7 @@ public class ErrorManager {
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy - HH:mm:ss - ");
 
     /** errors.log file for internal plugin errors */
-    private final File errorLog;
+    @Getter private final File errorLog;
 
     /** anti-override.log file when some plugin or server itself attempts to override the plugin */
     @Getter private final File antiOverrideLog;
@@ -35,10 +36,16 @@ public class ErrorManager {
     /** placeholder-errors.log file for errors thrown by placeholders */
     private final File placeholderErrorLog;
 
-    public ErrorManager(@NotNull TAB tab) {
-        errorLog = new File(tab.getDataFolder(), "errors.log");
-        antiOverrideLog = new File(tab.getDataFolder(), "anti-override.log");
-        placeholderErrorLog = new File(tab.getDataFolder(), "placeholder-errors.log");
+    /**
+     * Constructs new instance.
+     *
+     * @param   dataFolder
+     *          Data folder for error files
+     */
+    public ErrorManager(@NotNull File dataFolder) {
+        errorLog = new File(dataFolder, "errors.log");
+        antiOverrideLog = new File(dataFolder, "anti-override.log");
+        placeholderErrorLog = new File(dataFolder, "placeholder-errors.log");
     }
 
     /**
@@ -90,18 +97,30 @@ public class ErrorManager {
      *          file to print error to
      */
     public void printError(@Nullable String message, @Nullable Throwable t, boolean intoConsoleToo, @NotNull File file) {
-        Throwable error = t;
-        while (error != null && error.getCause() != null) {
-            error = error.getCause();
-        }
-        List<String> lines = new ArrayList<>();
-        if (error != null) {
-            lines.add(error.getClass().getName() + ": " + error.getMessage());
-            for (StackTraceElement ste : error.getStackTrace()) {
-                lines.add("\tat " + ste.toString());
-            }
-        }
+        List<String> lines = t == null ? Collections.emptyList() : throwableToList(t, false);
         printError(message, lines, intoConsoleToo, file);
+    }
+
+    /**
+     * Converts throwable into a list of lines.
+     *
+     * @param   t
+     *          Throwable to print
+     * @param   nested
+     *          Whether this throwable is nested or not
+     * @return  List of lines from given throwable
+     */
+    private List<String> throwableToList(@NotNull Throwable t, boolean nested) {
+        List<String> list = new ArrayList<>();
+        String causedText = nested ? "Caused by: " : "";
+        list.add(causedText + t.getClass().getName() + ": " + t.getMessage());
+        for (StackTraceElement ste : t.getStackTrace()) {
+            list.add("\tat " + ste.toString());
+        }
+        if (t.getCause() != null) {
+            list.addAll(throwableToList(t.getCause(), true));
+        }
+        return list;
     }
 
     /**
@@ -121,13 +140,13 @@ public class ErrorManager {
             if (!file.exists()) Files.createFile(file.toPath());
             try (BufferedWriter buf = new BufferedWriter(new FileWriter(file, true))) {
                 if (message != null) {
-                    if (file.length() < 1000000)
+                    if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + EnumChatFormat.decolor(message) + System.getProperty("line.separator"));
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().isDebugMode())
                         TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent(message));
                 }
                 for (String line : error) {
-                    if (file.length() < 1000000)
+                    if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + line + System.getProperty("line.separator"));
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().isDebugMode())
                         TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent(line));
@@ -195,24 +214,6 @@ public class ErrorManager {
     public int parseInteger(@NotNull String string, int defaultValue) {
         try {
             return (int) Math.round(Double.parseDouble(string));
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
-
-    /**
-     * Parses double in given string and returns it.
-     * Returns second argument if string is not valid.
-     *
-     * @param   string
-     *          string to parse
-     * @param   defaultValue
-     *          value to return if string is not valid
-     * @return  parsed float or {@code defaultValue} if input is invalid
-     */
-    public double parseDouble(@NotNull String string, double defaultValue) {
-        try {
-            return Double.parseDouble(string.replace(",", "."));
         } catch (NumberFormatException e) {
             return defaultValue;
         }

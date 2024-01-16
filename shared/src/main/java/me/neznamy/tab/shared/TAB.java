@@ -7,12 +7,12 @@ import me.neznamy.tab.api.bossbar.BossBarManager;
 import me.neznamy.tab.api.tablist.SortingManager;
 import me.neznamy.tab.api.tablist.layout.LayoutManager;
 import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.api.scoreboard.ScoreboardManager;
 import me.neznamy.tab.api.tablist.HeaderFooterManager;
 import me.neznamy.tab.api.tablist.TabListFormatManager;
-import me.neznamy.tab.api.nametag.NameTagManager;
+import me.neznamy.tab.shared.config.helper.ConfigHelper;
 import me.neznamy.tab.shared.cpu.CpuManager;
+import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.platform.Platform;
 import me.neznamy.tab.shared.command.DisabledCommand;
 import me.neznamy.tab.shared.command.TabCommand;
@@ -21,6 +21,7 @@ import me.neznamy.tab.shared.event.EventBusImpl;
 import me.neznamy.tab.shared.event.impl.TabLoadEventImpl;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.proxy.ProxyPlatform;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.yaml.snakeyaml.error.YAMLException;
@@ -33,28 +34,30 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Main class of the plugin storing data and implementing API
  */
+@Getter
 public class TAB extends TabAPI {
 
     /** Instance of this class */
-    @Getter @Setter private static TAB instance;
+    @Getter
+    private static TAB instance;
 
     /** Player data storage */
     private final Map<UUID, TabPlayer> data = new ConcurrentHashMap<>();
 
     /** Players by their TabList UUID for faster lookup */
     private final Map<UUID, TabPlayer> playersByTabListId = new ConcurrentHashMap<>();
-    
+
     /** Online player array to avoid memory allocation when iterating */
-    @Getter private volatile TabPlayer[] onlinePlayers = new TabPlayer[0];
+    private volatile TabPlayer[] onlinePlayers = new TabPlayer[0];
 
     /** Instance of plugin's main command */
-    @Getter private TabCommand command;
+    private TabCommand command;
 
     /** Command executor to use when the plugin is disabled due to an error */
-    @Getter private final DisabledCommand disabledCommand = new DisabledCommand();
+    private final DisabledCommand disabledCommand = new DisabledCommand();
 
     /** Implementation of platform the plugin is installed on for platform-specific calls */
-    @Getter private final Platform platform;
+    private final Platform platform;
 
     /**
      * CPU manager for thread and task management as well as
@@ -67,38 +70,52 @@ public class TAB extends TabAPI {
      * Platform-independent event executor allowing other plugins
      * to listen to universal platform-independent event objects
      */
-    @Getter private EventBusImpl eventBus;
+    private EventBusImpl eventBus;
 
     /**
      * Error manager for printing any and all errors that may
      * occur in any part of the code including hooks into other plugins
      * into files instead of flooding the already flooded console.
      */
-    @Getter private final ErrorManager errorManager;
+    private final ErrorManager errorManager;
 
     /** Feature manager forwarding events into all loaded features */
-    @Getter private FeatureManager featureManager;
+    private FeatureManager featureManager;
+
+    /** Placeholder manager for fast access */
+    private PlaceholderManagerImpl placeholderManager;
 
     /** Plugin's configuration files and values storage */
-    @Getter private Configs configuration;
+    private Configs configuration;
 
     /**
      * Boolean tracking whether this plugin is enabled or not,
      * which is due to either internal error on load or yaml syntax error
      */
-    @Getter private boolean pluginDisabled;
+    private boolean pluginDisabled;
 
     /** Minecraft version the server is running on, always using the latest on proxies */
-    @Getter private final ProtocolVersion serverVersion;
+    private final ProtocolVersion serverVersion;
 
     /** TAB's data folder */
-    @Getter private final File dataFolder;
+    private final File dataFolder;
 
     /** File with YAML syntax error, which prevented plugin from loading */
-    @Getter @Setter private String brokenFile;
+    @Setter private String brokenFile;
 
     /** Helper for detecting misconfiguration in configs and send it to user */
-    @Getter private final MisconfigurationHelper misconfigurationHelper = new MisconfigurationHelper();
+    private final ConfigHelper configHelper = new ConfigHelper();
+
+    /**
+     * Creates new instance using given platform and loads it
+     *
+     * @param   platform
+     *          Platform interface
+     */
+    public static void create(@NotNull Platform platform) {
+        instance = new TAB(platform);
+        instance.load();
+    }
 
     /**
      * Constructs new instance with given parameters and sets this
@@ -106,20 +123,24 @@ public class TAB extends TabAPI {
      *
      * @param   platform
      *          Platform interface
-     * @param   serverVersion
-     *          Version the server is running on
      */
-    public TAB(@NotNull Platform platform, @NotNull ProtocolVersion serverVersion, @NotNull File dataFolder) {
+    private TAB(@NotNull Platform platform) {
         this.platform = platform;
-        this.serverVersion = serverVersion;
-        this.dataFolder = dataFolder;
-        this.errorManager = new ErrorManager(this);
+        serverVersion = platform.getServerVersion();
+        dataFolder = platform.getDataFolder();
+        errorManager = new ErrorManager(dataFolder);
         try {
             eventBus = new EventBusImpl();
         } catch (NoSuchMethodError e) {
             //1.7.10 or lower
         }
         TabAPI.setInstance(this);
+        platform.registerListener();
+        platform.registerCommand();
+        platform.startMetrics();
+        if (platform instanceof ProxyPlatform) {
+            ((ProxyPlatform) platform).registerChannel();
+        }
     }
 
     /**
@@ -139,6 +160,9 @@ public class TAB extends TabAPI {
      * and then calls events on success. If it fails for any reason,
      * plugin will be marked as disabled and error message will be
      * printed into the console.
+     * Returns load status message, which is either success or failure.
+     *
+     * @return  Load status message.
      */
     public String load() {
         try {
@@ -146,7 +170,8 @@ public class TAB extends TabAPI {
             cpu = new CpuManager();
             configuration = new Configs();
             featureManager = new FeatureManager();
-            featureManager.registerFeature(TabConstants.Feature.PLACEHOLDER_MANAGER, new PlaceholderManagerImpl());
+            placeholderManager = new PlaceholderManagerImpl();
+            featureManager.registerFeature(TabConstants.Feature.PLACEHOLDER_MANAGER, placeholderManager);
             featureManager.registerFeature(TabConstants.Feature.GROUP_MANAGER, platform.detectPermissionPlugin());
             platform.registerPlaceholders();
             featureManager.loadFeaturesFromConfig();
@@ -157,7 +182,8 @@ public class TAB extends TabAPI {
             if (eventBus != null) eventBus.fire(TabLoadEventImpl.getInstance());
             pluginDisabled = false;
             cpu.enable();
-            misconfigurationHelper.printWarnCount();
+            configHelper.startup().checkErrorLog();
+            configHelper.startup().printWarnCount();
             platform.logInfo(IChatBaseComponent.fromColoredText("&aEnabled in " + (System.currentTimeMillis()-time) + "ms"));
             return configuration.getMessages().getReloadSuccess();
         } catch (YAMLException e) {
@@ -165,7 +191,7 @@ public class TAB extends TabAPI {
             kill();
             return (configuration == null ? "&4Failed to reload, file %file% has broken syntax. Check console for more info."
                     : configuration.getMessages().getReloadFailBrokenFile()).replace("%file%", brokenFile);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             errorManager.criticalError("Failed to enable. Did you just invent a new way to break the plugin by misconfiguring it?", e);
             kill();
             return "&cFailed to enable due to an internal plugin error. Check console for more info.";
@@ -183,7 +209,7 @@ public class TAB extends TabAPI {
             if (configuration.getMysql() != null) configuration.getMysql().closeConnection();
             featureManager.unload();
             platform.logInfo(IChatBaseComponent.fromColoredText("&aDisabled in " + (System.currentTimeMillis()-time) + "ms"));
-        } catch (Exception | NoClassDefFoundError e) {
+        } catch (Throwable e) {
             errorManager.criticalError("Failed to disable", e);
         }
         kill();
@@ -253,14 +279,9 @@ public class TAB extends TabAPI {
     }
 
     @Override
-    public @Nullable NameTagManager getNameTagManager() {
+    public @Nullable NameTag getNameTagManager() {
         if (featureManager.isFeatureEnabled(TabConstants.Feature.NAME_TAGS)) return featureManager.getFeature(TabConstants.Feature.NAME_TAGS);
         return featureManager.getFeature(TabConstants.Feature.UNLIMITED_NAME_TAGS);
-    }
-
-    @Override
-    public @NotNull PlaceholderManagerImpl getPlaceholderManager() {
-        return featureManager.getFeature(TabConstants.Feature.PLACEHOLDER_MANAGER);
     }
 
     @Override
@@ -279,10 +300,6 @@ public class TAB extends TabAPI {
     @Override
     public @Nullable HeaderFooterManager getHeaderFooterManager() {
         return featureManager.getFeature(TabConstants.Feature.HEADER_FOOTER);
-    }
-
-    public @NotNull ConfigurationFile getConfig() {
-        return configuration.getConfig();
     }
 
     @Override
