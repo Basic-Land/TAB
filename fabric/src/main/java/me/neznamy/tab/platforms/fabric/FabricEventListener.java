@@ -3,6 +3,7 @@ package me.neznamy.tab.platforms.fabric;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.EventListener;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -12,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Event listener for Fabric.
  */
-public class FabricEventListener extends EventListener<ServerPlayer> {
+public class FabricEventListener implements EventListener<ServerPlayer> {
 
     /**
      * Registers all event listeners.
@@ -21,16 +22,16 @@ public class FabricEventListener extends EventListener<ServerPlayer> {
         ServerPlayConnectionEvents.DISCONNECT.register((connection, $) -> quit(connection.player.getUUID()));
         ServerPlayConnectionEvents.JOIN.register((connection, $, $$) -> join(connection.player));
         //TODO command preprocess
-        if (FabricTAB.supportsEntityEvents()) {
+        if (ReflectionUtils.classExists("net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents")) {
             // Added in 1.16
             ServerPlayerEvents.AFTER_RESPAWN.register(
                     (oldPlayer, newPlayer, alive) -> {
                         replacePlayer(newPlayer.getUUID(), newPlayer);
                         // respawning from death & taking end portal in the end do not call world change event
-                        worldChange(newPlayer.getUUID(), FabricMultiVersion.getLevelName.apply(FabricMultiVersion.getLevel.apply(newPlayer)));
+                        worldChange(newPlayer.getUUID(), FabricMultiVersion.getLevelName(FabricMultiVersion.getLevel(newPlayer)));
                     });
             ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
-                    (player, origin, destination) -> worldChange(player.getUUID(), FabricMultiVersion.getLevelName.apply(destination)));
+                    (player, origin, destination) -> worldChange(player.getUUID(), FabricMultiVersion.getLevelName(destination)));
         } // TODO else
     }
 

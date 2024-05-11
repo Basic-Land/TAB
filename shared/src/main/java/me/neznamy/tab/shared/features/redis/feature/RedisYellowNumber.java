@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.YellowNumber;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
@@ -14,17 +14,12 @@ import me.neznamy.tab.shared.features.redis.message.RedisMessage;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.WeakHashMap;
 
 public class RedisYellowNumber extends RedisFeature {
 
     private final RedisSupport redisSupport;
     @Getter private final YellowNumber yellowNumber;
-
-    @Getter private final Map<RedisPlayer, Integer> values = new WeakHashMap<>();
-    @Getter private final Map<RedisPlayer, String> fancyValues = new WeakHashMap<>();
 
     public RedisYellowNumber(@NotNull RedisSupport redisSupport, @NotNull YellowNumber yellowNumber) {
         this.redisSupport = redisSupport;
@@ -38,9 +33,9 @@ public class RedisYellowNumber extends RedisFeature {
             player.getScoreboard().setScore(
                     YellowNumber.OBJECTIVE_NAME,
                     redis.getNickname(),
-                    values.get(redis),
+                    redis.getPlayerlistNumber(),
                     null, // Unused by this objective slot
-                    IChatBaseComponent.emptyToNullOptimizedComponent(fancyValues.get(redis))
+                    redis.getPlayerlistFancy()
             );
         }
     }
@@ -51,23 +46,23 @@ public class RedisYellowNumber extends RedisFeature {
             viewer.getScoreboard().setScore(
                     YellowNumber.OBJECTIVE_NAME,
                     player.getNickname(),
-                    values.get(player),
+                    player.getPlayerlistNumber(),
                     null, // Unused by this objective slot
-                    IChatBaseComponent.emptyToNullOptimizedComponent(fancyValues.get(player))
+                    player.getPlayerlistFancy()
             );
         }
     }
 
     @Override
     public void write(@NotNull ByteArrayDataOutput out, @NotNull TabPlayer player) {
-        out.writeInt(TAB.getInstance().getErrorManager().parseInteger(player.getProperty(yellowNumber.getPROPERTY_VALUE()).get(), 0));
+        out.writeInt(yellowNumber.getValueNumber(player));
         out.writeUTF(player.getProperty(yellowNumber.getPROPERTY_VALUE_FANCY()).get());
     }
 
     @Override
     public void read(@NotNull ByteArrayDataInput in, @NotNull RedisPlayer player) {
-        values.put(player, in.readInt());
-        fancyValues.put(player, in.readUTF());
+        player.setPlayerlistNumber(in.readInt());
+        player.setPlayerlistFancy(TabComponent.optimized(in.readUTF()));
     }
 
     @Override
@@ -101,8 +96,8 @@ public class RedisYellowNumber extends RedisFeature {
         public void process(@NotNull RedisSupport redisSupport) {
             RedisPlayer target = redisSupport.getRedisPlayers().get(playerId);
             if (target == null) return; // Print warn?
-            values.put(target, value);
-            fancyValues.put(target, fancyValue);
+            target.setPlayerlistNumber(value);
+            target.setPlayerlistFancy(TabComponent.optimized(fancyValue));
             onJoin(target);
         }
     }

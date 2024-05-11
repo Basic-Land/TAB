@@ -4,8 +4,7 @@ import com.mojang.authlib.properties.Property;
 import lombok.Getter;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.BossBar;
 import net.minecraft.network.protocol.Packet;
@@ -22,10 +21,10 @@ import java.util.Collection;
 public class FabricTabPlayer extends BackendTabPlayer {
 
     @NotNull
-    private final Scoreboard<FabricTabPlayer> scoreboard = new FabricScoreboard(this);
+    private final FabricScoreboard scoreboard = new FabricScoreboard(this);
 
     @NotNull
-    private final TabList tabList = new FabricTabList(this);
+    private final FabricTabList tabList = new FabricTabList(this);
 
     @NotNull
     private final BossBar bossBar = new FabricBossBar(this);
@@ -43,7 +42,7 @@ public class FabricTabPlayer extends BackendTabPlayer {
      */
     public FabricTabPlayer(@NotNull FabricPlatform platform, @NotNull ServerPlayer player) {
         super(platform, player, player.getUUID(), player.getGameProfile().getName(),
-                FabricMultiVersion.getLevelName.apply(FabricMultiVersion.getLevel.apply(player)));
+                FabricMultiVersion.getLevelName(FabricMultiVersion.getLevel(player)), platform.getServerVersion().getNetworkId());
     }
 
     @Override
@@ -53,12 +52,12 @@ public class FabricTabPlayer extends BackendTabPlayer {
 
     @Override
     public int getPing() {
-        return FabricMultiVersion.getPing.apply(getPlayer());
+        return FabricMultiVersion.getPing(getPlayer());
     }
 
     @Override
-    public void sendMessage(@NotNull IChatBaseComponent message) {
-        FabricMultiVersion.sendMessage.accept(getPlayer(), getPlatform().toComponent(message, getVersion()));
+    public void sendMessage(@NotNull TabComponent message) {
+        FabricMultiVersion.sendMessage(getPlayer(), message.convert(getVersion()));
     }
 
     @Override
@@ -76,18 +75,13 @@ public class FabricTabPlayer extends BackendTabPlayer {
     public TabList.Skin getSkin() {
         Collection<Property> properties = getPlayer().getGameProfile().getProperties().get(TabList.TEXTURES_PROPERTY);
         if (properties.isEmpty()) return null; // Offline mode
-        return FabricMultiVersion.propertyToSkin.apply(properties.iterator().next());
+        return FabricMultiVersion.propertyToSkin(properties.iterator().next());
     }
 
     @Override
     @NotNull
     public ServerPlayer getPlayer() {
         return (ServerPlayer) player;
-    }
-
-    @Override
-    public boolean isOnline() {
-        return true;
     }
 
     @Override

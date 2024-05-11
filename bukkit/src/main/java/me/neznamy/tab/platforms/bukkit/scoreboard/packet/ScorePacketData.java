@@ -1,16 +1,17 @@
 package me.neznamy.tab.platforms.bukkit.scoreboard.packet;
 
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.util.BiFunctionWithException;
 import me.neznamy.tab.shared.util.QuintFunction;
 import me.neznamy.tab.shared.util.ReflectionUtils;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.util.Optional;
 
 /**
  * Class containing data for scoreboard score set/reset packets.
@@ -34,9 +35,20 @@ public class ScorePacketData {
                 "Packet207SetScoreboardScore" // 1.5 - 1.6.4
         );
         if (BukkitReflection.is1_20_3Plus()) {
-            Constructor<?> newSetScore = SetScorePacket.getConstructor(String.class, String.class, int.class, PacketScoreboard.Component, PacketScoreboard.NumberFormat);
+            QuintFunction<String, String, Integer, Object, Object, Object> setScore0;
+            try {
+                // 1.20.5+
+                Constructor<?> newSetScore = SetScorePacket.getConstructor(String.class, String.class, int.class, Optional.class, Optional.class);
+                setScore0 = (objective, holder, score, displayName, numberFormat) ->
+                        newSetScore.newInstance(holder, objective, score, Optional.ofNullable(displayName), Optional.ofNullable(numberFormat));
+            } catch (ReflectiveOperationException e) {
+                // 1.20.3 - 1.20.4
+                Constructor<?> newSetScore = SetScorePacket.getConstructor(String.class, String.class, int.class, PacketScoreboard.Component, PacketScoreboard.NumberFormat);
+                setScore0 = (objective, holder, score, displayName, numberFormat) ->
+                        newSetScore.newInstance(holder, objective, score, displayName, numberFormat);
+            }
+            setScore = setScore0;
             Constructor<?> newResetScore = BukkitReflection.getClass("network.protocol.game.ClientboundResetScorePacket").getConstructor(String.class, String.class);
-            setScore = (objective, holder, score, displayName, numberFormat) -> newSetScore.newInstance(holder, objective, score, displayName, numberFormat);
             removeScore = (objective, holder) -> newResetScore.newInstance(holder, objective);
         } else if (BukkitReflection.getMinorVersion() >= 13) {
             Class<?> actionClass = BukkitReflection.getClass("server.ServerScoreboard$Method", "server.ScoreboardServer$Action", "ScoreboardServer$Action");
@@ -90,7 +102,7 @@ public class ScorePacketData {
      * @return  Set score packet with given parameters
      */
     @SneakyThrows
-    public Object setScore(@NotNull String objective, @NotNull String scoreHolder, int score,
+    public Object setScore(@NonNull String objective, @NonNull String scoreHolder, int score,
                            @Nullable Object displayName, @Nullable Object numberFormat) {
         return setScore.apply(objective, scoreHolder, score, displayName, numberFormat);
     }
@@ -105,7 +117,7 @@ public class ScorePacketData {
      * @return  Reset score packet with given parameters.
      */
     @SneakyThrows
-    public Object removeScore(@NotNull String objective, @NotNull String scoreHolder) {
+    public Object removeScore(@NonNull String objective, @NonNull String scoreHolder) {
         return removeScore.apply(objective, scoreHolder);
     }
 }

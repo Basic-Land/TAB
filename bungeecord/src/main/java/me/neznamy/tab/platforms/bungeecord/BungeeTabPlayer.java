@@ -1,19 +1,20 @@
 package me.neznamy.tab.platforms.bungeecord;
 
 import lombok.Getter;
+import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList1193;
 import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList17;
 import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList18;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
-import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import net.md_5.bungee.UserConnection;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.connection.InitialHandler;
 import net.md_5.bungee.connection.LoginResult;
@@ -30,17 +31,17 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
 
     /** Player's scoreboard */
     @NotNull
-    private final Scoreboard<BungeeTabPlayer> scoreboard = new BungeeScoreboard(this);
+    private final BungeeScoreboard scoreboard = new BungeeScoreboard(this);
 
     /** Player's tab list based on version */
     @NotNull
-    private final TabList tabList1_7 = new BungeeTabList17(this);
+    private final BungeeTabList tabList1_7 = new BungeeTabList17(this);
 
     @NotNull
-    private final TabList tabList1_8 = new BungeeTabList18(this);
+    private final BungeeTabList tabList1_8 = new BungeeTabList18(this);
 
     @NotNull
-    private final TabList tabList1_19_3 = new BungeeTabList1193(this);
+    private final BungeeTabList tabList1_19_3 = new BungeeTabList1193(this);
 
     /** Player's boss bar view */
     @NotNull
@@ -55,7 +56,7 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
      *          BungeeCord player
      */
     public BungeeTabPlayer(@NotNull BungeePlatform platform, @NotNull ProxiedPlayer p) {
-        super(platform, p, p.getUniqueId(), p.getName(), p.getServer() != null ? p.getServer().getInfo().getName() : "-", -1);
+        super(platform, p, p.getUniqueId(), p.getName(), p.getServer() != null ? p.getServer().getInfo().getName() : "-", p.getPendingConnection().getVersion());
     }
 
     @Override
@@ -69,8 +70,8 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
     }
 
     @Override
-    public void sendMessage(@NotNull IChatBaseComponent message) {
-        getPlayer().sendMessage(getPlatform().toComponent(message, getVersion()));
+    public void sendMessage(@NotNull TabComponent message) {
+        getPlayer().sendMessage((BaseComponent) message.convert(getVersion()));
     }
 
     @Override
@@ -87,11 +88,6 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
     @NotNull
     public ProxiedPlayer getPlayer() {
         return (ProxiedPlayer) player;
-    }
-
-    @Override
-    public boolean isOnline() {
-        return getPlayer().isConnected();
     }
 
     @Override
@@ -116,19 +112,6 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
         }
     }
 
-    /**
-     * If ViaVersion is installed on BungeeCord, it changes protocol to match version
-     * of server to which player is connected to. For that reason, we need to retrieve
-     * the field more often than just on join.
-     *
-     * @return  Player's current protocol version
-     */
-    @Override
-    @NotNull
-    public ProtocolVersion getVersion() {
-        return ProtocolVersion.fromNetworkId(getPlayer().getPendingConnection().getVersion());
-    }
-
     @Override
     public boolean isVanished() {
         if (PremiumVanishHook.getInstance() != null && PremiumVanishHook.getInstance().isVanished(this)) return true;
@@ -137,7 +120,7 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
 
     @Override
     @NotNull
-    public TabList getTabList() {
+    public BungeeTabList getTabList() {
         int version = getPlayer().getPendingConnection().getVersion();
         if (version >= ProtocolVersion.V1_19_3.getNetworkId()) return tabList1_19_3;
         if (version >= ProtocolVersion.V1_8.getNetworkId()) return tabList1_8;

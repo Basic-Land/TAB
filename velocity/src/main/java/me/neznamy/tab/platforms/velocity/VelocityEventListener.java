@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
  * The core for Velocity forwarding events into all enabled features
  */
 @SuppressWarnings("UnstableApiUsage")
-public class VelocityEventListener extends EventListener<Player> {
+public class VelocityEventListener implements EventListener<Player> {
 
     /**
      * Listens to player disconnecting from the server.
@@ -48,6 +48,7 @@ public class VelocityEventListener extends EventListener<Player> {
             if (player == null) {
                 tab.getFeatureManager().onJoin(createPlayer(e.getPlayer()));
             } else {
+                player.getScoreboard().freeze(); // Prevent server switch listeners from sending packets before re-registering objectives in onLoginPacket
                 tab.getFeatureManager().onServerChange(
                         player.getUniqueId(),
                         e.getPlayer().getCurrentServer().map(s -> s.getServerInfo().getName()).orElse("null")
@@ -67,11 +68,11 @@ public class VelocityEventListener extends EventListener<Player> {
     @Subscribe
     public void onCommand(@NotNull CommandExecuteEvent e) {
         BossBarManagerImpl bossBarManager = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.BOSS_BAR);
-        if (bossBarManager != null && bossBarManager.getToggleCommand().substring(1).equals(e.getCommand())) {
+        if (bossBarManager != null && bossBarManager.getCommand().substring(1).equals(e.getCommand())) {
             e.setResult(CommandResult.command(TabConstants.COMMAND_PROXY + " bossbar"));
         }
         ScoreboardManagerImpl scoreboard = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.SCOREBOARD);
-        if (scoreboard != null && scoreboard.getToggleCommand().substring(1).equals(e.getCommand())) {
+        if (scoreboard != null && scoreboard.getCommand().substring(1).equals(e.getCommand())) {
             e.setResult(CommandResult.command(TabConstants.COMMAND_PROXY + " scoreboard"));
         }
     }

@@ -1,29 +1,24 @@
-package me.neznamy.tab.platforms.bukkit.header;
+package me.neznamy.tab.platforms.bukkit.tablist;
 
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
+import me.neznamy.tab.platforms.bukkit.nms.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.nms.PacketSender;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.util.BiFunctionWithException;
-import me.neznamy.tab.shared.util.ComponentCache;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 /**
  * Header/footer sender that uses NMS to send packets. Available
  * on all versions since 1.8 when the feature was added into the game.
  */
-public class PacketHeaderFooter extends HeaderFooter {
+public class PacketHeaderFooter {
 
-    private Method ChatSerializer_DESERIALIZE;
     private final PacketSender packetSender = new PacketSender();
-    private final ComponentCache<IChatBaseComponent, Object> componentCache = new ComponentCache<>(1000,
-            (component, clientVersion) -> ChatSerializer_DESERIALIZE.invoke(null, component.toString(clientVersion)));
     private final BiFunctionWithException<Object, Object, Object> createPacket;
 
     /**
@@ -36,9 +31,7 @@ public class PacketHeaderFooter extends HeaderFooter {
         Class<?> Component = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent", "IChatBaseComponent");
         Class<?> HeaderFooterClass = BukkitReflection.getClass("network.protocol.game.ClientboundTabListPacket",
                 "network.protocol.game.PacketPlayOutPlayerListHeaderFooter", "PacketPlayOutPlayerListHeaderFooter");
-        Class<?> ChatSerializer = BukkitReflection.getClass("network.chat.Component$Serializer",
-                "network.chat.IChatBaseComponent$ChatSerializer", "IChatBaseComponent$ChatSerializer", "ChatSerializer");
-        ChatSerializer_DESERIALIZE = ReflectionUtils.getMethods(ChatSerializer, Object.class, String.class).get(0);
+        ComponentConverter.ensureAvailable();
         if (BukkitReflection.getMinorVersion() >= 17) {
             Constructor<?> newHeaderFooter = HeaderFooterClass.getConstructor(Component, Component);
             createPacket = newHeaderFooter::newInstance;
@@ -55,12 +48,18 @@ public class PacketHeaderFooter extends HeaderFooter {
         }
     }
 
+    /**
+     * Sends header/footer to player.
+     *
+     * @param   player
+     *          Player to send header/footer to.
+     * @param   header
+     *          Header to use.
+     * @param   footer
+     *          Footer to use.
+     */
     @SneakyThrows
-    @Override
-    public void set(@NotNull BukkitTabPlayer player, @NotNull IChatBaseComponent header, @NotNull IChatBaseComponent footer) {
-        packetSender.sendPacket(player.getPlayer(), createPacket.apply(
-                componentCache.get(header, player.getVersion()),
-                componentCache.get(footer, player.getVersion())
-        ));
+    public void set(@NotNull BukkitTabPlayer player, @NotNull Object header, @NotNull Object footer) {
+        packetSender.sendPacket(player.getPlayer(), createPacket.apply(header, footer));
     }
 }

@@ -1,6 +1,7 @@
 package me.neznamy.tab.shared.backend.features.unlimitedtags;
 
 import lombok.Getter;
+import me.neznamy.tab.shared.backend.Location;
 import me.neznamy.tab.shared.features.nametags.unlimited.ArmorStandManager;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.TabConstants;
@@ -16,6 +17,8 @@ public class BackendArmorStandManager implements ArmorStandManager {
     private final double SPACE_BETWEEN_LINES = 0.26;
 
     private final BackendNameTagX nameTagX;
+
+    private final TabPlayer owner;
 
     @Getter private boolean sneaking;
 
@@ -38,6 +41,7 @@ public class BackendArmorStandManager implements ArmorStandManager {
      */
     public BackendArmorStandManager(@NotNull NameTagX nameTagX, @NotNull TabPlayer owner) {
         this.nameTagX = (BackendNameTagX) nameTagX;
+        this.owner = owner;
         sneaking = this.nameTagX.isSneaking(owner);
         owner.setProperty(nameTagX, TabConstants.Property.NAMETAG, owner.getProperty(TabConstants.Property.TAGPREFIX).getCurrentRawValue()
                 + owner.getProperty(TabConstants.Property.CUSTOMTAGNAME).getCurrentRawValue()
@@ -66,6 +70,18 @@ public class BackendArmorStandManager implements ArmorStandManager {
     }
 
     /**
+     * Moves armor stands to match player move packet.
+     *
+     * @param   viewer
+     *          player to move armor stands for
+     * @param   diff
+     *          Move diff
+     */
+    public void move(@NotNull BackendTabPlayer viewer, @NotNull Location diff) {
+        for (ArmorStand a : armorStandArray) a.move(viewer, diff);
+    }
+
+    /**
      * Teleports armor stands to player's current location for all nearby players
      */
     public void teleport() {
@@ -91,6 +107,11 @@ public class BackendArmorStandManager implements ArmorStandManager {
      */
     public void sneak(boolean sneaking) {
         this.sneaking = sneaking;
+        if (nameTagX.isFlying(owner)) {
+            // Do not teleport if flying to keep in sync with vanilla position bug
+            updateMetadata();
+            return;
+        }
         for (BackendTabPlayer viewer : nearbyPlayers) {
             if (viewer.getVersion().getMinorVersion() == 14 && !nameTagX.isArmorStandsAlwaysVisible()) {
                 //1.14.x client sided bug, de-spawning completely
@@ -202,6 +223,12 @@ public class BackendArmorStandManager implements ArmorStandManager {
             }
         }
         if (fix) fixArmorStandHeights();
+    }
+
+    public void updateMetadata() {
+        for (BackendTabPlayer viewer : nearbyPlayers) {
+            updateMetadata(viewer);
+        }
     }
 
     public void updateMetadata(@NotNull BackendTabPlayer viewer) {

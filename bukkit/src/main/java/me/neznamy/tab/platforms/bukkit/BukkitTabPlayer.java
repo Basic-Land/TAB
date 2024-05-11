@@ -11,12 +11,10 @@ import me.neznamy.tab.platforms.bukkit.tablist.TabListBase;
 import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
 import me.neznamy.tab.shared.platform.BossBar;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
-import me.neznamy.tab.shared.util.ReflectionUtils;
-import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffectType;
@@ -30,13 +28,11 @@ import org.jetbrains.annotations.Nullable;
 @Getter
 public class BukkitTabPlayer extends BackendTabPlayer {
 
-    private static final boolean spigot = ReflectionUtils.classExists("net.md_5.bungee.chat.ComponentSerializer");
+    @NotNull
+    private final Scoreboard<BukkitTabPlayer, ?> scoreboard = ScoreboardLoader.getInstance().apply(this);
 
     @NotNull
-    private final Scoreboard<BukkitTabPlayer> scoreboard = ScoreboardLoader.getInstance().apply(this);
-
-    @NotNull
-    private final TabListBase tabList = TabListBase.getInstance().apply(this);
+    private final TabListBase<?> tabList = TabListBase.getInstance().apply(this);
 
     @NotNull
     private final BossBar bossBar = BossBarLoader.findInstance(this);
@@ -53,7 +49,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
      *          bukkit player
      */
     public BukkitTabPlayer(@NotNull BukkitPlatform platform, @NotNull Player p) {
-        super(platform, p, p.getUniqueId(), p.getName(), p.getWorld().getName());
+        super(platform, p, p.getUniqueId(), p.getName(), p.getWorld().getName(), platform.getServerVersion().getNetworkId());
     }
 
     @Override
@@ -67,12 +63,8 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public void sendMessage(@NotNull IChatBaseComponent message) {
-        if (spigot) {
-            getPlayer().spigot().sendMessage(ComponentSerializer.parse(message.toString(getVersion())));
-        } else {
-            getPlayer().sendMessage(BukkitUtils.toBukkitFormat(message, getVersion().supportsRGB()));
-        }
+    public void sendMessage(@NotNull TabComponent message) {
+        getPlayer().sendMessage(getPlatform().toBukkitFormat(message, getVersion().supportsRGB()));
     }
 
     @Override
@@ -98,18 +90,16 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public boolean isOnline() {
-        return getPlayer().isOnline();
-    }
-
-    @Override
     public BukkitPlatform getPlatform() {
         return (BukkitPlatform) platform;
     }
 
     @Override
     public boolean isVanished() {
-        return getPlayer().getMetadata("vanished").stream().anyMatch(MetadataValue::asBoolean);
+        for (MetadataValue v : getPlayer().getMetadata("vanished")) {
+            if (v.asBoolean()) return true;
+        }
+        return false;
     }
 
     @Override

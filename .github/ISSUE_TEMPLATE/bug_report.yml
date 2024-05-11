@@ -20,6 +20,14 @@ body:
 
   - type: textarea
     attributes:
+      label: Plugin list
+      description: Full list of plugins (output of /plugins)
+      placeholder: ...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
       label: Describe the bug
       description: How the plugin behaves
     validations:

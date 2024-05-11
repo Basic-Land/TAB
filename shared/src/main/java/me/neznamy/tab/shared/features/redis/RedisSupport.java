@@ -7,7 +7,6 @@ import lombok.Getter;
 import me.neznamy.tab.api.event.EventHandler;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.event.impl.TabPlaceholderRegisterEvent;
 import me.neznamy.tab.shared.features.redis.feature.*;
 import me.neznamy.tab.shared.features.redis.message.*;
@@ -28,10 +27,8 @@ import java.util.function.Supplier;
 @SuppressWarnings("UnstableApiUsage")
 @Getter
 public abstract class RedisSupport extends TabFeature implements JoinListener, QuitListener,
-        DisplayNameListener, Loadable, UnLoadable, ServerSwitchListener, LoginPacketListener,
+        Loadable, UnLoadable, ServerSwitchListener, LoginPacketListener,
         VanishListener, TabListClearListener {
-
-    @NotNull private final String featureName = "RedisSupport";
 
     /** Redis players on other proxies by their UUID */
     @NotNull protected final Map<UUID, RedisPlayer> redisPlayers = new ConcurrentHashMap<>();
@@ -129,15 +126,14 @@ public abstract class RedisSupport extends TabFeature implements JoinListener, Q
      *          json message to process
      */
     public void processMessage(@NotNull String msg) {
-        TAB.getInstance().getCPUManager().runMeasuredTask(featureName, TabConstants.CpuUsageCategory.REDIS_BUNGEE_MESSAGE, () -> {
+        TAB.getInstance().getCPUManager().runMeasuredTask(getFeatureName(), TabConstants.CpuUsageCategory.REDIS_BUNGEE_MESSAGE, () -> {
             ByteArrayDataInput in = ByteStreams.newDataInput(Base64.getDecoder().decode(msg));
             String proxy = in.readUTF();
             if (proxy.equals(this.proxy.toString())) return; // Message coming from current proxy
             String action = in.readUTF();
             Supplier<RedisMessage> supplier = messages.get(action);
             if (supplier == null) {
-                TAB.getInstance().getErrorManager().printError("RedisSupport received unknown action: \"" + action +
-                        "\". Does it come from a feature enabled on another proxy, but not here?");
+                TAB.getInstance().getErrorManager().unknownRedisMessage(action);
                 return;
             }
             RedisMessage redisMessage = supplier.get();
@@ -257,17 +253,6 @@ public abstract class RedisSupport extends TabFeature implements JoinListener, Q
         sendMessage(new PlayerQuit(p.getTablistId()));
     }
 
-    @Override
-    public IChatBaseComponent onDisplayNameChange(@NotNull TabPlayer packetReceiver, @NotNull UUID id) {
-        if (redisPlayerList == null) return null;
-        if (!redisPlayerList.getPlayerList().isAntiOverrideTabList()) return null;
-        RedisPlayer packetPlayer = redisPlayers.get(id);
-        if (packetPlayer != null) {
-            return IChatBaseComponent.optimizedComponent(redisPlayerList.getFormat(packetPlayer));
-        }
-        return null;
-    }
-
     /**
      * Sends message to other proxies.
      *
@@ -310,5 +295,11 @@ public abstract class RedisSupport extends TabFeature implements JoinListener, Q
     @Override
     public void onVanishStatusChange(@NotNull TabPlayer player) {
         sendMessage(new UpdateVanishStatus(player.getTablistId(), player.isVanished()));
+    }
+
+    @Override
+    @NotNull
+    public String getFeatureName() {
+        return "RedisSupport";
     }
 }

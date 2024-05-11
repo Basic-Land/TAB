@@ -3,12 +3,10 @@ package me.neznamy.tab.platforms.velocity;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.util.GameProfile;
 import lombok.Getter;
-import me.neznamy.tab.shared.hook.AdventureHook;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
 import me.neznamy.tab.shared.platform.BossBar;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.impl.BridgeScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -24,11 +22,11 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
 
     /** Player's scoreboard */
     @NotNull
-    private final Scoreboard<ProxyTabPlayer> scoreboard = new BridgeScoreboard(this);
+    private final BridgeScoreboard scoreboard = new BridgeScoreboard(this);
 
     /** Player's tab list */
     @NotNull
-    private final TabList tabList = new VelocityTabList(this);
+    private final VelocityTabList tabList = new VelocityTabList(this);
 
     /** Player's boss bar view */
     @NotNull
@@ -58,8 +56,8 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
     }
 
     @Override
-    public void sendMessage(@NotNull IChatBaseComponent message) {
-        getPlayer().sendMessage(AdventureHook.toAdventureComponent(message, getVersion()));
+    public void sendMessage(@NotNull TabComponent message) {
+        getPlayer().sendMessage(message.convert(getVersion()));
     }
 
     @Override
@@ -75,11 +73,6 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
     public Player getPlayer() {
         return (Player) player;
     }
-    
-    @Override
-    public boolean isOnline() {
-        return getPlayer().isActive();
-    }
 
     @Override
     public VelocityPlatform getPlatform() {
@@ -89,13 +82,9 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
     @Override
     public void sendPluginMessage(byte[] message) {
         try {
-            getPlayer().getCurrentServer().ifPresentOrElse(
-                    server -> server.sendPluginMessage(getPlatform().getMCI(), message),
-                    () -> errorNoServer(message)
-            );
+            getPlayer().getCurrentServer().ifPresent(server -> server.sendPluginMessage(getPlatform().getMCI(), message));
         } catch (IllegalStateException VelocityBeingVelocityException) {
             // java.lang.IllegalStateException: Not connected to server!
-            errorNoServer(message);
         }
     }
 }

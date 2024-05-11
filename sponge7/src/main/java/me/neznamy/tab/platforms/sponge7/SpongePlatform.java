@@ -1,12 +1,13 @@
 package me.neznamy.tab.platforms.sponge7;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.types.TabFeature;
@@ -31,6 +32,10 @@ public class SpongePlatform implements BackendPlatform {
     /** Plugin reference */
     @NotNull
     private final Sponge7TAB plugin;
+
+    /** Server version */
+    @Getter
+    private final ProtocolVersion serverVersion = ProtocolVersion.fromFriendlyName(Sponge.getGame().getPlatform().getMinecraftVersion().getName());
 
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
@@ -69,13 +74,13 @@ public class SpongePlatform implements BackendPlatform {
     }
 
     @Override
-    public void logInfo(@NotNull IChatBaseComponent message) {
+    public void logInfo(@NotNull TabComponent message) {
         plugin.getLogger().info(message.toLegacyText());
     }
 
     @Override
-    public void logWarn(@NotNull IChatBaseComponent message) {
-        plugin.getLogger().warn(EnumChatFormat.RED.getFormat() + message.toLegacyText());
+    public void logWarn(@NotNull TabComponent message) {
+        plugin.getLogger().warn(EnumChatFormat.RED + message.toLegacyText());
     }
 
     @Override
@@ -105,14 +110,13 @@ public class SpongePlatform implements BackendPlatform {
 
     @Override
     @NotNull
-    public ProtocolVersion getServerVersion() {
-        return ProtocolVersion.fromFriendlyName(Sponge.getGame().getPlatform().getMinecraftVersion().getName());
+    public File getDataFolder() {
+        return plugin.getConfigDir();
     }
 
     @Override
-    @NotNull
-    public File getDataFolder() {
-        return plugin.getConfigDir();
+    public Text convertComponent(@NotNull TabComponent component, boolean modern) {
+        return Text.of(component.toLegacyText());
     }
 
     @Override

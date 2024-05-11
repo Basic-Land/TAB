@@ -3,7 +3,7 @@ package me.neznamy.tab.shared.features;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.Property;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.Scoreboard;
@@ -20,13 +20,11 @@ import java.util.Map;
  * Feature handler for BelowName feature
  */
 public class BelowName extends TabFeature implements JoinListener, Loadable, UnLoadable,
-        Refreshable, LoginPacketListener {
+        Refreshable, LoginPacketListener, WorldSwitchListener, ServerSwitchListener {
 
     /** Objective name used by this feature */
     public static final String OBJECTIVE_NAME = "TAB-BelowName";
 
-    @Getter private final String refreshDisplayName = "Updating BelowName number";
-    @Getter private final String featureName = "BelowName";
     @Getter private final String NUMBER_PROPERTY = Property.randomName();
     private final String TEXT_PROPERTY = Property.randomName();
     private final String DEFAULT_FORMAT_PROPERTY = Property.randomName();
@@ -46,7 +44,7 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
      */
     public BelowName() {
         Condition disableCondition = Condition.getCondition(config().getString("belowname-objective.disable-condition"));
-        disableChecker = new DisableChecker(featureName, disableCondition, this::onDisableConditionChange);
+        disableChecker = new DisableChecker(getFeatureName(), disableCondition, this::onDisableConditionChange, p -> p.disabledBelowname);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.BELOW_NAME + "-Condition", disableChecker);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.BELOW_NAME_TEXT, textRefresher);
         TAB.getInstance().getConfigHelper().startup().checkBelowNameText(rawText);
@@ -62,7 +60,7 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
             loaded.setProperty(textRefresher, TEXT_PROPERTY, rawText);
             loaded.setProperty(textRefresher, DEFAULT_FORMAT_PROPERTY, fancyDisplayDefault);
             if (disableChecker.isDisableConditionMet(loaded)) {
-                disableChecker.addDisabledPlayer(loaded);
+                loaded.disabledBelowname.set(true);
             } else {
                 register(loaded);
             }
@@ -70,7 +68,9 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
         }
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
             for (Map.Entry<TabPlayer, Integer> entry : values.entrySet()) {
-                setScore(viewer, entry.getKey(), entry.getValue(), entry.getKey().getProperty(FANCY_FORMAT_PROPERTY).getFormat(viewer));
+                TabPlayer target = entry.getKey();
+                if (!sameServerAndWorld(viewer, target)) continue;
+                setScore(viewer, target, entry.getValue(), target.getProperty(FANCY_FORMAT_PROPERTY).getFormat(viewer));
             }
         }
     }
@@ -78,7 +78,7 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
     @Override
     public void unload() {
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
-            if (disableChecker.isDisabledPlayer(p)) continue;
+            if (p.disabledBelowname.get()) continue;
             p.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
         }
     }
@@ -90,15 +90,18 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
         connectedPlayer.setProperty(textRefresher, TEXT_PROPERTY, rawText);
         connectedPlayer.setProperty(textRefresher, DEFAULT_FORMAT_PROPERTY, fancyDisplayDefault);
         if (disableChecker.isDisableConditionMet(connectedPlayer)) {
-            disableChecker.addDisabledPlayer(connectedPlayer);
+            connectedPlayer.disabledBelowname.set(true);
         } else {
             register(connectedPlayer);
         }
         int number = getValue(connectedPlayer);
         Property fancy = connectedPlayer.getProperty(FANCY_FORMAT_PROPERTY);
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            if (!sameServerAndWorld(connectedPlayer, all)) continue;
             setScore(all, connectedPlayer, number, fancy.getFormat(all));
-            setScore(connectedPlayer, all, getValue(all), all.getProperty(FANCY_FORMAT_PROPERTY).getFormat(connectedPlayer));
+            if (all != connectedPlayer) {
+                setScore(connectedPlayer, all, getValue(all), all.getProperty(FANCY_FORMAT_PROPERTY).getFormat(connectedPlayer));
+            }
         }
         if (redis != null) redis.updateBelowName(connectedPlayer, number, fancy.get());
     }
@@ -127,7 +130,22 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
      * @return  Current value for player
      */
     public int getValue(@NotNull TabPlayer p) {
-        return TAB.getInstance().getErrorManager().parseInteger(p.getProperty(NUMBER_PROPERTY).updateAndGet(), 0);
+        String string = p.getProperty(NUMBER_PROPERTY).updateAndGet();
+        try {
+            return Integer.parseInt(string);
+        } catch (NumberFormatException e) {
+            // Not an integer (float or invalid)
+            try {
+                int value = (int) Math.round(Double.parseDouble(string));
+                // Float
+                TAB.getInstance().getConfigHelper().runtime().floatInBelowName(p, rawNumber, string);
+                return value;
+            } catch (NumberFormatException e2) {
+                // Not a float (invalid)
+                TAB.getInstance().getConfigHelper().runtime().invalidNumberForBelowName(p, rawNumber, string);
+                return 0;
+            }
+        }
     }
 
     @Override
@@ -136,16 +154,24 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
         Property fancy = refreshed.getProperty(FANCY_FORMAT_PROPERTY);
         fancy.update();
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+            if (!sameServerAndWorld(viewer, refreshed)) continue;
             setScore(viewer, refreshed, number, fancy.getFormat(viewer));
         }
         if (redis != null) redis.updateBelowName(refreshed, number, fancy.get());
     }
 
     @Override
+    @NotNull
+    public String getRefreshDisplayName() {
+        return "Updating BelowName number";
+    }
+
+    @Override
     public void onLoginPacket(@NotNull TabPlayer player) {
-        if (disableChecker.isDisabledPlayer(player) || !player.isLoaded()) return;
+        if (player.disabledBelowname.get() || !player.isLoaded()) return;
         register(player);
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            if (!sameServerAndWorld(all, player)) continue;
             if (all.isLoaded()) setScore(player, all, getValue(all), all.getProperty(FANCY_FORMAT_PROPERTY).getFormat(player));
         }
     }
@@ -155,7 +181,7 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
                 OBJECTIVE_NAME,
                 player.getProperty(TEXT_PROPERTY).updateAndGet(),
                 Scoreboard.HealthDisplay.INTEGER,
-                IChatBaseComponent.emptyToNullOptimizedComponent(player.getProperty(DEFAULT_FORMAT_PROPERTY).updateAndGet())
+                TabComponent.optimized(player.getProperty(DEFAULT_FORMAT_PROPERTY).updateAndGet())
         );
         player.getScoreboard().setDisplaySlot(Scoreboard.DisplaySlot.BELOW_NAME, OBJECTIVE_NAME);
     }
@@ -173,32 +199,80 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
      *          NumberFormat display of the score
      */
     public void setScore(@NotNull TabPlayer viewer, @NotNull TabPlayer scoreHolder, int value, @NotNull String fancyDisplay) {
-        if (disableChecker.isDisabledPlayer(viewer)) return;
+        if (viewer.disabledBelowname.get()) return;
         viewer.getScoreboard().setScore(
                 OBJECTIVE_NAME,
                 scoreHolder.getNickname(),
                 value,
                 null, // Unused by this objective slot
-                IChatBaseComponent.emptyToNullOptimizedComponent(fancyDisplay)
+                TabComponent.optimized(fancyDisplay)
         );
+    }
+
+    @Override
+    @NotNull
+    public String getFeatureName() {
+        return "BelowName";
+    }
+
+    /**
+     * Returns {@code true} if the two players are in the same server and world,
+     * {@code false} if not.
+     *
+     * @param   player1
+     *          First player
+     * @param   player2
+     *          Second player
+     * @return  {@code true} if players are in the same server and world, {@code false} otherwise
+     */
+    private boolean sameServerAndWorld(@NotNull TabPlayer player1, @NotNull TabPlayer player2) {
+        return player1.getServer().equals(player2.getServer()) && player1.getWorld().equals(player2.getWorld());
+    }
+
+    @Override
+    public void onServerChange(@NotNull TabPlayer changed, @NotNull String from, @NotNull String to) {
+        updatePlayer(changed);
+    }
+
+    @Override
+    public void onWorldChange(@NotNull TabPlayer changed, @NotNull String from, @NotNull String to) {
+        updatePlayer(changed);
+    }
+
+    private void updatePlayer(@NotNull TabPlayer player) {
+        for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            if (!sameServerAndWorld(all, player)) continue;
+            setScore(player, all, getValue(all), all.getProperty(FANCY_FORMAT_PROPERTY).getFormat(player));
+            if (all != player) setScore(all, player, getValue(player), player.getProperty(FANCY_FORMAT_PROPERTY).getFormat(all));
+        }
     }
 
     @RequiredArgsConstructor
     private static class TextRefresher extends TabFeature implements Refreshable {
 
-        @Getter private final String refreshDisplayName = "Updating BelowName text";
-        @Getter private final String featureName = "BelowName";
         private final BelowName feature;
 
         @Override
         public void refresh(@NotNull TabPlayer refreshed, boolean force) {
-            if (feature.disableChecker.isDisabledPlayer(refreshed)) return;
+            if (refreshed.disabledBelowname.get()) return;
             refreshed.getScoreboard().updateObjective(
                     OBJECTIVE_NAME,
                     refreshed.getProperty(feature.TEXT_PROPERTY).updateAndGet(),
                     Scoreboard.HealthDisplay.INTEGER,
-                    IChatBaseComponent.emptyToNullOptimizedComponent(refreshed.getProperty(feature.DEFAULT_FORMAT_PROPERTY).updateAndGet())
+                    TabComponent.optimized(refreshed.getProperty(feature.DEFAULT_FORMAT_PROPERTY).updateAndGet())
             );
+        }
+
+        @Override
+        @NotNull
+        public String getRefreshDisplayName() {
+            return "Updating BelowName text";
+        }
+
+        @Override
+        @NotNull
+        public String getFeatureName() {
+            return feature.getFeatureName();
         }
     }
 }

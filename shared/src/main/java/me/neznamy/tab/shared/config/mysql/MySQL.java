@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Properties;
 
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetProvider;
@@ -12,23 +13,31 @@ import javax.sql.rowset.RowSetProvider;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.SimpleComponent;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @RequiredArgsConstructor
 public class MySQL {
 
     private Connection con;
-    @NonNull private final String host;
+    @NotNull private final String host;
     private final int port;
-    @NonNull private final String database;
-    @NonNull private final String username;
-    @NonNull private final String password;
+    @NotNull private final String database;
+    @NotNull private final String username;
+    @NotNull private final String password;
+    private final boolean useSSL;
 
     public void openConnection() throws SQLException {
         if (isConnected()) return;
-        con = DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/" + database, username, password);
-        TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&aSuccessfully connected to MySQL"));
+        Properties properties = new Properties();
+        properties.setProperty("user", username);
+        properties.setProperty("password", password);
+        properties.setProperty("useSSL", String.valueOf(useSSL));
+        properties.setProperty("characterEncoding", "UTF-8");
+        con = DriverManager.getConnection(String.format("jdbc:mysql://%s:%d/%s", host, port, database), properties);
+        TAB.getInstance().getPlatform().logInfo(new SimpleComponent(EnumChatFormat.GREEN + "Successfully connected to MySQL"));
     }
     
     public void closeConnection() throws SQLException {

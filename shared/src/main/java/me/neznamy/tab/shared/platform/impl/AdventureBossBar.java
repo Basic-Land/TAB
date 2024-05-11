@@ -1,13 +1,12 @@
 package me.neznamy.tab.shared.platform.impl;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.hook.AdventureHook;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.kyori.adventure.audience.Audience;
@@ -25,7 +24,7 @@ public class AdventureBossBar implements BossBar {
     private final TabPlayer player;
 
     /** BossBars currently visible to the player */
-    private final Map<UUID, net.kyori.adventure.bossbar.BossBar> bossBars = new LinkedHashMap<>();
+    private final Map<UUID, net.kyori.adventure.bossbar.BossBar> bossBars = new HashMap<>();
 
     @Override
     public void create(@NotNull UUID id, @NotNull String title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
@@ -36,7 +35,7 @@ public class AdventureBossBar implements BossBar {
             return;
         }
         net.kyori.adventure.bossbar.BossBar bar = net.kyori.adventure.bossbar.BossBar.bossBar(
-                AdventureHook.toAdventureComponent(IChatBaseComponent.optimizedComponent(title), player.getVersion()),
+                TabComponent.optimized(title).convert(player.getVersion()),
                 progress,
                 Color.valueOf(color.name()),
                 Overlay.valueOf(style.name())
@@ -47,7 +46,7 @@ public class AdventureBossBar implements BossBar {
 
     @Override
     public void update(@NotNull UUID id, @NotNull String title) {
-        bossBars.get(id).name(AdventureHook.toAdventureComponent(IChatBaseComponent.optimizedComponent(title), player.getVersion()));
+        bossBars.get(id).name(TabComponent.optimized(title).convert(player.getVersion()));
     }
 
     @Override

@@ -1,7 +1,8 @@
 package me.neznamy.tab.shared.config.helper;
 
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.SimpleComponent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -73,12 +74,32 @@ public class HintPrinter {
     }
 
     /**
+     * Prints a hint when placeholder replacement is configured to show the placeholder itself
+     * in "else" value, which is already the default behavior.
+     *
+     * @param   replacementMap
+     *          Placeholder output replacement map from config
+     */
+    public void checkForRedundantElseReplacement(@NotNull Map<Object, Object> replacementMap) {
+        for (Map.Entry<Object, Object> entry : replacementMap.entrySet()) {
+            String placeholder = String.valueOf(entry.getKey());
+            if (!(entry.getValue() instanceof Map)) continue;
+            for (Map.Entry<?, ?> pattern : ((Map<?, ?>) entry.getValue()).entrySet()) {
+                if (pattern.getKey().equals("else") && pattern.getValue().equals(placeholder)) {
+                    hint(String.format("Placeholder %s has configured \"else -> %s\" replacement pattern, but this is already the default behavior " +
+                            "and therefore this pattern can be removed.", placeholder, placeholder));
+                }
+            }
+        }
+    }
+
+    /**
      * Logs the message with "Hint" prefix.
      *
      * @param   message
      *          Message to log
      */
     private void hint(@NotNull String message) {
-        TAB.getInstance().getPlatform().logInfo(IChatBaseComponent.fromColoredText("&6[Hint] " + message));
+        TAB.getInstance().getPlatform().logInfo(new SimpleComponent(EnumChatFormat.GOLD + "[Hint] " + message));
     }
 }

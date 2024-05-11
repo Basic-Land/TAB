@@ -1,8 +1,10 @@
 package me.neznamy.tab.shared;
 
 import lombok.Getter;
+import me.neznamy.tab.api.event.TabEvent;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,10 +14,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * An error assistant to print internal errors into error file
@@ -49,16 +48,6 @@ public class ErrorManager {
     }
 
     /**
-     * Prints error message into errors.log file
-     *
-     * @param   message
-     *          message to print
-     */
-    public void printError(@Nullable String message) {
-        printError(message, null, false);
-    }
-
-    /**
      * Prints error message and stack trace into errors.log file
      *
      * @param   message
@@ -67,21 +56,7 @@ public class ErrorManager {
      *          thrown error
      */
     public void printError(@Nullable String message, @Nullable Throwable t) {
-        printError(message, t, false);
-    }
-
-    /**
-     * Prints error message and stack trace into errors.log file
-     *
-     * @param   message
-     *          message to print
-     * @param   t
-     *          thrown error
-     * @param   intoConsoleToo
-     *          if the message should be printed into console as well or not
-     */
-    public void printError(@Nullable String message, @Nullable Throwable t, boolean intoConsoleToo) {
-        printError(message, t, intoConsoleToo, errorLog);
+        printError(message, t, false, errorLog);
     }
 
     /**
@@ -135,34 +110,42 @@ public class ErrorManager {
      * @param   file
      *          file to print error to
      */
-    private synchronized void printError(@Nullable String message, @NotNull List<String> error, boolean intoConsoleToo, @NotNull File file) {
+    public synchronized void printError(@Nullable String message, @NotNull List<String> error, boolean intoConsoleToo, @NotNull File file) {
         try {
             if (!file.exists()) Files.createFile(file.toPath());
             try (BufferedWriter buf = new BufferedWriter(new FileWriter(file, true))) {
                 if (message != null) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
-                        buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + EnumChatFormat.decolor(message) + System.getProperty("line.separator"));
+                        buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + EnumChatFormat.decolor(message) + System.lineSeparator());
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().isDebugMode())
-                        TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent(message));
+                        TAB.getInstance().getPlatform().logWarn(new SimpleComponent(message));
                 }
                 for (String line : error) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
-                        buf.write(dateFormat.format(new Date()) + line + System.getProperty("line.separator"));
+                        buf.write(dateFormat.format(new Date()) + line + System.lineSeparator());
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().isDebugMode())
-                        TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent(line));
+                        TAB.getInstance().getPlatform().logWarn(new SimpleComponent(line));
                 }
             }
         } catch (IOException ex) {
-            TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("An error occurred when printing error message into file"));
-            TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent(ex.getClass().getName() + ": " + ex.getMessage()));
-            for (StackTraceElement e : ex.getStackTrace()) {
-                TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("\t" + e.toString()));
-            }
-            TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent("Original error: " + message));
-            for (String line : error) {
-                TAB.getInstance().getPlatform().logWarn(new IChatBaseComponent(line));
+            List<String> lines = new ArrayList<>();
+            lines.add("An error occurred when printing error message into file");
+            lines.addAll(throwableToList(ex, false));
+            lines.add("Original error: " + message);
+            lines.addAll(error);
+            for (String line : lines) {
+                TAB.getInstance().getPlatform().logWarn(new SimpleComponent(line));
             }
         }
+    }
+
+    @NotNull
+    private Throwable getRootCause(@NotNull Throwable throwable) {
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
+        }
+        return rootCause;
     }
 
     /**
@@ -198,24 +181,162 @@ public class ErrorManager {
      *          thrown error
      */
     public void criticalError(@Nullable String message, @Nullable Throwable t) {
-        printError(message, t, true);
+        printError(message, t, true, errorLog);
     }
 
     /**
-     * Parses integer in given string and returns it.
-     * Returns second argument if string is not valid.
+     * Prints error message when permission plugin throws error when retrieving group.
      *
-     * @param   string
-     *          string to parse
-     * @param   defaultValue
-     *          value to return if string is not valid
-     * @return  parsed integer or {@code defaultValue} if input is invalid
+     * @param   pluginName
+     *          Name of permission plugin
+     * @param   player
+     *          Player whose group failed to retrieve
+     * @param   t
+     *          Thrown error
      */
-    public int parseInteger(@NotNull String string, int defaultValue) {
-        try {
-            return (int) Math.round(Double.parseDouble(string));
-        } catch (NumberFormatException e) {
-            return defaultValue;
+    public void groupRetrieveException(@NotNull String pluginName, @NotNull TabPlayer player, Throwable t) {
+        printError("Permission system " + pluginName + " threw an exception when getting group of " + player.getName(),
+                t, false, errorLog);
+    }
+
+    /**
+     * Prints error message when permission plugin returned null group.
+     *
+     * @param   pluginName
+     *          Name of permission plugin
+     * @param   player
+     *          Player who null group was returned for
+     */
+    public void nullGroupReturned(@NotNull String pluginName, @NotNull TabPlayer player) {
+        printError("Permission system " + pluginName + " returned null group for player " + player.getName(),
+                Collections.emptyList(), false, errorLog);
+    }
+
+    /**
+     * Prints error message when parse command throws an error.
+     *
+     * @param   placeholder
+     *          Placeholder input that threw the error
+     * @param   target
+     *          Player the placeholder was parsed for
+     * @param   t
+     *          Thrown error
+     */
+    public void parseCommandError(@NotNull String placeholder, @NotNull TabPlayer target, @NotNull Throwable t) {
+        printError("Placeholder " + placeholder + " threw an exception when parsing for player " + target.getName(),
+                t, true, errorLog);
+    }
+
+    /**
+     * Prints error message when RedidSupport received message with unknown action.
+     *
+     * @param   action
+     *          Message action
+     */
+    public void unknownRedisMessage(@NotNull String action) {
+        printError("RedisSupport received unknown action: \"" + action +
+                "\". Does it come from a feature enabled on another proxy, but not here?",
+                Collections.emptyList(), false, errorLog);
+    }
+
+    /**
+     * Prints error message when MineSkin download failed with an error.
+     *
+     * @param   id
+     *          Skin that failed to download
+     * @param   t
+     *          Thrown error
+     */
+    public void mineSkinDownloadError(@NotNull String id, @NotNull Throwable t) {
+        printError("Failed to download skin \"" + id + "\" from MineSkin: " + t.getMessage(),
+                t, true, errorLog);
+    }
+
+    /**
+     * Prints error message when player skin download failed with an error.
+     *
+     * @param   name
+     *          Player name that failed to download
+     * @param   t
+     *          Thrown error
+     */
+    public void playerSkinDownloadError(@NotNull String name, @NotNull Throwable t) {
+        printError("Failed to download skin of player \"" + name + "\": " + t.getMessage(),
+                t, true, errorLog);
+    }
+
+    /**
+     * Prints error message when texture skin download failed with an error.
+     *
+     * @param   texture
+     *          Texture that failed to download
+     * @param   t
+     *          Thrown error
+     */
+    public void textureSkinDownloadError(@NotNull String texture, @NotNull Throwable t) {
+        printError("Failed to download skin from texture \"" + texture + "\": " + t.getMessage(),
+                t, true, errorLog);
+    }
+
+    /**
+     * Prints error message if armor stand manager of player is unexpectedly {@code null}.
+     *
+     * @param   player
+     *          Player with null armor stand manager
+     * @param   action
+     *          Action during which armor stand manager was null
+     */
+    public void armorStandNull(@NotNull TabPlayer player, @NotNull String action) {
+        printError("ArmorStandManager of player " + player.getName() +
+                " is null when trying to process " + action + ", which is unexpected. Loaded = " + player.isLoaded(),
+                Collections.emptyList(), false, errorLog);
+    }
+
+    /**
+     * Prints error message when a task throws an error.
+     *
+     * @param   t
+     *          Thrown error
+     */
+    public void taskThrewError(@NotNull Throwable t) {
+        printError("An error was thrown when executing task", t, false, errorLog);
+    }
+
+    /**
+     * Prints error message if a MySQL connection fails.
+     *
+     * @param   t
+     *          Thrown error
+     */
+    public void mysqlConnectionFailed(@NotNull Throwable t) {
+        Throwable root = getRootCause(t);
+        printError("Failed to connect to MySQL: " + root.getClass().getName() + ": " + root.getMessage(), Collections.emptyList(), true, errorLog);
+    }
+
+    /**
+     * Prints error message if a MySQL query fails.
+     *
+     * @param   t
+     *          Thrown error
+     */
+    public void mysqlQueryFailed(@NotNull Throwable t) {
+        Throwable root = getRootCause(t);
+        printError("Failed to execute MySQL query due to error: " + root.getClass().getName() + ": " + root.getMessage(), Collections.emptyList(), false, errorLog);
+    }
+
+    /**
+     * Prints error message if errors were thrown when firing a TAB event.
+     *
+     * @param   event
+     *          Event that threw errors
+     * @param   exceptions
+     *          Errors thrown
+     */
+    public void errorFiringEvent(@NotNull TabEvent event, @NotNull Collection<Throwable> exceptions) {
+        printError("Some errors occurred whilst trying to fire event " + event, Collections.emptyList(), false, errorLog);
+        int i = 0;
+        for (Throwable exception : exceptions) {
+            printError("#" + i++ + ": \n", exception, false, errorLog);
         }
     }
 }

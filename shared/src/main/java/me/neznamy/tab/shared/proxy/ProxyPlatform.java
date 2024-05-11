@@ -4,7 +4,6 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import lombok.Getter;
 import me.neznamy.tab.shared.GroupManager;
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.hook.LuckPermsHook;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
@@ -117,8 +116,8 @@ public abstract class ProxyPlatform implements Platform {
     }
 
     @Override
-    public ProtocolVersion getServerVersion() {
-        return ProtocolVersion.PROXY;
+    public boolean isProxy() {
+        return true;
     }
 
     /**

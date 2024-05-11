@@ -2,7 +2,8 @@ package me.neznamy.tab.shared.config.helper;
 
 import me.neznamy.tab.api.bossbar.BossBar;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.features.sorting.types.SortingType;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
@@ -63,7 +64,7 @@ public class RuntimeErrorPrinter {
         if (player instanceof ProxyTabPlayer && !((ProxyTabPlayer)player).isBridgeConnected()) return;
 
         error(String.format("Placeholder %s used in sorting type %s returned \"%s\" for player %s, which is not a valid number.",
-                placeholder, type, output, player.getName()));
+                placeholder, type.getDisplayName(), output, player.getName()));
     }
 
     /**
@@ -84,6 +85,40 @@ public class RuntimeErrorPrinter {
                 placeholder, output, player.getName()));
     }
 
+    public void invalidNumberForBelowName(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
+        // Placeholders are not initialized, because bridge did not respond yet (typically on join)
+        if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
+
+        error(EnumChatFormat.decolor(String.format("Belowname number is configured to show \"%s\", but returned \"%s\" for player %s, which cannot be evaluated to a number.",
+                configuredValue, output, target.getName())));
+    }
+
+    public void floatInBelowName(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
+        // Placeholders are not initialized, because bridge did not respond yet (typically on join)
+        if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
+
+        error(EnumChatFormat.decolor(String.format("Belowname number is configured to show \"%s\", but returned \"%s\" " +
+                        "for player %s, which is a decimal number. Truncating to an integer.",
+                configuredValue, output, target.getName())));
+    }
+
+    public void invalidNumberForPlayerlistObjective(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
+        // Placeholders are not initialized, because bridge did not respond yet (typically on join)
+        if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
+
+        error(EnumChatFormat.decolor(String.format("Playerlist objective number is configured to show \"%s\", but returned \"%s\" for player %s, which cannot be evaluated to a number.",
+                configuredValue, output, target.getName())));
+    }
+
+    public void floatInPlayerlistObjective(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
+        // Placeholders are not initialized, because bridge did not respond yet (typically on join)
+        if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
+
+        error(EnumChatFormat.decolor(String.format("Playerlist objective number is configured to show \"%s\", but returned \"%s\" " +
+                        "for player %s, which is a decimal number. Truncating to an integer.",
+                configuredValue, output, target.getName())));
+    }
+
     /**
      * Logs a warning if player's group is not in sorting list.
      *
@@ -95,6 +130,9 @@ public class RuntimeErrorPrinter {
      *          Player with the group
      */
     public void groupNotInSortingList(@NotNull Collection<String> list, @NotNull String group, @NotNull TabPlayer player) {
+        // Ignore if groups are taken from bridge and it did not respond yet
+        if (player instanceof ProxyTabPlayer && !((ProxyTabPlayer)player).isBridgeConnected()) return;
+
         error(String.format("Player %s's group (%s) is not in sorting list! Sorting list: %s. Player will be sorted on the bottom.",
                 player.getName(), group, String.join(",", list)));
     }
@@ -132,12 +170,32 @@ public class RuntimeErrorPrinter {
     }
 
     /**
+     * Logs a warning if MineSkin ID is invalid.
+     *
+     * @param   id
+     *          MineSkin ID
+     */
+    public void unknownMineSkin(@NotNull String id) {
+        error("Failed to load skin by id: No skin with the id '" + id + "' was found");
+    }
+
+    /**
+     * Logs a warning if player with given name does not exist.
+     *
+     * @param   name
+     *          Given player name
+     */
+    public void unknownPlayerSkin(@NotNull String name) {
+        error("Failed to load skin by player: No user with the name '" + name + "' was found");
+    }
+
+    /**
      * Logs the message.
      *
      * @param   message
      *          Message to log
      */
     private void error(@NotNull String message) {
-        TAB.getInstance().getPlatform().logWarn(IChatBaseComponent.fromColoredText(message));
+        TAB.getInstance().getPlatform().logWarn(new SimpleComponent(message));
     }
 }

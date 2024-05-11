@@ -1,8 +1,6 @@
 package me.neznamy.tab.shared;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.features.types.Refreshable;
-import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
@@ -14,7 +12,7 @@ import java.util.function.Function;
  * Permission group manager retrieving groups from permission plugin
  */
 @Getter
-public class GroupManager extends TabFeature implements Refreshable {
+public class GroupManager {
 
     /** Permission plugin's name */
     @NotNull private final String permissionPlugin;
@@ -23,13 +21,10 @@ public class GroupManager extends TabFeature implements Refreshable {
     @NotNull private final Function<TabPlayer, String> groupFunction;
 
     /** If enabled, groups are assigned via permissions instead of permission plugin */
-    private final boolean groupsByPermissions = config().getBoolean("assign-groups-by-permissions", false);
+    private final boolean groupsByPermissions = TAB.getInstance().getConfiguration().getConfig().getBoolean("assign-groups-by-permissions", false);
 
     /** List of group permissions to iterate through if {@link #groupsByPermissions} is {@code true} */
-    private final List<String> primaryGroupFindingList = config().getStringList("primary-group-finding-list", Arrays.asList("Owner", "Admin", "Helper", "default"));
-
-    private final String featureName = "Permission group refreshing";
-    private final String refreshDisplayName = "Processing group change";
+    private final List<String> primaryGroupFindingList = TAB.getInstance().getConfiguration().getConfig().getStringList("primary-group-finding-list", Arrays.asList("Owner", "Admin", "Helper", "default"));
 
     /**
      * Constructs new instance with given permission plugin and registers group placeholder.
@@ -42,9 +37,12 @@ public class GroupManager extends TabFeature implements Refreshable {
     public GroupManager(@NotNull String permissionPlugin, @NotNull Function<TabPlayer, String> groupFunction) {
         this.permissionPlugin = permissionPlugin;
         this.groupFunction = groupFunction;
-        TAB.getInstance().getPlaceholderManager().registerPlayerPlaceholder(TabConstants.Placeholder.GROUP, 1000,
-                p -> detectPermissionGroup((TabPlayer) p));
-        addUsedPlaceholder(TabConstants.Placeholder.GROUP);
+        TAB.getInstance().getCPUManager().startRepeatingMeasuredTask(TAB.getInstance().getConfiguration().getPermissionRefreshInterval(),
+                "Permission group refreshing", "Refreshing task", () -> {
+            for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+                all.setGroup(detectPermissionGroup(all));
+            }
+        });
     }
 
     /**
@@ -65,14 +63,16 @@ public class GroupManager extends TabFeature implements Refreshable {
      *          Player to get permission group of
      * @return  Permission group from permission plugin
      */
-    private @NotNull String getByPrimary(@NotNull TabPlayer player) {
+    @NotNull
+    private String getByPrimary(@NotNull TabPlayer player) {
         try {
             String group = groupFunction.apply(player);
-            return group == null ? TabConstants.NO_GROUP : group;
+            if (group != null) return group;
+            TAB.getInstance().getErrorManager().nullGroupReturned(permissionPlugin, player);
         } catch (Exception e) {
-            TAB.getInstance().getErrorManager().printError("Failed to get permission group of " + player.getName() + " using " + permissionPlugin, e);
-            return TabConstants.NO_GROUP;
+            TAB.getInstance().getErrorManager().groupRetrieveException(permissionPlugin, player, e);
         }
+        return TabConstants.NO_GROUP;
     }
 
     /**
@@ -91,10 +91,5 @@ public class GroupManager extends TabFeature implements Refreshable {
             }
         }
         return TabConstants.NO_GROUP;
-    }
-
-    @Override
-    public void refresh(@NotNull TabPlayer refreshed, boolean force) {
-        refreshed.setGroup(TAB.getInstance().getPlaceholderManager().getPlaceholder(TabConstants.Placeholder.GROUP).getLastValue(refreshed));
     }
 }

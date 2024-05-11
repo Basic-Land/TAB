@@ -12,21 +12,28 @@ repositories {
 
 dependencies {
     api(projects.shared)
-    minecraft("com.mojang:minecraft:23w51b")
+    minecraft("com.mojang:minecraft:24w19a")
     mappings(loom.officialMojangMappings())
     modImplementation("me.lucko:fabric-permissions-api:0.2-SNAPSHOT")
-    modImplementation("net.fabricmc:fabric-loader:0.14.17")
-    val version = "0.91.4+1.20.5"
+    modImplementation("net.fabricmc:fabric-loader:0.15.9")
+    val version = "0.97.8+1.20.6"
     modImplementation(fabricApi.module("fabric-api-base", version))
     modImplementation(fabricApi.module("fabric-lifecycle-events-v1", version))
     modImplementation(fabricApi.module("fabric-networking-api-v1", version))
     modImplementation(fabricApi.module("fabric-entity-events-v1", version))
-    modImplementation(fabricApi.module("fabric-command-api-v1", "0.76.0+1.18.2"))
+    modImplementation(fabricApi.module("fabric-command-api-v1", "0.77.0+1.18.2"))
     modImplementation(fabricApi.module("fabric-command-api-v2", version))
+}
+
+loom {
+    accessWidenerPath.set(file("src/main/resources/resources/tab.accesswidener"))
 }
 
 tasks {
     compileJava {
         options.release.set(17)
+    }
+    validateAccessWidener {
+        enabled = true
     }
 }

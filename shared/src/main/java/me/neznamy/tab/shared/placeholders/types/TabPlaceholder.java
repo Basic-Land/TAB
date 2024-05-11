@@ -60,7 +60,7 @@ public abstract class TabPlaceholder implements Placeholder {
         this.identifier = identifier;
         this.refresh = refresh;
         Map<String, Map<Object, Object>> map = TAB.getInstance().getConfiguration().getConfig().getConfigurationSection("placeholder-output-replacements");
-        replacements = new PlaceholderReplacementPattern(identifier, map.getOrDefault(identifier, Collections.emptyMap()));
+        replacements = PlaceholderReplacementPattern.create(identifier, map.getOrDefault(identifier, Collections.emptyMap()));
         for (String nested : getNestedPlaceholders("")) {
             TAB.getInstance().getPlaceholderManager().getPlaceholder(nested).addParent(identifier);
         }
@@ -80,6 +80,7 @@ public abstract class TabPlaceholder implements Placeholder {
      *          player to set placeholder for
      * @return  string with this placeholder replaced
      */
+    @NotNull
     public String set(@NonNull String string, @Nullable TabPlayer player) {
         return replace(string, identifier, setPlaceholders(getLastValue(player), player));
     }
@@ -109,6 +110,7 @@ public abstract class TabPlaceholder implements Placeholder {
      *          Replacement text
      * @return  Replaced text
      */
+    @NotNull
     private String replace(@NonNull String string, @NonNull String original, @NonNull String replacement) {
         if (!string.contains(original)) return string;
         if (string.equals(original)) return replacement;
@@ -177,4 +179,14 @@ public abstract class TabPlaceholder implements Placeholder {
      * @return  last known value for specified player
      */
     public abstract @NotNull String getLastValue(@Nullable TabPlayer player);
+
+    /**
+     * Returns last known value of defined player without refreshing it if not present.
+     *
+     * @param   player
+     *          player to get value of
+     * @return  last known value for specified player or identifier if not available
+     */
+    @NotNull
+    public abstract String getLastValueSafe(@NotNull TabPlayer player);
 }

@@ -102,14 +102,14 @@ scoreboard:
   toggle-command: /sb
   remember-toggle-choice: false
   hidden-by-default: false
-  use-numbers: false
+  use-numbers: true
   static-number: 0
   delay-on-join-milliseconds: 0
   respect-other-plugins: true
   scoreboards:
     scoreboard-1.20.3+:
       title: "<#E0B11E>MyServer</#FF0000>"
-      display-condition: "%player-version-id%>=765" # Only display it to 1.20.3+ players
+      display-condition: "%player-version-id%>=765;%bedrock%=false" # Only display it to players using 1.20.3+ AND NOT bedrock edition
       lines:
         - "&7%date%"
         - "%animation:MyAnimation1%"
@@ -147,7 +147,6 @@ layout:
   enable-remaining-players-text: true
   remaining-players-text: '... and %s more'
   empty-slot-ping-value: 1000
-  hide-vanished-players: true
   layouts:
     default:
       fixed-slots:
@@ -186,16 +185,13 @@ placeholders:
   date-format: "dd.MM.yyyy"
   time-format: "[HH:mm:ss / h:mm a]"
   time-offset: 0
-  register-tab-expansion: true
+  register-tab-expansion: false
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements
 placeholder-output-replacements:
   "%essentials_vanished%":
     "yes": "&7| Vanished"
     "no": ""
-  # bukkit-only placeholders used in default groups.yml, doing this as a fix
-  "%essentials_nickname%":
-    "%essentials_nickname%": "%player%" # placeholder did not parse correctly, show real name instead
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders
 conditions:
@@ -227,6 +223,12 @@ primary-group-finding-list:
   - Helper
   - default
 
+# Refresh interval (in milliseconds) of:
+# - Permission checks in conditions / sorting
+# - Group retrieving from permission plugin for sorting / per-group properties
+# - Prefix/suffix placeholders taking data from permission plugin
+permission-refresh-interval: 1000
+
 # Unlocks extra console messages
 debug: false
 
@@ -238,6 +240,7 @@ mysql:
   database: tab
   username: user
   password: password
+  useSSL: true
 
 ########################################################################
 # BUKKIT ONLY - THE FOLLOWING SECTION IS ONLY FOR BACKEND INSTALLATION #

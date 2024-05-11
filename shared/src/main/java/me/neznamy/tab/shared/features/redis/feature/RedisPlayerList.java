@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.PlayerList;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
@@ -21,7 +21,6 @@ public class RedisPlayerList extends RedisFeature {
 
     private final RedisSupport redisSupport;
     @Getter private final PlayerList playerList;
-    private final Map<RedisPlayer, String> values = new WeakHashMap<>();
 
     public RedisPlayerList(@NotNull RedisSupport redisSupport, @NotNull PlayerList playerList) {
         this.redisSupport = redisSupport;
@@ -33,7 +32,7 @@ public class RedisPlayerList extends RedisFeature {
     public void onJoin(@NotNull TabPlayer player) {
         if (player.getVersion().getMinorVersion() < 8) return;
         for (RedisPlayer redis : redisSupport.getRedisPlayers().values()) {
-            player.getTabList().updateDisplayName(redis.getUniqueId(), IChatBaseComponent.optimizedComponent(values.get(redis)));
+            player.getTabList().updateDisplayName(redis.getUniqueId(), redis.getTabFormat());
         }
     }
 
@@ -41,7 +40,7 @@ public class RedisPlayerList extends RedisFeature {
     public void onJoin(@NotNull RedisPlayer player) {
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
             if (viewer.getVersion().getMinorVersion() < 8) continue;
-            viewer.getTabList().updateDisplayName(player.getUniqueId(), IChatBaseComponent.optimizedComponent(values.get(player)));
+            viewer.getTabList().updateDisplayName(player.getUniqueId(), player.getTabFormat());
         }
     }
 
@@ -59,11 +58,7 @@ public class RedisPlayerList extends RedisFeature {
 
     @Override
     public void read(@NotNull ByteArrayDataInput in, @NotNull RedisPlayer player) {
-        values.put(player, in.readUTF());
-    }
-
-    public String getFormat(@NotNull RedisPlayer player) {
-        return values.get(player);
+        player.setTabFormat(TabComponent.optimized(in.readUTF()));
     }
 
     @Override
@@ -71,7 +66,7 @@ public class RedisPlayerList extends RedisFeature {
         if (player.isVanished()) return;
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
             if (viewer.getVersion().getMinorVersion() < 8) continue;
-            viewer.getTabList().updateDisplayName(player.getUniqueId(), IChatBaseComponent.optimizedComponent(getFormat(player)));
+            viewer.getTabList().updateDisplayName(player.getUniqueId(), player.getTabFormat());
         }
     }
 
@@ -98,7 +93,7 @@ public class RedisPlayerList extends RedisFeature {
         public void process(@NotNull RedisSupport redisSupport) {
             RedisPlayer target = redisSupport.getRedisPlayers().get(playerId);
             if (target == null) return; // Print warn?
-            values.put(target, format);
+            target.setTabFormat(TabComponent.optimized(format));
             onJoin(target);
         }
     }

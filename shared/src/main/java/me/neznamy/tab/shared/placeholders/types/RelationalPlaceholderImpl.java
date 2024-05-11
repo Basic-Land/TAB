@@ -62,12 +62,23 @@ public class RelationalPlaceholderImpl extends TabPlaceholder implements Relatio
         }
     }
 
+    /**
+     * Updates placeholder value and returns {@code true} if value changed, {@code false} if not.
+     *
+     * @param   viewer
+     *          Player viewing the placeholder
+     * @param   target
+     *          Player the placeholder is displayed on
+     * @param   value
+     *          New value
+     * @return  {@code true} if value changed, {@code false} if not
+     */
     public boolean hasValueChanged(@NonNull TabPlayer viewer, @NonNull TabPlayer target, @Nullable Object value) {
         if (value == null) return false; //bridge placeholders, they are updated using updateValue method
-        String newValue = getReplacements().findReplacement(String.valueOf(value));
-        if (!lastValues.computeIfAbsent(viewer, v -> Collections.synchronizedMap(new WeakHashMap<>())).containsKey(target) ||
-                !lastValues.get(viewer).get(target).equals(newValue)) {
-            lastValues.get(viewer).put(target, newValue);
+        String newValue = replacements.findReplacement(String.valueOf(value));
+        Map<me.neznamy.tab.api.TabPlayer, String> viewerMap = lastValues.computeIfAbsent(viewer, v -> Collections.synchronizedMap(new WeakHashMap<>()));
+        if (!viewerMap.getOrDefault(target, identifier).equals(newValue)) {
+            viewerMap.put(target, newValue);
             updateParents(viewer);
             updateParents(target);
             return true;
@@ -80,7 +91,7 @@ public class RelationalPlaceholderImpl extends TabPlaceholder implements Relatio
         Set<Refreshable> usage = TAB.getInstance().getPlaceholderManager().getPlaceholderUsage(identifier);
         for (TabPlayer target : TAB.getInstance().getOnlinePlayers()) {
             Object value = request(viewer, target);
-            String s = getReplacements().findReplacement(String.valueOf(value));
+            String s = replacements.findReplacement(String.valueOf(value));
             lastValues.computeIfAbsent(viewer, v -> Collections.synchronizedMap(new WeakHashMap<>())).put(target, s);
             if (!target.isLoaded()) return; // Updated on join
             for (Refreshable f : usage) {
@@ -128,6 +139,11 @@ public class RelationalPlaceholderImpl extends TabPlaceholder implements Relatio
 
     @Override
     public @NotNull String getLastValue(@Nullable TabPlayer p) {
+        return identifier;
+    }
+
+    @Override
+    public @NotNull String getLastValueSafe(@NotNull TabPlayer player) {
         return identifier;
     }
 

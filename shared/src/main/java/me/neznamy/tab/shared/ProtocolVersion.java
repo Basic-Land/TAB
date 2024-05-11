@@ -10,8 +10,9 @@ import org.jetbrains.annotations.NotNull;
 @Getter
 public enum ProtocolVersion {
 
-    UNKNOWN ("Unknown"),
-    PROXY   ("Proxy"),
+    UNKNOWN,
+    V1_20_6 (766),
+    V1_20_5 (766),
     V1_20_4 (765),
     V1_20_3 (765),
     V1_20_2 (764),
@@ -76,8 +77,11 @@ public enum ProtocolVersion {
     V1_4_7  (51),
     V1_4_6  (51);
 
+    /** Array to iterate over to prevent new array creation each time */
+    private static final ProtocolVersion[] VALUES = values();
+
     /** Newest MC version this plugin jar knows */
-    public static final ProtocolVersion LATEST_KNOWN_VERSION = V1_20_4;
+    public static final ProtocolVersion LATEST_KNOWN_VERSION = V1_20_6;
 
     /** Version's network id found at <a href="https://wiki.vg/Protocol_version_numbers">wiki.vg</a> */
     private final int networkId;
@@ -104,15 +108,12 @@ public enum ProtocolVersion {
     }
 
     /**
-     * Constructs new instance with given friendly name
-     *
-     * @param   friendlyName
-     *          friendly name to display
+     * Constructs new instance.
      */
-    ProtocolVersion(@NotNull String friendlyName) {
+    ProtocolVersion() {
         networkId = 999;
-        minorVersion = 20;
-        this.friendlyName = friendlyName;
+        minorVersion = 99;
+        friendlyName = "Unknown";
     }
 
     /**
@@ -149,7 +150,7 @@ public enum ProtocolVersion {
      * @return  version from given network id
      */
     public static @NotNull ProtocolVersion fromNetworkId(int networkId) {
-        for (ProtocolVersion v : values()) {
+        for (ProtocolVersion v : VALUES) {
             if (networkId == v.networkId) return v;
         }
         return UNKNOWN;

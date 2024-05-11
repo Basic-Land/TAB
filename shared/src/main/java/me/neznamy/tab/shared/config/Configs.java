@@ -1,7 +1,6 @@
 package me.neznamy.tab.shared.config;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.FeatureManager;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
@@ -10,6 +9,8 @@ import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.shared.config.file.YamlConfigurationFile;
 import me.neznamy.tab.shared.config.file.YamlPropertyConfigurationFile;
 import me.neznamy.tab.shared.config.mysql.MySQL;
+import me.neznamy.tab.shared.config.mysql.MySQLGroupConfiguration;
+import me.neznamy.tab.shared.config.mysql.MySQLUserConfiguration;
 import me.neznamy.tab.shared.features.globalplayerlist.GlobalPlayerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,33 +24,35 @@ import java.util.List;
 /**
  * Core of loading configuration files
  */
+@Getter
 public class Configs {
 
     //config.yml file
-    @Getter private final ConfigurationFile config = new YamlConfigurationFile(getClass().getClassLoader().getResourceAsStream("config.yml"),
+    private final ConfigurationFile config = new YamlConfigurationFile(getClass().getClassLoader().getResourceAsStream("config/config.yml"),
             new File(TAB.getInstance().getDataFolder(), "config.yml"));
 
-    @Getter private final boolean bukkitPermissions = TAB.getInstance().getServerVersion() == ProtocolVersion.PROXY && config.getBoolean("use-bukkit-permissions-manager", false);
-    @Getter private final boolean debugMode = config.getBoolean("debug", false);
-    @Getter private final boolean onlineUuidInTabList = config.getBoolean("use-online-uuid-in-tablist", true);
-    @Getter private final boolean pipelineInjection = getSecretOption("pipeline-injection", true);
-    @Getter private final String serverName = getSecretOption("server-name", "N/A");
+    private final boolean bukkitPermissions = TAB.getInstance().getPlatform().isProxy() && config.getBoolean("use-bukkit-permissions-manager", false);
+    private final boolean debugMode = config.getBoolean("debug", false);
+    private final boolean onlineUuidInTabList = config.getBoolean("use-online-uuid-in-tablist", true);
+    private final boolean pipelineInjection = getSecretOption("pipeline-injection", true);
+    private final String serverName = getSecretOption("server-name", "N/A");
+    private final int permissionRefreshInterval = config.getInt("permission-refresh-interval", 1000);
 
     //animations.yml file
-    @Getter private final ConfigurationFile animationFile = new YamlConfigurationFile(getClass().getClassLoader().getResourceAsStream("animations.yml"),
+    private final ConfigurationFile animationFile = new YamlConfigurationFile(getClass().getClassLoader().getResourceAsStream("config/animations.yml"),
             new File(TAB.getInstance().getDataFolder(), "animations.yml"));
 
     //messages.yml file
-    @Getter private final MessageFile messages = new MessageFile();
+    private final MessageFile messages = new MessageFile();
 
     //playerdata.yml, used for bossbar & scoreboard toggle saving
     private ConfigurationFile playerdata;
 
-    @Getter private PropertyConfiguration groups;
+    private PropertyConfiguration groups;
 
-    @Getter private PropertyConfiguration users;
+    private PropertyConfiguration users;
 
-    @Getter private MySQL mysql;
+    private MySQL mysql;
 
     /**
      * Constructs new instance and loads configuration files.
@@ -77,8 +80,14 @@ public class Configs {
                 } catch (ClassNotFoundException e) {
                     Class.forName("com.mysql.jdbc.Driver");
                 }
-                mysql = new MySQL(config.getString("mysql.host", "127.0.0.1"), config.getInt("mysql.port", 3306),
-                        config.getString("mysql.database", "tab"), config.getString("mysql.username", "user"), config.getString("mysql.password", "password"));
+                mysql = new MySQL(
+                        config.getString("mysql.host", "127.0.0.1"),
+                        config.getInt("mysql.port", 3306),
+                        config.getString("mysql.database", "tab"),
+                        config.getString("mysql.username", "user"),
+                        config.getString("mysql.password", "password"),
+                        config.getBoolean("mysql.useSSL", true)
+                );
                 mysql.openConnection();
                 BasicLandHandler.databaseConnect(mysql);
 
@@ -86,11 +95,12 @@ public class Configs {
                 //users = new MySQLUserConfiguration(mysql);
                 //return;
             } catch (SQLException | ClassNotFoundException e) {
-                TAB.getInstance().getErrorManager().criticalError("Failed to connect to MySQL", e);
+                TAB.getInstance().getErrorManager().mysqlConnectionFailed(e);
             }
         }
-        groups = new YamlPropertyConfigurationFile(getClass().getClassLoader().getResourceAsStream("groups.yml"), new File(TAB.getInstance().getDataFolder(), "groups.yml"));
-        users = new YamlPropertyConfigurationFile(getClass().getClassLoader().getResourceAsStream("users.yml"), new File(TAB.getInstance().getDataFolder(), "users.yml"));
+        groups = new YamlPropertyConfigurationFile(getClass().getClassLoader().getResourceAsStream("config/groups.yml"), new File(TAB.getInstance().getDataFolder(), "groups.yml"));
+        users = new YamlPropertyConfigurationFile(getClass().getClassLoader().getResourceAsStream("config/users.yml"), new File(TAB.getInstance().getDataFolder(), "users.yml"));
+        TAB.getInstance().getConfigHelper().hint().checkForRedundantElseReplacement(config.getConfigurationSection("placeholder-output-replacements"));
     }
 
     /**

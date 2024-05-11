@@ -1,10 +1,10 @@
 package me.neznamy.tab.shared.features;
 
-import lombok.Getter;
 import me.neznamy.tab.api.tablist.HeaderFooterManager;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.features.types.*;
@@ -20,8 +20,6 @@ import java.util.List;
 public class HeaderFooter extends TabFeature implements HeaderFooterManager, JoinListener, Loadable, UnLoadable,
         WorldSwitchListener, ServerSwitchListener, Refreshable {
 
-    @Getter private final String featureName = "Header/Footer";
-    @Getter private final String refreshDisplayName = "Updating header/footer";
     private final List<Object> worldGroups = new ArrayList<>(config().getConfigurationSection("header-footer.per-world").keySet());
     private final List<Object> serverGroups = new ArrayList<>(config().getConfigurationSection("header-footer.per-server").keySet());
     private final DisableChecker disableChecker;
@@ -31,7 +29,7 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
      */
     public HeaderFooter() {
         Condition disableCondition = Condition.getCondition(config().getString("header-footer.disable-condition"));
-        disableChecker = new DisableChecker(featureName, disableCondition, this::onDisableConditionChange);
+        disableChecker = new DisableChecker(getFeatureName(), disableCondition, this::onDisableConditionChange, p -> p.disabledHeaderFooter);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.HEADER_FOOTER + "-Condition", disableChecker);
         TAB.getInstance().getConfigHelper().hint().checkHeaderFooterForRedundancy(config().getConfigurationSection("header-footer"));
     }
@@ -46,7 +44,7 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
     @Override
     public void unload() {
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
-            if (disableChecker.isDisabledPlayer(p)) continue;
+            if (p.disabledHeaderFooter.get()) continue;
             sendHeaderFooter(p, "","");
         }
     }
@@ -54,7 +52,7 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
     @Override
     public void onJoin(@NotNull TabPlayer connectedPlayer) {
         if (disableChecker.isDisableConditionMet(connectedPlayer)) {
-            disableChecker.addDisabledPlayer(connectedPlayer);
+            connectedPlayer.disabledHeaderFooter.set(true);
         }
         refresh(connectedPlayer, true);
     }
@@ -89,6 +87,12 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
         sendHeaderFooter(p, p.getProperty(TabConstants.Property.HEADER).updateAndGet(), p.getProperty(TabConstants.Property.FOOTER).updateAndGet());
     }
 
+    @Override
+    @NotNull
+    public String getRefreshDisplayName() {
+        return "Updating header/footer";
+    }
+
     /**
      * Processes disable condition change.
      *
@@ -99,7 +103,7 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
      */
     public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
         if (disabledNow) {
-            p.getTabList().setPlayerListHeaderFooter(new IChatBaseComponent(""), new IChatBaseComponent(""));
+            p.getTabList().setPlayerListHeaderFooter(new SimpleComponent(""), new SimpleComponent(""));
         } else {
             sendHeaderFooter(p, p.getProperty(TabConstants.Property.HEADER).get(), p.getProperty(TabConstants.Property.FOOTER).get());
         }
@@ -136,13 +140,25 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
     }
 
     private void sendHeaderFooter(TabPlayer player, String header, String footer) {
-        if (disableChecker.isDisabledPlayer(player)) return;
-        player.getTabList().setPlayerListHeaderFooter(IChatBaseComponent.optimizedComponent(header), IChatBaseComponent.optimizedComponent(footer));
+        if (player.disabledHeaderFooter.get()) return;
+        player.getTabList().setPlayerListHeaderFooter(TabComponent.optimized(header), TabComponent.optimized(footer));
     }
 
     @Override
+    @NotNull
+    public String getFeatureName() {
+        return "Header/Footer";
+    }
+
+    // ------------------
+    // API Implementation
+    // ------------------
+
+    @Override
     public void setHeader(@NotNull me.neznamy.tab.api.TabPlayer p, @Nullable String header) {
+        ensureActive();
         TabPlayer player = (TabPlayer) p;
+        player.ensureLoaded();
         player.getProperty(TabConstants.Property.HEADER).setTemporaryValue(header);
         sendHeaderFooter(player, player.getProperty(TabConstants.Property.HEADER).updateAndGet(),
                 player.getProperty(TabConstants.Property.FOOTER).updateAndGet());
@@ -150,7 +166,9 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
 
     @Override
     public void setFooter(@NotNull me.neznamy.tab.api.TabPlayer p, @Nullable String footer) {
+        ensureActive();
         TabPlayer player = (TabPlayer) p;
+        player.ensureLoaded();
         player.getProperty(TabConstants.Property.FOOTER).setTemporaryValue(footer);
         sendHeaderFooter(player, player.getProperty(TabConstants.Property.HEADER).updateAndGet(),
                 player.getProperty(TabConstants.Property.FOOTER).updateAndGet());
@@ -158,7 +176,9 @@ public class HeaderFooter extends TabFeature implements HeaderFooterManager, Joi
 
     @Override
     public void setHeaderAndFooter(@NotNull me.neznamy.tab.api.TabPlayer p, @Nullable String header, @Nullable String footer) {
+        ensureActive();
         TabPlayer player = (TabPlayer) p;
+        player.ensureLoaded();
         player.getProperty(TabConstants.Property.HEADER).setTemporaryValue(header);
         player.getProperty(TabConstants.Property.FOOTER).setTemporaryValue(footer);
         sendHeaderFooter(player, player.getProperty(TabConstants.Property.HEADER).updateAndGet(),

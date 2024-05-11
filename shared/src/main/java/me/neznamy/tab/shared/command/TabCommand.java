@@ -6,7 +6,6 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.command.bossbar.BossBarCommand;
 import me.neznamy.tab.shared.command.scoreboard.ScoreboardCommand;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -72,7 +71,7 @@ public class TabCommand extends SubCommand {
         if (hasPermission(sender, TabConstants.Permission.COMMAND_ALL)) {
             sendMessage(sender, "&3TAB v" + TabConstants.PLUGIN_VERSION);
             for (String message : getMessages().getHelpMenu()) {
-                if (TAB.getInstance().getServerVersion() == ProtocolVersion.PROXY)
+                if (TAB.getInstance().getPlatform().isProxy())
                     message = message.replace("/" + TabConstants.COMMAND_BACKEND, "/" + TabConstants.COMMAND_PROXY);
                 sendMessage(sender, message);
             }

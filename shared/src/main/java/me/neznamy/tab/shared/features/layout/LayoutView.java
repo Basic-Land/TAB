@@ -2,7 +2,7 @@ package me.neznamy.tab.shared.features.layout;
 
 import lombok.Getter;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -53,9 +53,10 @@ public class LayoutView {
                     manager.getUUID(slot),
                     manager.getDirection().getEntryName(viewer, slot),
                     manager.getSkinManager().getDefaultSkin(slot),
+                    true,
                     manager.getEmptySlotPing(),
                     0,
-                    new IChatBaseComponent("")
+                    new SimpleComponent("")
             ));
         }
         tick();

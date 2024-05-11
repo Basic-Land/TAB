@@ -1,10 +1,8 @@
 package me.neznamy.tab.shared.features;
 
-import lombok.Getter;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.features.layout.LayoutManagerImpl;
-import me.neznamy.tab.shared.features.layout.LayoutView;
 import me.neznamy.tab.shared.features.layout.ParentGroup;
 import me.neznamy.tab.shared.features.layout.PlayerSlot;
 import me.neznamy.tab.shared.features.types.*;
@@ -19,9 +17,6 @@ import java.util.UUID;
  */
 public class PingSpoof extends TabFeature implements JoinListener, LatencyListener, Loadable, UnLoadable {
 
-    /** Feature name in CPU report */
-    @Getter private final String featureName = "Ping spoof";
-
     /** Value to display as ping instead of real ping */
     private final int value = config().getInt("ping-spoof.value", 0);
 
@@ -30,9 +25,8 @@ public class PingSpoof extends TabFeature implements JoinListener, LatencyListen
     @Override
     public int onLatencyChange(@NotNull TabPlayer packetReceiver, @NotNull UUID id, int latency) {
         if (layoutManager != null) {
-            LayoutView layout = layoutManager.getViews().get(packetReceiver);
-            if (layout != null) {
-                for (ParentGroup group : layout.getGroups()) {
+            if (packetReceiver.layoutData.view != null) {
+                for (ParentGroup group : packetReceiver.layoutData.view.getGroups()) {
                     PlayerSlot slot = group.getPlayerSlots().get((int) id.getLeastSignificantBits());
                     if (slot != null && slot.getPlayer() != null) return value;
                 }
@@ -67,5 +61,11 @@ public class PingSpoof extends TabFeature implements JoinListener, LatencyListen
                 viewer.getTabList().updateLatency(target.getTablistId(), realPing ? target.getPing() : value);
             }
         }
+    }
+
+    @Override
+    @NotNull
+    public String getFeatureName() {
+        return "Ping spoof";
     }
 }

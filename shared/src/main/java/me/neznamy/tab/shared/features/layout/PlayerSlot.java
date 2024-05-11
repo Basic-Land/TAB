@@ -2,7 +2,8 @@ package me.neznamy.tab.shared.features.layout;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.features.PlayerList;
@@ -38,18 +39,20 @@ public class PlayerSlot {
                     uniqueId,
                     layout.getManager().getDirection().getEntryName(p, slot),
                     player.getSkin(),
+                    true,
                     player.getPing(),
                     0,
-                    playerList == null ? new IChatBaseComponent(player.getName()) : playerList.getTabFormat(player, p)
+                    playerList == null ? new SimpleComponent(player.getName()) : playerList.getTabFormat(player, p)
             );
         } else {
             data = new TabList.Entry(
                     uniqueId,
                     layout.getManager().getDirection().getEntryName(p, slot),
                     layout.getManager().getSkinManager().getDefaultSkin(slot),
+                    true,
                     layout.getManager().getEmptySlotPing(),
                     0,
-                    new IChatBaseComponent(text)
+                    new SimpleComponent(text)
             );
         }
         return data;
@@ -62,7 +65,7 @@ public class PlayerSlot {
             setPlayer(null);
         } else {
             if (layout.getViewer().getVersion().getMinorVersion() < 8 || layout.getViewer().isBedrockPlayer()) return;
-            layout.getViewer().getTabList().updateDisplayName(uniqueId, IChatBaseComponent.optimizedComponent(text));
+            layout.getViewer().getTabList().updateDisplayName(uniqueId, TabComponent.optimized(text));
         }
     }
 }

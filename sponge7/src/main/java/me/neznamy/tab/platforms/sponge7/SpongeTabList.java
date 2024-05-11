@@ -1,8 +1,7 @@
 package me.neznamy.tab.platforms.sponge7;
 
-import lombok.RequiredArgsConstructor;
+import lombok.NonNull;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -14,92 +13,88 @@ import org.spongepowered.api.profile.GameProfile;
 import org.spongepowered.api.profile.property.ProfileProperty;
 import org.spongepowered.api.text.Text;
 
-import java.util.Map;
 import java.util.UUID;
-import java.util.WeakHashMap;
 
 /**
  * TabList implementation for Sponge 7 and lower
  */
-@RequiredArgsConstructor
-public class SpongeTabList implements TabList {
+public class SpongeTabList extends TabList<SpongeTabPlayer, Text> {
 
     /** Gamemode array for fast access */
     private static final GameMode[] gameModes = {
             GameModes.SURVIVAL, GameModes.CREATIVE, GameModes.ADVENTURE, GameModes.SPECTATOR
     };
 
-    /** Player this TabList belongs to */
-    @NotNull
-    private final SpongeTabPlayer player;
-
-    /** Expected names based on configuration, saving to restore them if another plugin overrides them */
-    private final Map<TabPlayer, Text> expectedDisplayNames = new WeakHashMap<>();
+    /**
+     * Constructs new instance.
+     *
+     * @param   player
+     *          Player this tablist will belong to
+     */
+    public SpongeTabList(@NotNull SpongeTabPlayer player) {
+        super(player);
+    }
 
     @Override
-    public void removeEntry(@NotNull UUID entry) {
+    public void removeEntry(@NonNull UUID entry) {
         player.getPlayer().getTabList().removeEntry(entry);
     }
 
     @Override
-    public void updateDisplayName(@NotNull UUID entry, @Nullable IChatBaseComponent displayName) {
-        player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> {
-            Text component = displayName == null ? null : Text.of(displayName.toLegacyText());
-            e.setDisplayName(component);
-            setExpectedDisplayName(entry, component);
-        });
+    public void updateDisplayName0(@NonNull UUID entry, @Nullable Text displayName) {
+        player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> e.setDisplayName(displayName));
     }
 
     @Override
-    public void updateLatency(@NotNull UUID entry, int latency) {
+    public void updateLatency(@NonNull UUID entry, int latency) {
         player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> e.setLatency(latency));
     }
 
     @Override
-    public void updateGameMode(@NotNull UUID entry, int gameMode) {
+    public void updateGameMode(@NonNull UUID entry, int gameMode) {
         player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> e.setGameMode(gameModes[gameMode]));
     }
 
     @Override
-    public void addEntry(@NotNull Entry entry) {
-        Text displayName = entry.getDisplayName() == null ? null : Text.of(entry.getDisplayName().toLegacyText());
-        GameProfile profile = GameProfile.of(entry.getUniqueId(), entry.getName());
-        if (entry.getSkin() != null) profile.getPropertyMap().put(TEXTURES_PROPERTY, ProfileProperty.of(
-                TEXTURES_PROPERTY, entry.getSkin().getValue(), entry.getSkin().getSignature()));
-        TabListEntry tabListEntry = TabListEntry.builder()
-                .list(player.getPlayer().getTabList())
-                .profile(profile)
-                .latency(entry.getLatency())
-                .gameMode(gameModes[entry.getGameMode()])
-                .displayName(displayName)
-                .build();
-        player.getPlayer().getTabList().addEntry(tabListEntry);
-        setExpectedDisplayName(entry.getUniqueId(), displayName);
+    public void updateListed(@NonNull UUID entry, boolean listed) {
+        // Added in 1.19.3
     }
 
     @Override
-    public void setPlayerListHeaderFooter(@NotNull IChatBaseComponent header, @NotNull IChatBaseComponent footer) {
-        player.getPlayer().getTabList().setHeaderAndFooter(
-                Text.of(header.toLegacyText()),
-                Text.of(footer.toLegacyText())
-        );
+    public void addEntry0(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable Text displayName) {
+        GameProfile profile = GameProfile.of(id, name);
+        if (skin != null) profile.getPropertyMap().put(TEXTURES_PROPERTY, ProfileProperty.of(
+                TEXTURES_PROPERTY, skin.getValue(), skin.getSignature()));
+        TabListEntry tabListEntry = TabListEntry.builder()
+                .list(player.getPlayer().getTabList())
+                .profile(profile)
+                .latency(latency)
+                .gameMode(gameModes[gameMode])
+                .displayName(displayName)
+                .build();
+        player.getPlayer().getTabList().addEntry(tabListEntry);
+    }
+
+    @Override
+    public void setPlayerListHeaderFooter0(@NonNull Text header, @NonNull Text footer) {
+        player.getPlayer().getTabList().setHeaderAndFooter(header, footer);
+    }
+
+    @Override
+    public boolean containsEntry(@NonNull UUID entry) {
+        return player.getPlayer().getTabList().getEntry(entry).isPresent();
     }
 
     @Override
     public void checkDisplayNames() {
         for (TabPlayer target : TAB.getInstance().getOnlinePlayers()) {
             player.getPlayer().getTabList().getEntry(target.getUniqueId()).ifPresent(entry -> {
-                Text expectedComponent = expectedDisplayNames.get(target);
+                Text expectedComponent = getExpectedDisplayName(target);
                 if (expectedComponent != null && entry.getDisplayName().orElse(null) != expectedComponent) {
                     displayNameWrong(target.getName(), player);
                     entry.setDisplayName(expectedComponent);
                 }
             });
         }
-    }
-
-    private void setExpectedDisplayName(@NotNull UUID entry, @Nullable Text displayName) {
-        TabPlayer player = TAB.getInstance().getPlayerByTabListUUID(entry);
-        if (player != null) expectedDisplayNames.put(player, displayName);
     }
 }

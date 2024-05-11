@@ -6,7 +6,7 @@ More information can be found at [Why TAB?](https://github.com/NEZNAMY/TAB/wiki/
 # Download
 ### Releases
 You can download full releases from [GitHub releases](https://github.com/NEZNAMY/TAB/releases), 
-[SpigotMC](https://www.spigotmc.org/resources/57806/) or [Modrinth](https://modrinth.com/plugin/tab-was-taken).
+[SpigotMC](https://www.spigotmc.org/resources/57806/), [Modrinth](https://modrinth.com/plugin/tab-was-taken) or [BuiltByBit](https://builtbybit.com/resources/20631).
 
 ### Dev builds
 Plugin's development is continuous and contains lots of small changes/fixes not worthy of being called a full
@@ -15,7 +15,7 @@ If you want to benefit from a recent change in the code before official release,
 from [GitHub actions](https://github.com/NEZNAMY/TAB/actions) (you must be logged into GitHub to be able to download it).  
 
 # Compiling
-Compilation requires JDK 17 and up.  
+Compilation requires JDK 21 and up.  
 To compile the plugin, run `./gradlew build` from the terminal.  
 Once the plugin compiles, grab the jar from `/jar/build/libs/` folder.  
 The universal jar contains all modules for all supported platforms.

@@ -2,6 +2,7 @@ package me.neznamy.tab.shared.chat;
 
 import lombok.Getter;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
+import me.neznamy.tab.shared.util.ComponentCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,12 +28,12 @@ public enum EnumChatFormat {
     LIGHT_PURPLE('d', 0xFF55FF),
     YELLOW('e', 0xFFFF55),
     WHITE('f', 0xFFFFFF),
-    OBFUSCATED('k'),
-    BOLD('l'),
-    STRIKETHROUGH('m'),
-    UNDERLINE('n'),
-    ITALIC('o'),
-    RESET('r');
+    OBFUSCATED('k', 0),
+    BOLD('l', 0),
+    STRIKETHROUGH('m', 0),
+    UNDERLINE('n', 0),
+    ITALIC('o', 0),
+    RESET('r', 0);
 
     /** Creating a constant to avoid memory allocations on each request */
     public static final EnumChatFormat[] VALUES = values();
@@ -42,6 +43,10 @@ public enum EnumChatFormat {
 
     /** The color symbol in form of a string */
     public static final String COLOR_STRING = String.valueOf(COLOR_CHAR);
+
+    /** Cache for last colors to prevent massive memory allocations on request */
+    private static final ComponentCache<String, EnumChatFormat> lastColorCache =
+            new ComponentCache<>(1000, (string, version) -> lastColorsOf0(string));
 
     /** Character representing the color or magic code */
     private final char character;
@@ -56,7 +61,7 @@ public enum EnumChatFormat {
     private final short blue;
 
     /** Color as a hex code, 0 for magic codes */
-    private final int hexCode;
+    private final int rgb;
 
     /** Color symbol followed by constant's character */
     private final String format;
@@ -66,31 +71,16 @@ public enum EnumChatFormat {
      *
      * @param   character
      *          character which the color goes by
-     * @param   hexCode
+     * @param   rgb
      *          hex code of the color
      */
-    EnumChatFormat(char character, int hexCode) {
+    EnumChatFormat(char character, int rgb) {
         this.character = character;
-        this.hexCode = hexCode;
+        this.rgb = rgb;
         format = String.valueOf(COLOR_CHAR) + character;
-        red = (short) ((hexCode >> 16) & 0xFF);
-        green = (short) ((hexCode >> 8) & 0xFF);
-        blue = (short) (hexCode & 0xFF);
-    }
-
-    /**
-     * Constructs new magic code instance with given character
-     *
-     * @param   character
-     *          character representing the magic code
-     */
-    EnumChatFormat(char character) {
-        this.character = character;
-        format = String.valueOf(COLOR_CHAR) + character;
-        red = 0;
-        green = 0;
-        blue = 0;
-        hexCode = 0;
+        red = (short) ((rgb >> 16) & 0xFF);
+        green = (short) ((rgb >> 8) & 0xFF);
+        blue = (short) (rgb & 0xFF);
     }
 
     /**
@@ -116,6 +106,18 @@ public enum EnumChatFormat {
      * @return  last used color code in given string or WHITE if nothing is found
      */
     public static @NotNull EnumChatFormat lastColorsOf(@NotNull String string) {
+        return lastColorCache.get(string, null);
+    }
+
+    /**
+     * Returns enum value of last colors used in given string.
+     * If it's null, empty or does not contain color codes, WHITE is returned.
+     *
+     * @param   string
+     *          string to check last colors of
+     * @return  last used color code in given string or WHITE if nothing is found
+     */
+    private static @NotNull EnumChatFormat lastColorsOf0(@NotNull String string) {
         if (string.isEmpty()) return WHITE;
         String legacyText = RGBUtils.getInstance().convertRGBtoLegacy(string);
         String last = getLastColors(legacyText);
@@ -126,24 +128,6 @@ public enum EnumChatFormat {
             }
         }
         return WHITE;
-    }
-
-    /**
-     * Returns enum value with exact red, green and blue values or null if no match was found
-     *
-     * @param   red
-     *          exact red value
-     * @param   green
-     *          exact green value
-     * @param   blue
-     *          exact blue value
-     * @return  enum value or null if no such combination exists
-     */
-    public static @Nullable EnumChatFormat fromRGBExact(int red, int green, int blue) {
-        for (EnumChatFormat format : VALUES) {
-            if (format.red == red && format.green == green && format.blue == blue) return format;
-        }
-        return null;
     }
 
     /**
@@ -158,7 +142,7 @@ public enum EnumChatFormat {
         if (!textToTranslate.contains("&")) return textToTranslate;
         char[] b = textToTranslate.toCharArray();
         for (int i = 0; i < b.length - 1; i++) {
-            if ((b[i] == '&') && ("0123456789AaBbCcDdEeFfKkLlMmNnOoRrXx".indexOf(b[(i + 1)]) > -1)) {
+            if ((b[i] == '&') && ("0123456789AaBbCcDdEeFfKkLlMmNnOoRrXx#".indexOf(b[(i + 1)]) > -1)) {
                 b[i] = COLOR_CHAR;
                 b[(i + 1)] = Character.toLowerCase(b[(i + 1)]);
             }
@@ -202,5 +186,10 @@ public enum EnumChatFormat {
             }
         }
         return result.toString();
+    }
+
+    @Override
+    public String toString() {
+        return format;
     }
 }

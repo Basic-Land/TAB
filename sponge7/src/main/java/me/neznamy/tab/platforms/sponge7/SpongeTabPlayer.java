@@ -4,10 +4,9 @@ import lombok.Getter;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.BossBar;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.Scoreboard;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.data.key.Keys;
@@ -28,10 +27,10 @@ import java.util.Collection;
 public class SpongeTabPlayer extends BackendTabPlayer {
 
     @NotNull
-    private final Scoreboard<SpongeTabPlayer> scoreboard = new SpongeScoreboard(this);
+    private final SpongeScoreboard scoreboard = new SpongeScoreboard(this);
 
     @NotNull
-    private final TabList tabList = new SpongeTabList(this);
+    private final SpongeTabList tabList = new SpongeTabList(this);
 
     @NotNull
     private final BossBar bossBar = new SpongeBossBar(this);
@@ -48,7 +47,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
      *          Platform's player object
      */
     public SpongeTabPlayer(@NotNull SpongePlatform platform, @NotNull Player player) {
-        super(platform, player, player.getUniqueId(), player.getName(), player.getWorld().getName());
+        super(platform, player, player.getUniqueId(), player.getName(), player.getWorld().getName(), platform.getServerVersion().getNetworkId());
     }
 
     @Override
@@ -62,7 +61,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public void sendMessage(@NotNull IChatBaseComponent message) {
+    public void sendMessage(@NotNull TabComponent message) {
         getPlayer().sendMessage(Text.of(message.toLegacyText()));
     }
 
@@ -91,11 +90,6 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     @NotNull
     public Player getPlayer() {
         return (Player) player;
-    }
-
-    @Override
-    public boolean isOnline() {
-        return getPlayer().isOnline();
     }
 
     @Override

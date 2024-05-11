@@ -1,19 +1,21 @@
 package me.neznamy.tab.platforms.fabric;
 
-import lombok.SneakyThrows;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import me.neznamy.tab.platforms.fabric.features.FabricNameTagX;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.chat.StructuredComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
-import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandSourceStack;
@@ -28,9 +30,18 @@ import java.io.File;
 /**
  * Platform implementation for Fabric
  */
-public record FabricPlatform(MinecraftServer server) implements BackendPlatform {
+@RequiredArgsConstructor
+@Getter
+public class FabricPlatform implements BackendPlatform {
 
-    private static final boolean fabricPermissionsApi = FabricLoader.getInstance().isModLoaded("fabric-permissions-api-v0");
+    /** Minecraft server reference */
+    private final MinecraftServer server;
+
+    /** Flag tracking presence of permission API */
+    private final boolean fabricPermissionsApi = FabricLoader.getInstance().isModLoaded("fabric-permissions-api-v0");
+
+    /** Server version */
+    private final ProtocolVersion serverVersion = ProtocolVersion.fromFriendlyName(FabricTAB.minecraftVersion);
 
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
@@ -69,28 +80,13 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
     }
 
     @Override
-    @SneakyThrows
-    public void logInfo(@NotNull IChatBaseComponent message) {
-        Object logger = getLogger();
-        logger.getClass().getMethod("info", String.class).invoke(logger, "[TAB] " + message.toRawText());
+    public void logInfo(@NotNull TabComponent message) {
+        FabricMultiVersion.logInfo(message);
     }
 
     @Override
-    @SneakyThrows
-    public void logWarn(@NotNull IChatBaseComponent message) {
-        Object logger = getLogger();
-        logger.getClass().getMethod("warn", String.class).invoke(logger, "[TAB] " + message.toRawText());
-    }
-
-    @SneakyThrows
-    private Object getLogger() {
-        Class<?> loggerClass;
-        if (getServerVersion().getNetworkId() >= ProtocolVersion.V1_18_2.getNetworkId()) {
-            loggerClass = Class.forName("org.slf4j.Logger");
-        } else {
-            loggerClass = Class.forName("org.apache.logging.log4j.Logger");
-        }
-        return ReflectionUtils.getFields(MinecraftServer.class, loggerClass).get(0).get(null);
+    public void logWarn(@NotNull TabComponent message) {
+        FabricMultiVersion.logWarn(message);
     }
 
     @Override
@@ -116,27 +112,22 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
 
     @Override
     @NotNull
-    public ProtocolVersion getServerVersion() {
-        return ProtocolVersion.fromFriendlyName(FabricTAB.minecraftVersion);
-    }
-
-    @Override
-    @NotNull
     public File getDataFolder() {
         return FabricLoader.getInstance().getConfigDir().resolve(TabConstants.PLUGIN_ID).toFile();
     }
 
-    /**
-     * Converts internal component class to platform's component class
-     *
-     * @param   component
-     *          Component to convert
-     * @param   version
-     *          Game version to convert component for
-     * @return  Converted component
-     */
-    public Component toComponent(@NotNull IChatBaseComponent component, @NotNull ProtocolVersion version) {
-        return FabricMultiVersion.deserialize.apply(component.toString(version));
+    @Override
+    public Component convertComponent(@NotNull TabComponent component, boolean modern) {
+        if (component instanceof SimpleComponent) return FabricMultiVersion.newTextComponent(((SimpleComponent) component).getText());
+
+        StructuredComponent component1 = (StructuredComponent) component;
+        Component nmsComponent = FabricMultiVersion.newTextComponent(component1.getText());
+
+        FabricMultiVersion.setStyle(nmsComponent, FabricMultiVersion.convertModifier(component1.getModifier(), modern));
+        for (StructuredComponent extra : component1.getExtra()) {
+            FabricMultiVersion.addSibling(nmsComponent, convertComponent(extra, modern));
+        }
+        return nmsComponent;
     }
 
     @Override
@@ -146,7 +137,7 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
 
     @Override
     public double getMSPT() {
-        return FabricMultiVersion.getMSPT.apply(server);
+        return FabricMultiVersion.getMSPT(server);
     }
 
     /**

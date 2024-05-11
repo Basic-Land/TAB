@@ -59,16 +59,22 @@ public class PlayerPlaceholderImpl extends TabPlaceholder implements PlayerPlace
         }
     }
 
+    /**
+     * Updates placeholder value and returns {@code true} if value changed, {@code false} if not.
+     *
+     * @param   p
+     *          Player to update value for
+     * @param   value
+     *          New value
+     * @return  {@code true} if value changed, {@code false} if not
+     */
     public boolean hasValueChanged(@NotNull TabPlayer p, @Nullable Object value) {
         if (value == null) return false; //bridge placeholders, they are updated using updateValue method
-        String newValue = setPlaceholders(getReplacements().findReplacement(String.valueOf(value)), p);
-
-        //make invalid placeholders return identifier instead of nothing
-        if (identifier.equals(newValue) && !lastValues.containsKey(p)) {
-            lastValues.put(p, identifier);
-        }
-        if (!lastValues.containsKey(p) || (!ERROR_VALUE.equals(newValue) && !identifier.equals(newValue) && !newValue.equals(lastValues.getOrDefault(p, null)))) {
-            lastValues.put(p, ERROR_VALUE.equals(newValue) ? identifier : newValue);
+        if (ERROR_VALUE.equals(value)) return false;
+        String newValue = replacements.findReplacement(setPlaceholders(String.valueOf(value), p));
+        String lastValue = lastValues.get(p);
+        if (lastValue == null || (!identifier.equals(newValue) && !newValue.equals(lastValue))) {
+            lastValues.put(p, newValue);
             updateParents(p);
             TAB.getInstance().getPlaceholderManager().getTabExpansion().setPlaceholderValue(p, identifier, newValue);
             return true;
@@ -85,10 +91,16 @@ public class PlayerPlaceholderImpl extends TabPlaceholder implements PlayerPlace
     public String getLastValue(@Nullable TabPlayer p) {
         if (p == null) return identifier;
         if (!lastValues.containsKey(p)) {
-            lastValues.put(p, getReplacements().findReplacement(identifier));
+            lastValues.put(p, replacements.findReplacement(identifier));
             update(p);
         }
         return lastValues.get(p);
+    }
+
+    @Override
+    @NotNull
+    public String getLastValueSafe(@NotNull TabPlayer player) {
+        return lastValues.getOrDefault(player, identifier);
     }
 
     /**

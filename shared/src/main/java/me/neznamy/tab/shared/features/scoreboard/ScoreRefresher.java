@@ -1,9 +1,8 @@
 package me.neznamy.tab.shared.features.scoreboard;
 
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.Property;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.scoreboard.lines.ScoreboardLine;
 import me.neznamy.tab.shared.features.types.Refreshable;
 import me.neznamy.tab.shared.features.types.TabFeature;
@@ -18,8 +17,6 @@ import org.jetbrains.annotations.Nullable;
 public class ScoreRefresher extends TabFeature implements Refreshable {
 
     private final String NUMBER_FORMAT_PROPERTY = Property.randomName();
-    @Getter private final String featureName = "Scoreboard";
-    @Getter private final String refreshDisplayName = "Updating scores";
 
     /** Line this score belongs to */
     private final ScoreboardLine line;
@@ -30,6 +27,7 @@ public class ScoreRefresher extends TabFeature implements Refreshable {
     @Override
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
         if (!line.getParent().getPlayers().contains(refreshed)) return;
+        if (refreshed.getProperty(NUMBER_FORMAT_PROPERTY) == null) return; // Shrug
         refreshed.getScoreboard().setScore(
                 ScoreboardManagerImpl.OBJECTIVE_NAME,
                 line.getPlayerName(refreshed),
@@ -37,6 +35,12 @@ public class ScoreRefresher extends TabFeature implements Refreshable {
                 null,
                 getNumberFormat(refreshed)
         );
+    }
+
+    @Override
+    @NotNull
+    public String getRefreshDisplayName() {
+        return "Updating NumberFormat";
     }
 
     /**
@@ -57,7 +61,13 @@ public class ScoreRefresher extends TabFeature implements Refreshable {
      * @return  New number format based on current placeholder results
      */
     @Nullable
-    public IChatBaseComponent getNumberFormat(@NotNull TabPlayer player) {
-        return IChatBaseComponent.emptyToNullOptimizedComponent(player.getProperty(NUMBER_FORMAT_PROPERTY).updateAndGet());
+    public TabComponent getNumberFormat(@NotNull TabPlayer player) {
+        return TabComponent.optimized(player.getProperty(NUMBER_FORMAT_PROPERTY).updateAndGet());
+    }
+
+    @Override
+    @NotNull
+    public String getFeatureName() {
+        return line.getFeatureName();
     }
 }

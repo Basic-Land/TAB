@@ -168,7 +168,6 @@ public class TabConstants {
         public static final String NAME_TAGS = "NameTag16";
         public static final String NAME_TAGS_COLLISION = "NameTagCollision";
         public static final String NAME_TAGS_VISIBILITY = "NameTagVisibility";
-        public static final String GROUP_MANAGER = "GroupManager";
         public static final String PLACEHOLDER_MANAGER = "PlaceholderManager";
         public static final String UNLIMITED_NAME_TAGS = "NameTagX";
         public static final String UNLIMITED_NAME_TAGS_PACKET_LISTENER = "nametagx-packet";
@@ -181,7 +180,6 @@ public class TabConstants {
         //BungeeCord only
         public static final String REDIS_BUNGEE = "RedisBungee";
         public static final String GLOBAL_PLAYER_LIST = "GlobalPlayerList";
-        public static final String GLOBAL_PLAYER_LIST_LATENCY = "GlobalPlayerList-Latency";
 
         //additional info displayed in cpu command
         public static final String PACKET_DESERIALIZING = "Packet deserializing";
@@ -255,6 +253,7 @@ public class TabConstants {
         public static final String LUCKPERMS_SUFFIX = "%luckperms-suffix%";
         public static final String COUNTDOWN = "%countdown%";
         public static final String GAMEMODE = "%gamemode%";
+        public static final String BEDROCK = "%bedrock%";
 
         // Placeholders for internal use
         public static final String COLLISION = "%collision%";

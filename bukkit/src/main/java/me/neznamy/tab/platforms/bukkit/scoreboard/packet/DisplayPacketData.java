@@ -1,12 +1,12 @@
 package me.neznamy.tab.platforms.bukkit.scoreboard.packet;
 
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.FunctionWithException;
 import me.neznamy.tab.shared.util.ReflectionUtils;
-import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -61,32 +61,23 @@ public class DisplayPacketData {
      * @return  Packet for setting display slot
      */
     @SneakyThrows
-    public Object setDisplaySlot(int slot, @NotNull Object objective) {
+    public Object setDisplaySlot(int slot, @NonNull Object objective) {
         return newDisplayObjective.newInstance(displaySlots[slot], objective);
     }
 
     /**
-     * Returns {@code true} if packet is display objective packet, {@code false} if not.
-     *
-     * @param   packet
-     *          Packet to check
-     * @return  {@code true} if is, {@code false} if not
-     */
-    public boolean isDisplayObjective(@NotNull Object packet) {
-        return DisplayObjectiveClass.isInstance(packet);
-    }
-
-    /**
-     * Processes display objective packet.
+     * Checks if packet is display objective packet and forwards it to enabled features.
      *
      * @param   player
-     *          Player who received the packet
+     *          Player who received packet
      * @param   packet
-     *          Display objective packet received
+     *          Received packet
      */
     @SneakyThrows
-    public void onDisplayObjective(@NotNull TabPlayer player, @NotNull Object packet) {
-        TAB.getInstance().getFeatureManager().onDisplayObjective(player, packetToSlot.apply(packet),
-                (String) DisplayObjective_OBJECTIVE_NAME.get(packet));
+    public void onPacketSend(@NonNull TabPlayer player, @NonNull Object packet) {
+        if (DisplayObjectiveClass.isInstance(packet)) {
+            TAB.getInstance().getFeatureManager().onDisplayObjective(player, packetToSlot.apply(packet),
+                    (String) DisplayObjective_OBJECTIVE_NAME.get(packet));
+        }
     }
 }

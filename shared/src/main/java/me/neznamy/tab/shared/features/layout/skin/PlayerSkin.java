@@ -13,14 +13,18 @@ import org.json.simple.parser.ParseException;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.shared.TAB;
 
+/**
+ * Skin source using player names.
+ */
 public class PlayerSkin extends SkinSource {
 
-    protected PlayerSkin(ConfigurationFile file) {
+    protected PlayerSkin(@NotNull ConfigurationFile file) {
         super(file, "players");
     }
 
     @Override
-    public @NotNull List<String> download(@NotNull String input) {
+    @NotNull
+    public List<String> download(@NotNull String input) {
         try {
             JSONObject json = getResponse("https://api.ashcon.app/mojang/v2/user/" + input);
             JSONObject textures = (JSONObject) json.get("textures");
@@ -29,11 +33,10 @@ public class PlayerSkin extends SkinSource {
             String signature = (String) raw.get("signature");
             return Arrays.asList(value, signature);
         } catch (FileNotFoundException e) {
-            TAB.getInstance().getErrorManager().printError("Failed to load skin by player: No user with the name '" + input + "' was found");
-            return Collections.emptyList();
+            TAB.getInstance().getConfigHelper().runtime().unknownPlayerSkin(input);
         } catch (IOException | ParseException e) {
-            TAB.getInstance().getErrorManager().printError("Failed to load skin by player: " + e.getMessage(), e);
-            return Collections.emptyList();
+            TAB.getInstance().getErrorManager().playerSkinDownloadError(input, e);
         }
+        return Collections.emptyList();
     }
 }

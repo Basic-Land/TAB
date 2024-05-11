@@ -1,7 +1,7 @@
 package me.neznamy.tab.shared.chat.rgb;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.chat.rgb.format.BukkitFormat;
 import me.neznamy.tab.shared.chat.rgb.format.HtmlFormat;
 import me.neznamy.tab.shared.chat.rgb.format.KyoriFormat;
@@ -10,7 +10,6 @@ import me.neznamy.tab.shared.chat.rgb.format.UnnamedFormat1;
 import me.neznamy.tab.shared.chat.rgb.gradient.CMIGradient;
 import me.neznamy.tab.shared.chat.rgb.gradient.CommonGradient;
 import me.neznamy.tab.shared.chat.rgb.gradient.GradientPattern;
-import me.neznamy.tab.shared.chat.rgb.gradient.KyoriGradient;
 import me.neznamy.tab.shared.chat.rgb.gradient.NexEngineGradient;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 
@@ -40,7 +39,8 @@ public class RGBUtils {
      */
     public RGBUtils() {
         List<RGBFormatter> list = new ArrayList<>();
-        if (ReflectionUtils.classExists("net.kyori.adventure.text.minimessage.MiniMessage")) {
+        if (ReflectionUtils.classExists("net.kyori.adventure.text.minimessage.MiniMessage") &&
+                ReflectionUtils.classExists("net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer")) {
             list.add(new MiniMessageFormat());
         }
         list.add(new BukkitFormat());
@@ -61,7 +61,6 @@ public class RGBUtils {
                 new CommonGradient(Pattern.compile("<\\$#[0-9a-fA-F]{6}>[^<]*<\\$#[0-9a-fA-F]{6}>"),
                         Pattern.compile("<\\$#[0-9a-fA-F]{6}\\|.>[^<]*<\\$#[0-9a-fA-F]{6}>"),
                         "<$", 10, 3, 10, 7),
-                new KyoriGradient(),
                 new NexEngineGradient()
         };
     }
@@ -110,23 +109,6 @@ public class RGBUtils {
      * @return  translated text
      */
     public @NotNull String convertRGBtoLegacy(@NotNull String text) {
-        return IChatBaseComponent.fromColoredText(text).toLegacyText();
-    }
-
-    /**
-     * Returns true if entered string is a valid 6-digit combination of
-     * hexadecimal numbers, false if not
-     *
-     * @param   string
-     *          string to check
-     * @return  {@code true} if valid, {@code false} if not
-     */
-    public boolean isHexCode(@NotNull String string) {
-        if (string.length() != 6) return false;
-        for (int i=0; i<6; i++) {
-            char c = string.charAt(i);
-            if (c < 48 || (c > 57 && c < 65) || (c > 70 && c < 97) || c > 102) return false;
-        }
-        return true;
+        return TabComponent.fromColoredText(text).toLegacyText();
     }
 }

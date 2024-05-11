@@ -1,15 +1,12 @@
 package me.neznamy.tab.shared.features.scoreboard.lines;
 
-import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
-import me.neznamy.tab.shared.features.types.Refreshable;
-import me.neznamy.tab.shared.platform.Scoreboard;
-import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardImpl;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -18,11 +15,9 @@ import org.jetbrains.annotations.NotNull;
  *   1.5.x - 1.12.x: 28 - 32 characters (depending on used magic codes)
  *   1.13+: unlimited
  */
-public class StableDynamicLine extends ScoreboardLine implements Refreshable {
+public class StableDynamicLine extends ScoreboardLine {
 
     private final String[] EMPTY_ARRAY = new String[0];
-    @Getter private final String featureName = "Scoreboard";
-    @Getter private final String refreshDisplayName = "Updating Scoreboard lines";
 
     /**
      * Constructs new instance with given parameters
@@ -43,20 +38,12 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
         if (!parent.getPlayers().contains(refreshed)) return; //player has different scoreboard displayed
         String[] prefixSuffix = replaceText(refreshed, force, false);
         if (prefixSuffix.length == 0) return;
-        refreshed.getScoreboard().updateTeam(
-                teamName,
-                prefixSuffix[0],
-                prefixSuffix[1],
-                Scoreboard.NameVisibility.NEVER,
-                Scoreboard.CollisionRule.NEVER,
-                0,
-                EnumChatFormat.RESET
-        );
+        updateTeam(refreshed, prefixSuffix[0], prefixSuffix[1]);
     }
 
     @Override
     public void register(@NonNull TabPlayer p) {
-        p.setProperty(this, parent.getName() + "-" + teamName, text);
+        p.setProperty(this, textProperty, text);
         getScoreRefresher().registerProperties(p);
         String[] prefixSuffix = replaceText(p, true, true);
         if (prefixSuffix.length == 0) return;
@@ -65,7 +52,7 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
 
     @Override
     public void unregister(@NonNull TabPlayer p) {
-        if (parent.getPlayers().contains(p) && !p.getProperty(parent.getName() + "-" + teamName).get().isEmpty()) {
+        if (parent.getPlayers().contains(p) && !p.getProperty(textProperty).get().isEmpty()) {
             removeLine(p, getPlayerName());
         }
     }
@@ -83,7 +70,7 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
      * @return  array of 2 elements for prefix/suffix
      */
     private String[] replaceText(TabPlayer p, boolean force, boolean suppressToggle) {
-        Property scoreProperty = p.getProperty(parent.getName() + "-" + teamName);
+        Property scoreProperty = p.getProperty(textProperty);
         if (scoreProperty == null) return EMPTY_ARRAY; //not actually loaded yet (force refresh called from placeholder manager register method)
         boolean emptyBefore = scoreProperty.get().isEmpty();
         if (!scoreProperty.update() && !force) return EMPTY_ARRAY;
@@ -142,9 +129,10 @@ public class StableDynamicLine extends ScoreboardLine implements Refreshable {
 
     @Override
     public void setText(@NonNull String text) {
-        this.text = text;
+        ensureActive();
+        initializeText(text);
         for (TabPlayer p : parent.getPlayers()) {
-            p.setProperty(this, parent.getName() + "-" + teamName, text);
+            p.setProperty(this, textProperty, text);
             refresh(p, true);
         }
     }

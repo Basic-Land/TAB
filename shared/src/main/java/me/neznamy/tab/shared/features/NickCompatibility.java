@@ -3,11 +3,9 @@ package me.neznamy.tab.shared.features;
 import java.util.Collections;
 import java.util.UUID;
 
-import lombok.Getter;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
@@ -18,6 +16,7 @@ import me.neznamy.tab.shared.features.types.EntryAddListener;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -26,8 +25,6 @@ import org.jetbrains.annotations.Nullable;
  * is considered nicked and all name-bound features will use this new nickname.
  */
 public class NickCompatibility extends TabFeature implements EntryAddListener {
-
-    @Getter private final String featureName = "Nick compatibility";
 
     @Nullable private final NameTag nameTags = TAB.getInstance().getNameTagManager();
     @Nullable private final BelowName belowname = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.BELOW_NAME);
@@ -62,18 +59,24 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
         }
     }
 
-    private void processNameChange(TabPlayer player) {
-        TAB.getInstance().getCPUManager().runMeasuredTask(featureName, TabConstants.CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY, () -> {
+    /**
+     * Processes name change in all features.
+     *
+     * @param   player
+     *          Player to update in all features
+     */
+    public void processNameChange(@NotNull TabPlayer player) {
+        TAB.getInstance().getCPUManager().runMeasuredTask(getFeatureName(), TabConstants.CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY, () -> {
             if (nameTags != null && !nameTags.hasTeamHandlingPaused(player))
                 for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
                     String prefix = player.getProperty(TabConstants.Property.TAGPREFIX).getFormat(viewer);
-                    viewer.getScoreboard().unregisterTeam(nameTags.getSorting().getShortTeamName(player));
+                    viewer.getScoreboard().unregisterTeam(player.sortingData.getShortTeamName());
                     viewer.getScoreboard().registerTeam(
-                            nameTags.getSorting().getShortTeamName(player),
+                            player.sortingData.getShortTeamName(),
                             prefix,
                             player.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer),
                             nameTags.getTeamVisibility(player, viewer) ? Scoreboard.NameVisibility.ALWAYS : Scoreboard.NameVisibility.NEVER,
-                            nameTags.getCollisionManager().getCollision(player) ? Scoreboard.CollisionRule.ALWAYS : Scoreboard.CollisionRule.NEVER,
+                            player.teamData.getCollisionRule() ? Scoreboard.CollisionRule.ALWAYS : Scoreboard.CollisionRule.NEVER,
                             Collections.singletonList(player.getNickname()),
                             nameTags.getTeamOptions(),
                             EnumChatFormat.lastColorsOf(prefix)
@@ -94,20 +97,20 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
     }
 
     private void processNameChange(RedisPlayer player) {
-        TAB.getInstance().getCPUManager().runMeasuredTask(featureName, TabConstants.CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY, () -> {
+        TAB.getInstance().getCPUManager().runMeasuredTask(getFeatureName(), TabConstants.CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY, () -> {
             if (redisTeams != null) {
-                String teamName = redisTeams.getTeamNames().get(player);
+                String teamName = player.getTeamName();
                 for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
                     viewer.getScoreboard().unregisterTeam(teamName);
                     viewer.getScoreboard().registerTeam(
                             teamName,
-                            redisTeams.getPrefixes().get(player),
-                            redisTeams.getSuffixes().get(player),
-                            redisTeams.getNameVisibilities().get(player),
+                            player.getTagPrefix(),
+                            player.getTagSuffix(),
+                            player.getNameVisibility(),
                             Scoreboard.CollisionRule.ALWAYS,
                             Collections.singletonList(player.getNickname()),
                             redisTeams.getNameTags().getTeamOptions(),
-                            EnumChatFormat.lastColorsOf(redisTeams.getPrefixes().get(player))
+                            EnumChatFormat.lastColorsOf(player.getTagPrefix())
                     );
                 }
             }
@@ -116,9 +119,9 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
                     all.getScoreboard().setScore(
                             BelowName.OBJECTIVE_NAME,
                             player.getNickname(),
-                            redisBelowName.getValues().get(player),
+                            player.getBelowNameNumber(),
                             null, // Unused by this objective slot
-                            IChatBaseComponent.emptyToNullOptimizedComponent(redisBelowName.getFancyValues().get(player))
+                            player.getBelowNameFancy()
                     );
                 }
             }
@@ -127,12 +130,18 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
                     all.getScoreboard().setScore(
                             YellowNumber.OBJECTIVE_NAME,
                             player.getNickname(),
-                            redisYellowNumber.getValues().get(player),
+                            player.getPlayerlistNumber(),
                             null, // Unused by this objective slot
-                            IChatBaseComponent.emptyToNullOptimizedComponent(redisYellowNumber.getFancyValues().get(player))
+                            player.getPlayerlistFancy()
                     );
                 }
             }
         });
+    }
+
+    @Override
+    @NotNull
+    public String getFeatureName() {
+        return "Nick compatibility";
     }
 }

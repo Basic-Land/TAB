@@ -1,14 +1,10 @@
 package me.neznamy.tab.platforms.fabric;
 
-import lombok.SneakyThrows;
+import lombok.NonNull;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.features.sorting.Sorting;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.Scoreboard;
-import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
@@ -18,11 +14,8 @@ import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Team;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,9 +23,8 @@ import java.util.Map;
 /**
  * Scoreboard implementation for Fabric using packets.
  */
-public class FabricScoreboard extends Scoreboard<FabricTabPlayer> {
+public class FabricScoreboard extends Scoreboard<FabricTabPlayer, Component> {
 
-    @NotNull
     private static final net.minecraft.world.scores.Scoreboard dummyScoreboard = new net.minecraft.world.scores.Scoreboard();
 
     private final Map<String, Objective> objectives = new HashMap<>();
@@ -48,31 +40,31 @@ public class FabricScoreboard extends Scoreboard<FabricTabPlayer> {
     }
 
     @Override
-    public void setDisplaySlot0(int slot, @NotNull String objective) {
-        player.sendPacket(FabricMultiVersion.setDisplaySlot.apply(slot, objectives.get(objective)));
+    public void setDisplaySlot0(int slot, @NonNull String objective) {
+        player.sendPacket(FabricMultiVersion.setDisplaySlot(slot, objectives.get(objective)));
     }
 
     @Override
-    public void registerObjective0(@NotNull String objectiveName, @NotNull String title, int display,
-                                   @Nullable IChatBaseComponent numberFormat) {
-        Objective obj = FabricMultiVersion.newObjective.apply(
+    public void registerObjective0(@NonNull String objectiveName, @NonNull String title, int display,
+                                   @Nullable Component numberFormat) {
+        Objective obj = FabricMultiVersion.newObjective(
                 objectiveName,
                 toComponent(title),
                 RenderType.values()[display],
-                numberFormat == null ? null : toComponent(numberFormat)
+                numberFormat
         );
         objectives.put(objectiveName, obj);
         player.sendPacket(new ClientboundSetObjectivePacket(obj, ObjectiveAction.REGISTER));
     }
 
     @Override
-    public void unregisterObjective0(@NotNull String objectiveName) {
+    public void unregisterObjective0(@NonNull String objectiveName) {
         player.sendPacket(new ClientboundSetObjectivePacket(objectives.remove(objectiveName), ObjectiveAction.UNREGISTER));
     }
 
     @Override
-    public void updateObjective0(@NotNull String objectiveName, @NotNull String title, int display,
-                                 @Nullable IChatBaseComponent numberFormat) {
+    public void updateObjective0(@NonNull String objectiveName, @NonNull String title, int display,
+                                 @Nullable Component numberFormat) {
         Objective obj = objectives.get(objectiveName);
         obj.setDisplayName(toComponent(title));
         obj.setRenderType(RenderType.values()[display]);
@@ -80,9 +72,9 @@ public class FabricScoreboard extends Scoreboard<FabricTabPlayer> {
     }
 
     @Override
-    public void registerTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix,
-                              @NotNull NameVisibility visibility, @NotNull CollisionRule collision,
-                              @NotNull Collection<String> players, int options, @NotNull EnumChatFormat color) {
+    public void registerTeam0(@NonNull String name, @NonNull String prefix, @NonNull String suffix,
+                              @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
+                              @NonNull Collection<String> players, int options, @NonNull EnumChatFormat color) {
         PlayerTeam team = new PlayerTeam(dummyScoreboard, name);
         team.setAllowFriendlyFire((options & 0x01) > 0);
         team.setSeeFriendlyInvisibles((options & 0x02) > 0);
@@ -92,18 +84,18 @@ public class FabricScoreboard extends Scoreboard<FabricTabPlayer> {
         team.setPlayerPrefix(toComponent(prefix));
         team.setPlayerSuffix(toComponent(suffix));
         team.getPlayers().addAll(players);
-        player.sendPacket(FabricMultiVersion.registerTeam.apply(team));
+        player.sendPacket(FabricMultiVersion.registerTeam(team));
     }
 
     @Override
-    public void unregisterTeam0(@NotNull String name) {
-        player.sendPacket(FabricMultiVersion.unregisterTeam.apply(new PlayerTeam(dummyScoreboard, name)));
+    public void unregisterTeam0(@NonNull String name) {
+        player.sendPacket(FabricMultiVersion.unregisterTeam(new PlayerTeam(dummyScoreboard, name)));
     }
 
     @Override
-    public void updateTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix,
-                            @NotNull NameVisibility visibility, @NotNull CollisionRule collision,
-                            int options, @NotNull EnumChatFormat color) {
+    public void updateTeam0(@NonNull String name, @NonNull String prefix, @NonNull String suffix,
+                            @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
+                            int options, @NonNull EnumChatFormat color) {
         PlayerTeam team = new PlayerTeam(dummyScoreboard, name);
         team.setAllowFriendlyFire((options & 0x01) != 0);
         team.setSeeFriendlyInvisibles((options & 0x02) != 0);
@@ -112,100 +104,35 @@ public class FabricScoreboard extends Scoreboard<FabricTabPlayer> {
         team.setNameTagVisibility(Team.Visibility.valueOf(visibility.name()));
         team.setPlayerPrefix(toComponent(prefix));
         team.setPlayerSuffix(toComponent(suffix));
-        player.sendPacket(FabricMultiVersion.updateTeam.apply(team));
+        player.sendPacket(FabricMultiVersion.updateTeam(team));
     }
 
     @Override
-    @SneakyThrows
-    public void setScore0(@NotNull String objective, @NotNull String scoreHolder, int score,
-                          @Nullable IChatBaseComponent displayName, @Nullable IChatBaseComponent numberFormat) {
-        player.sendPacket(FabricMultiVersion.setScore.apply(
-                objective,
-                scoreHolder,
-                score,
-                displayName == null ? null : toComponent(displayName),
-                numberFormat == null ? null : toComponent(numberFormat)
-        ));
+    public void setScore0(@NonNull String objective, @NonNull String scoreHolder, int score,
+                          @Nullable Component displayName, @Nullable Component numberFormat) {
+        player.sendPacket(FabricMultiVersion.setScore(objective, scoreHolder, score, displayName, numberFormat));
     }
 
     @Override
-    public void removeScore0(@NotNull String objective, @NotNull String scoreHolder) {
-        player.sendPacket(FabricMultiVersion.removeScore.apply(objective, scoreHolder));
+    public void removeScore0(@NonNull String objective, @NonNull String scoreHolder) {
+        player.sendPacket(FabricMultiVersion.removeScore(objective, scoreHolder));
     }
 
     @Override
-    public boolean isTeamPacket(@NotNull Object packet) {
-        return FabricMultiVersion.isTeamPacket.apply((Packet<?>) packet);
-    }
-
-    @Override
-    @SneakyThrows
-    @SuppressWarnings("unchecked")
-    public void onTeamPacket(@NotNull Object packet) {
-        if (TAB.getInstance().getNameTagManager() == null) return;
-        int action = ReflectionUtils.getInstanceFields(packet.getClass(), int.class).get(0).getInt(packet);
-        if (action == 1 || action == 2 || action == 4) return;
-        Field playersField = ReflectionUtils.getFields(packet.getClass(), Collection.class).get(0);
-        Collection<String> players = (Collection<String>) playersField.get(packet);
-        String teamName = String.valueOf(ReflectionUtils.getFields(packet.getClass(), String.class).get(0).get(packet));
-        if (players == null) return;
-        //creating a new list to prevent NoSuchFieldException in minecraft packet encoder when a player is removed
-        Collection<String> newList = new ArrayList<>();
-        for (String entry : players) {
-            TabPlayer p = getPlayer(entry);
-            if (p == null) {
-                newList.add(entry);
-                continue;
-            }
-            Sorting sorting = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.SORTING);
-            String expectedTeam = sorting.getShortTeamName(p);
-            if (expectedTeam == null) {
-                newList.add(entry);
-                continue;
-            }
-            if (!TAB.getInstance().getNameTagManager().getDisableChecker().isDisabledPlayer(p) &&
-                    !TAB.getInstance().getNameTagManager().hasTeamHandlingPaused(p) && !teamName.equals(expectedTeam)) {
-                logTeamOverride(teamName, p.getName(), expectedTeam);
-            } else {
-                newList.add(entry);
-            }
+    public void onPacketSend(@NonNull Object packet) {
+        if (packet instanceof ClientboundSetDisplayObjectivePacket display) {
+            TAB.getInstance().getFeatureManager().onDisplayObjective(player, FabricMultiVersion.getDisplaySlot(display), display.objectiveName);
         }
-        playersField.set(packet, newList);
+        if (packet instanceof ClientboundSetObjectivePacket objective) {
+            TAB.getInstance().getFeatureManager().onObjective(player, objective.method, objective.objectiveName);
+        }
+        if (isAntiOverrideTeams()) {
+            FabricMultiVersion.checkTeamPacket((Packet<?>) packet, this);
+        }
     }
 
-    @Override
-    public boolean isDisplayObjective(@NotNull Object packet) {
-        return packet instanceof ClientboundSetDisplayObjectivePacket;
-    }
-
-    @Override
-    @SneakyThrows
-    public void onDisplayObjective(@NotNull Object packet) {
-        int slot = FabricMultiVersion.getDisplaySlot.apply((ClientboundSetDisplayObjectivePacket) packet);
-        String objective = (String) ReflectionUtils.getFields(packet.getClass(), String.class).get(0).get(packet);
-        TAB.getInstance().getFeatureManager().onDisplayObjective(player, slot, objective);
-    }
-
-    @Override
-    public boolean isObjective(@NotNull Object packet) {
-        return packet instanceof ClientboundSetObjectivePacket;
-    }
-
-    @Override
-    @SneakyThrows
-    public void onObjective(@NotNull Object packet) {
-        int action = ReflectionUtils.getFields(packet.getClass(), int.class).get(0).getInt(packet);
-        String objective = (String) ReflectionUtils.getFields(packet.getClass(), String.class).get(0).get(packet);
-        TAB.getInstance().getFeatureManager().onObjective(player, action, objective);
-    }
-
-    @NotNull
-    private Component toComponent(@NotNull String string) {
-        return toComponent(IChatBaseComponent.optimizedComponent(string));
-    }
-
-    @NotNull
-    private Component toComponent(@NotNull IChatBaseComponent component) {
-        return player.getPlatform().toComponent(component, player.getVersion());
+    @NonNull
+    private Component toComponent(@NonNull String string) {
+        return TabComponent.optimized(string).convert(player.getVersion());
     }
 }

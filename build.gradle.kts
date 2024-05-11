@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "me.neznamy"
-    version = "4.1.3-SNAPSHOT"
+    version = "4.1.5-SNAPSHOT"
     description = "An all-in-one solution that works"
 
     ext.set("id", "tab")
@@ -20,8 +20,7 @@ val platforms = setOf(
     projects.sponge8,
     projects.fabric,
     projects.fabric.v1144,
-    projects.fabric.v1182,
-    projects.fabric.v1192
+    projects.fabric.v1182
 ).map { it.dependencyProject }
 
 val special = setOf(

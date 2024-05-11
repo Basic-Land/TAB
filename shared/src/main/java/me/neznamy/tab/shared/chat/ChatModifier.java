@@ -4,7 +4,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.json.simple.JSONObject;
 
 @Data @NoArgsConstructor
 public class ChatModifier {
@@ -12,41 +11,19 @@ public class ChatModifier {
     @Nullable private TextColor color;
     private boolean bold;
     private boolean italic;
-    private boolean underlined;
-    private boolean strikethrough;
     private boolean obfuscated;
-    @Nullable private ClickEvent clickEvent;
+    private boolean strikethrough;
+    private boolean underlined;
     @Nullable private String font;
 
     public ChatModifier(@NotNull ChatModifier modifier) {
-        if (modifier.color != null) color = new TextColor(modifier.color);
+        color = modifier.color;
         bold = modifier.bold;
         italic = modifier.italic;
-        underlined = modifier.underlined;
-        strikethrough = modifier.strikethrough;
         obfuscated = modifier.obfuscated;
-        if (modifier.clickEvent != null) clickEvent = new ClickEvent(modifier.clickEvent.getAction(), modifier.clickEvent.getValue());
+        strikethrough = modifier.strikethrough;
+        underlined = modifier.underlined;
         font = modifier.font;
-    }
-
-    @SuppressWarnings("unchecked")
-    @NotNull
-    public JSONObject serialize(boolean rgbSupport) {
-        JSONObject json = new JSONObject();
-        if (color != null) json.put("color", color.toString(rgbSupport));
-        if (bold) json.put("bold", true);
-        if (italic) json.put("italic", true);
-        if (underlined) json.put("underlined", true);
-        if (strikethrough) json.put("strikethrough", true);
-        if (obfuscated) json.put("obfuscated", true);
-        if (clickEvent != null) {
-            JSONObject click = new JSONObject();
-            click.put("action", clickEvent.getAction().name().toLowerCase());
-            click.put("value", clickEvent.getValue());
-            json.put("clickEvent", click);
-        }
-        if (font != null) json.put("font", font);
-        return json;
     }
 
     /**
@@ -58,11 +35,26 @@ public class ChatModifier {
     @NotNull
     public String getMagicCodes() {
         StringBuilder builder = new StringBuilder();
-        if (bold) builder.append(EnumChatFormat.BOLD.getFormat());
-        if (italic) builder.append(EnumChatFormat.ITALIC.getFormat());
-        if (underlined) builder.append(EnumChatFormat.UNDERLINE.getFormat());
-        if (strikethrough) builder.append(EnumChatFormat.STRIKETHROUGH.getFormat());
-        if (obfuscated) builder.append(EnumChatFormat.OBFUSCATED.getFormat());
+        if (bold) builder.append(EnumChatFormat.BOLD);
+        if (italic) builder.append(EnumChatFormat.ITALIC);
+        if (obfuscated) builder.append(EnumChatFormat.OBFUSCATED);
+        if (strikethrough) builder.append(EnumChatFormat.STRIKETHROUGH);
+        if (underlined) builder.append(EnumChatFormat.UNDERLINE);
         return builder.toString();
+    }
+
+    /**
+     * Returns bitmask of magic codes.
+     *
+     * @return  Bitmask of magic codes
+     */
+    public int getMagicCodeBitMask() {
+        int mask = 0;
+        if (bold)          mask += 1;
+        if (italic)        mask += 2;
+        if (obfuscated)    mask += 4;
+        if (strikethrough) mask += 8;
+        if (underlined)    mask += 16;
+        return mask;
     }
 }

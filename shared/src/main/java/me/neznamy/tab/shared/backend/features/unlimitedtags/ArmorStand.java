@@ -2,9 +2,10 @@ package me.neznamy.tab.shared.backend.features.unlimitedtags;
 
 import lombok.Getter;
 import me.neznamy.tab.shared.Property;
+import me.neznamy.tab.shared.chat.StructuredComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.backend.EntityData;
 import me.neznamy.tab.shared.backend.Location;
@@ -108,6 +109,14 @@ public class ArmorStand {
         }
     }
 
+    public void move(BackendTabPlayer viewer, Location diff) {
+        if (!asm.isNearby(viewer) && viewer != owner) {
+            asm.spawn(viewer);
+        } else {
+            viewer.getEntityView().moveEntity(entityId, diff);
+        }
+    }
+
     public void spawn(BackendTabPlayer viewer) {
         visible = calculateVisibility();
         viewer.getEntityView().spawnEntity(entityId, uuid, manager.getArmorStandType(),
@@ -124,7 +133,7 @@ public class ArmorStand {
         if (manager.isArmorStandsAlwaysVisible()) return true;
         if (owner.isDisguised() || manager.isOnBoat(owner)) return false;
         return owner.getGamemode() != 3 && !manager.hasHiddenNameTag(owner) && !property.get().isEmpty() &&
-                !manager.getUnlimitedDisableChecker().isDisabledPlayer(owner);
+                !owner.disabledUnlimitedNametags.get();
     }
 
     /**
@@ -139,7 +148,9 @@ public class ArmorStand {
         if (displayName.isEmpty()) return true;
         String rawText = displayName.contains(" ") ? displayName.replace(" ", "") : displayName;
         if (!rawText.startsWith(EnumChatFormat.COLOR_STRING) && !rawText.startsWith("&") && !rawText.startsWith("#")) return false;
-        return IChatBaseComponent.fromColoredText(rawText).toRawText().isEmpty();
+        TabComponent component = TabComponent.fromColoredText(rawText);
+        if (component instanceof StructuredComponent) return ((StructuredComponent) component).toRawText().isEmpty();
+        return component.toLegacyText().isEmpty();
     }
 
     /**

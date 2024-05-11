@@ -1,7 +1,9 @@
 package me.neznamy.tab.platforms.sponge8;
 
+import lombok.NonNull;
+import lombok.SneakyThrows;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.hook.AdventureHook;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import net.kyori.adventure.text.Component;
@@ -9,6 +11,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.scoreboard.CollisionRules;
+import org.spongepowered.api.scoreboard.Score;
 import org.spongepowered.api.scoreboard.Team;
 import org.spongepowered.api.scoreboard.Visibilities;
 import org.spongepowered.api.scoreboard.Visibility;
@@ -23,7 +26,7 @@ import java.util.Collection;
 /**
  * Scoreboard implementation for Sponge 8 using its API.
  */
-public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
+public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer, Component> {
 
     /** Collision rule array for fast access */
     private static final org.spongepowered.api.scoreboard.CollisionRule[] collisionRules = {
@@ -55,7 +58,6 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
     };
 
     /** Scoreboard of the player */
-    @NotNull
     private final org.spongepowered.api.scoreboard.Scoreboard sb = org.spongepowered.api.scoreboard.Scoreboard.builder().build();
 
     /**
@@ -64,7 +66,7 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
      * @param   player
      *          Player this scoreboard will belong to
      */
-    public SpongeScoreboard(@NotNull SpongeTabPlayer player) {
+    public SpongeScoreboard(@NonNull SpongeTabPlayer player) {
         super(player);
 
         // Make sure each player is in a different scoreboard for per-player view
@@ -72,13 +74,13 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
     }
 
     @Override
-    public void setDisplaySlot0(int slot, @NotNull String objective) {
+    public void setDisplaySlot0(int slot, @NonNull String objective) {
         sb.objective(objective).ifPresent(o -> sb.updateDisplaySlot(o, displaySlots[slot]));
     }
 
     @Override
-    public void registerObjective0(@NotNull String objectiveName, @NotNull String title, int display,
-                                   @Nullable IChatBaseComponent numberFormat) {
+    public void registerObjective0(@NonNull String objectiveName, @NonNull String title, int display,
+                                   @Nullable Component numberFormat) {
         sb.addObjective(Objective.builder()
                 .name(objectiveName)
                 .displayName(adventure(title))
@@ -89,13 +91,13 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
     }
 
     @Override
-    public void unregisterObjective0(@NotNull String objectiveName) {
+    public void unregisterObjective0(@NonNull String objectiveName) {
         sb.objective(objectiveName).ifPresent(sb::removeObjective);
     }
 
     @Override
-    public void updateObjective0(@NotNull String objectiveName, @NotNull String title, int display,
-                                 @Nullable IChatBaseComponent numberFormat) {
+    public void updateObjective0(@NonNull String objectiveName, @NonNull String title, int display,
+                                 @Nullable Component numberFormat) {
         sb.objective(objectiveName).ifPresent(obj -> {
             obj.setDisplayName(adventure(title));
             obj.setDisplayMode(healthDisplays[display]);
@@ -103,15 +105,15 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
      }
 
     @Override
-    public void registerTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix,
-                              @NotNull NameVisibility visibility, @NotNull CollisionRule collision,
-                              @NotNull Collection<String> players, int options, @NotNull EnumChatFormat color) {
+    public void registerTeam0(@NonNull String name, @NonNull String prefix, @NonNull String suffix,
+                              @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
+                              @NonNull Collection<String> players, int options, @NonNull EnumChatFormat color) {
         Team team = Team.builder()
                 .name(name)
                 .displayName(adventure(name))
                 .prefix(adventure(prefix))
                 .suffix(adventure(suffix))
-                .color(NamedTextColor.namedColor(color.getHexCode()))
+                .color(NamedTextColor.NAMES.valueOr(color.name(), NamedTextColor.WHITE))
                 .allowFriendlyFire((options & 0x01) != 0)
                 .canSeeFriendlyInvisibles((options & 0x02) != 0)
                 .collisionRule(collisionRules[collision.ordinal()])
@@ -124,19 +126,19 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
     }
 
     @Override
-    public void unregisterTeam0(@NotNull String name) {
+    public void unregisterTeam0(@NonNull String name) {
         sb.team(name).ifPresent(Team::unregister);
     }
 
     @Override
-    public void updateTeam0(@NotNull String name, @NotNull String prefix, @NotNull String suffix,
-                            @NotNull NameVisibility visibility, @NotNull CollisionRule collision,
-                            int options, @NotNull EnumChatFormat color) {
+    public void updateTeam0(@NonNull String name, @NonNull String prefix, @NonNull String suffix,
+                            @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
+                            int options, @NonNull EnumChatFormat color) {
         sb.team(name).ifPresent(team -> {
             team.setDisplayName(adventure(name));
             team.setPrefix(adventure(prefix));
             team.setSuffix(adventure(suffix));
-            team.setColor(NamedTextColor.namedColor(color.getHexCode()));
+            team.setColor(NamedTextColor.NAMES.valueOr(color.name(), NamedTextColor.WHITE));
             team.setAllowFriendlyFire((options & 0x01) != 0);
             team.setCanSeeFriendlyInvisibles((options & 0x02) != 0);
             team.setCollisionRule(collisionRules[collision.ordinal()]);
@@ -145,14 +147,26 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
     }
 
     @Override
-    public void setScore0(@NotNull String objective, @NotNull String scoreHolder, int score,
-                          @Nullable IChatBaseComponent displayName, @Nullable IChatBaseComponent numberFormat) {
-        sb.objective(objective).ifPresent(o -> o.findOrCreateScore(adventure(scoreHolder)).setScore(score));
+    public void setScore0(@NonNull String objective, @NonNull String scoreHolder, int score,
+                          @Nullable Component displayName, @Nullable Component numberFormat) {
+        sb.objective(objective).ifPresent(o -> findOrCreateScore(o, scoreHolder).setScore(score));
     }
 
     @Override
-    public void removeScore0(@NotNull String objective, @NotNull String scoreHolder) {
-        sb.objective(objective).ifPresent(o -> o.removeScore(adventure(scoreHolder)));
+    public void removeScore0(@NonNull String objective, @NonNull String scoreHolder) {
+        sb.objective(objective).ifPresent(o -> o.removeScore(findOrCreateScore(o, scoreHolder)));
+    }
+
+    @NotNull
+    @SneakyThrows
+    private Score findOrCreateScore(@NotNull Objective objective, @NonNull String holder) {
+        try {
+            // Sponge 8 - 10
+            return objective.findOrCreateScore(adventure(holder));
+        } catch (NoSuchMethodError e) {
+            // Sponge 11+
+            return (Score) objective.getClass().getMethod("findOrCreateScore", String.class).invoke(objective, holder);
+        }
     }
 
     /**
@@ -163,7 +177,7 @@ public class SpongeScoreboard extends Scoreboard<SpongeTabPlayer> {
      * @return  Converted text
      */
     @NotNull
-    private Component adventure(@NotNull String text) {
-        return AdventureHook.toAdventureComponent(IChatBaseComponent.optimizedComponent(text), player.getVersion());
+    private Component adventure(@NonNull String text) {
+        return AdventureHook.toAdventureComponent(TabComponent.optimized(text), player.getVersion().supportsRGB());
     }
 }

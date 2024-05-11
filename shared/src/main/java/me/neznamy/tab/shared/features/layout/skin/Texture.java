@@ -18,14 +18,18 @@ import org.json.simple.parser.ParseException;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.shared.TAB;
 
+/**
+ * Skin source using raw texture.
+ */
 public class Texture extends SkinSource {
 
-    protected Texture(ConfigurationFile file) {
+    protected Texture(@NotNull ConfigurationFile file) {
         super(file, "textures");
     }
 
     @Override
-    public @NotNull List<String> download(@NotNull String texture) {
+    @NotNull
+    public List<String> download(@NotNull String texture) {
         try {
             InputStreamReader reader = getInputStreamReader(texture);
             JSONObject json = (JSONObject) new JSONParser().parse(reader);
@@ -35,7 +39,7 @@ public class Texture extends SkinSource {
             String signature = (String) texture2.get("signature");
             return Arrays.asList(value, signature);
         } catch (IOException | ParseException e) {
-            TAB.getInstance().getErrorManager().printError("Failed to load skin by texture: " + e.getMessage(), e);
+            TAB.getInstance().getErrorManager().textureSkinDownloadError(texture, e);
             return Collections.emptyList();
         }
     }

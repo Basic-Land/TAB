@@ -4,11 +4,9 @@ import lombok.Getter;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
 import me.neznamy.tab.shared.backend.entityview.EntityView;
-import me.neznamy.tab.shared.hook.AdventureHook;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.BossBar;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
@@ -30,10 +28,10 @@ import java.util.List;
 public class SpongeTabPlayer extends BackendTabPlayer {
 
     @NotNull
-    private final Scoreboard<SpongeTabPlayer> scoreboard = new SpongeScoreboard(this);
+    private final SpongeScoreboard scoreboard = new SpongeScoreboard(this);
 
     @NotNull
-    private final TabList tabList = new SpongeTabList(this);
+    private final SpongeTabList tabList = new SpongeTabList(this);
 
     @NotNull
     private final BossBar bossBar = new AdventureBossBar(this);
@@ -50,7 +48,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
      *          Platform's player object
      */
     public SpongeTabPlayer(@NotNull SpongePlatform platform, @NotNull ServerPlayer player) {
-        super(platform, player, player.uniqueId(), player.name(), player.world().key().value());
+        super(platform, player, player.uniqueId(), player.name(), player.world().key().value(), platform.getServerVersion().getNetworkId());
     }
 
     @Override
@@ -64,8 +62,8 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public void sendMessage(@NotNull IChatBaseComponent message) {
-        getPlayer().sendMessage(AdventureHook.toAdventureComponent(message, getVersion()));
+    public void sendMessage(@NotNull TabComponent message) {
+        getPlayer().sendMessage(message.convert(getVersion()));
     }
 
     @Override
@@ -93,11 +91,6 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     @NotNull
     public ServerPlayer getPlayer() {
         return (ServerPlayer) player;
-    }
-
-    @Override
-    public boolean isOnline() {
-        return getPlayer().isOnline();
     }
 
     @Override

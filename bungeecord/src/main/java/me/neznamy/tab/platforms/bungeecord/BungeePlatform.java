@@ -3,24 +3,18 @@ package me.neznamy.tab.platforms.bungeecord;
 import com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI;
 import me.neznamy.tab.platforms.bungeecord.features.BungeeRedisSupport;
 import me.neznamy.tab.platforms.bungeecord.hook.BungeePremiumVanishHook;
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.ChatModifier;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.*;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
-import me.neznamy.tab.shared.hook.ViaVersionHook;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
-import me.neznamy.tab.shared.util.ComponentCache;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyConfig;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import org.bstats.bungeecord.Metrics;
@@ -29,15 +23,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * BungeeCord implementation of Platform
  */
 public class BungeePlatform extends ProxyPlatform {
-
-    /** Component cache for better performance */
-    private final ComponentCache<IChatBaseComponent, BaseComponent> cache = new ComponentCache<>(1000, this::toComponent0);
 
     @NotNull
     private final BungeeTAB plugin;
@@ -58,11 +50,10 @@ public class BungeePlatform extends ProxyPlatform {
     @SuppressWarnings("deprecation")
     @Override
     public void loadPlayers() {
-        ViaVersionHook.getInstance().printProxyWarn();
         try {
             ProxyConfig config = ProxyServer.getInstance().getConfig();
             if ((boolean) config.getClass().getMethod("isDisableTabListRewrite").invoke(config)) {
-                logWarn(new IChatBaseComponent("Waterfall's \"disable_tab_list_rewrite: true\" option may cause " +
+                logWarn(new SimpleComponent("Waterfall's \"disable_tab_list_rewrite: true\" option may cause " +
                         "the plugin to not work correctly. Disable it to avoid issues."));
             }
         } catch (Exception e) {
@@ -84,13 +75,13 @@ public class BungeePlatform extends ProxyPlatform {
     }
 
     @Override
-    public void logInfo(@NotNull IChatBaseComponent message) {
+    public void logInfo(@NotNull TabComponent message) {
         plugin.getLogger().info(message.toLegacyText());
     }
 
     @Override
-    public void logWarn(@NotNull IChatBaseComponent message) {
-        plugin.getLogger().warning(EnumChatFormat.RED.getFormat() + message.toLegacyText());
+    public void logWarn(@NotNull TabComponent message) {
+        plugin.getLogger().warning(EnumChatFormat.RED + message.toLegacyText());
     }
 
     @Override
@@ -132,34 +123,19 @@ public class BungeePlatform extends ProxyPlatform {
         ProxyServer.getInstance().registerChannel(TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME);
     }
 
-    /**
-     * Converts internal component class to platform's component class. If the component is
-     * present in the cache, it is taken from it.
-     *
-     * @param   component
-     *          Component to convert
-     * @param   version
-     *          Game version to convert component for
-     * @return  Converted component
-     */
-    public BaseComponent toComponent(@NotNull IChatBaseComponent component, @NotNull ProtocolVersion version) {
-        return cache.get(component, version);
-    }
-
-    /**
-     * Converts internal component class to platform's component class
-     *
-     * @param   component
-     *          Component to convert
-     * @param   version
-     *          Game version to convert component for
-     * @return  Converted component
-     */
-    private BaseComponent toComponent0(@NotNull IChatBaseComponent component, @NotNull ProtocolVersion version) {
-        TextComponent textComponent = new TextComponent(component.getText());
-        ChatModifier modifier = component.getModifier();
-        if (modifier.getColor() != null) textComponent.setColor(ChatColor.of(
-                modifier.getColor().toString(version.supportsRGB())));
+    @Override
+    public BaseComponent convertComponent(@NotNull TabComponent component, boolean modern) {
+        if (component instanceof SimpleComponent) return new TextComponent(component.toLegacyText());
+        StructuredComponent iComponent = (StructuredComponent) component;
+        TextComponent textComponent = new TextComponent(iComponent.getText());
+        ChatModifier modifier = iComponent.getModifier();
+        if (modifier.getColor() != null) {
+            if (modern) {
+                textComponent.setColor(ChatColor.of("#" + modifier.getColor().getHexCode()));
+            } else {
+                textComponent.setColor(ChatColor.of(modifier.getColor().getLegacyColor().name()));
+            }
+        }
 
         if (modifier.isBold()) textComponent.setBold(true);
         if (modifier.isItalic()) textComponent.setItalic(true);
@@ -169,15 +145,14 @@ public class BungeePlatform extends ProxyPlatform {
 
         textComponent.setFont(modifier.getFont());
 
-        if (modifier.getClickEvent() != null) {
-            textComponent.setClickEvent(new ClickEvent(
-                    ClickEvent.Action.valueOf(modifier.getClickEvent().getAction().name()),
-                    modifier.getClickEvent().getValue()
-            ));
+        if (!iComponent.getExtra().isEmpty()) {
+            List<BaseComponent> list = new ArrayList<>();
+            for (StructuredComponent extra : iComponent.getExtra()) {
+                list.add(convertComponent(extra, modern));
+            }
+            textComponent.setExtra(list);
         }
 
-        if (!component.getExtra().isEmpty()) textComponent.setExtra(
-                component.getExtra().stream().map(c -> toComponent(c, version)).collect(Collectors.toList()));
         return textComponent;
     }
 }

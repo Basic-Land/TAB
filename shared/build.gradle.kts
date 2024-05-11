@@ -5,7 +5,7 @@ plugins {
 dependencies {
     api(projects.api)
     api("org.yaml:snakeyaml:2.0")
-    api("com.github.NEZNAMY:yamlassist:1.0.5")
+    api("com.github.NEZNAMY:yamlassist:1.0.8")
     api("com.googlecode.json-simple:json-simple:1.1.1") {
         exclude("junit", "junit")
     }
@@ -20,6 +20,7 @@ dependencies {
     compileOnlyApi("org.geysermc.floodgate:api:2.2.0-SNAPSHOT")
     compileOnlyApi("net.kyori:adventure-api:4.13.0")
     compileOnlyApi("net.kyori:adventure-text-serializer-legacy:4.13.0")
+    compileOnlyApi("net.kyori:adventure-text-serializer-gson:4.13.0")
     compileOnlyApi("net.kyori:adventure-text-minimessage:4.13.0")
 }
 

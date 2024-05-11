@@ -38,7 +38,10 @@ public class Condition {
         put("-|", line -> new StringCondition(line.split("-\\|"), String::endsWith)::isMet);
         put("!=", line -> new StringCondition(line.split("!="), (left, right) -> !left.equals(right))::isMet);
         put("=", line -> new StringCondition(line.split("="), String::equals)::isMet);
-        put("permission:", line -> p -> p.hasPermission(line.split(":")[1]));
+        put("permission:", line -> {
+            String node = line.split(":")[1];
+            return p -> p.hasPermission(node);
+        });
     }};
 
     /** Name of this condition defined in configuration */
@@ -96,7 +99,8 @@ public class Condition {
         PlaceholderManagerImpl pm = TAB.getInstance().getPlaceholderManager();
         for (String subCondition : conditions) {
             if (subCondition.startsWith("permission:")) {
-                if (refresh > 1000 || refresh == -1) refresh = 1000; //permission refreshing will be done every second
+                int permissionRefresh = TAB.getInstance().getConfiguration().getPermissionRefreshInterval();
+                if (refresh > permissionRefresh || refresh == -1) refresh = permissionRefresh;
             } else {
                 placeholdersInConditions.addAll(pm.detectPlaceholders(subCondition));
             }
@@ -163,6 +167,8 @@ public class Condition {
      */
     public static Condition getCondition(String string) {
         if (string == null || string.isEmpty()) return null;
+        if (string.equals("true")) return TrueCondition.INSTANCE;
+        if (string.equals("false")) return FalseCondition.INSTANCE;
         if (registeredConditions.containsKey(string)) {
             return registeredConditions.get(string);
         } else {

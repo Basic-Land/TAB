@@ -42,7 +42,7 @@ public class WitherBossBar extends BossBarManagerImpl implements Listener, World
         //when MC is on fullscreen, BossBar disappears after 1 second of not being seen
         //when in a small window, it's about 100ms
         TAB.getInstance().getCPUManager().startRepeatingMeasuredTask(100,
-                featureName, TabConstants.CpuUsageCategory.TELEPORTING_WITHER, this::teleport);
+                getFeatureName(), TabConstants.CpuUsageCategory.TELEPORTING_WITHER, this::teleport);
         super.load();
         teleport();
     }
@@ -54,7 +54,7 @@ public class WitherBossBar extends BossBarManagerImpl implements Listener, World
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
             if (p.getVersion().getMinorVersion() > 8) continue; //sending VV packets to those
             for (BossBar line : getRegisteredBossBars().values()) {
-                if (!line.getPlayers().contains(p)) continue;
+                if (!line.containsPlayer(p)) continue;
                 Location eyeLocation = ((BukkitTabPlayer)p).getPlayer().getEyeLocation();
                 Location loc = eyeLocation.add(eyeLocation.getDirection().normalize().multiply(WITHER_DISTANCE));
                 if (loc.getY() < 1) loc.setY(1);
@@ -79,7 +79,7 @@ public class WitherBossBar extends BossBarManagerImpl implements Listener, World
     public void onRespawn(PlayerRespawnEvent e) {
         TabPlayer player = TAB.getInstance().getPlayer(e.getPlayer().getUniqueId());
         if (player == null) return;
-        TAB.getInstance().getCPUManager().runMeasuredTask(featureName, TabConstants.CpuUsageCategory.PLAYER_RESPAWN,
+        TAB.getInstance().getCPUManager().runMeasuredTask(getFeatureName(), TabConstants.CpuUsageCategory.PLAYER_RESPAWN,
                 () -> detectBossBarsAndSend(player));
     }
 

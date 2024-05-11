@@ -1,19 +1,20 @@
 package me.neznamy.tab.platforms.bungeecord.tablist;
 
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bungeecord.BungeeTabPlayer;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.md_5.bungee.UserConnection;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.protocol.Property;
 import net.md_5.bungee.protocol.packet.PlayerListHeaderFooter;
 import net.md_5.bungee.protocol.packet.PlayerListItem;
 import net.md_5.bungee.protocol.packet.PlayerListItem.Item;
 import net.md_5.bungee.protocol.packet.PlayerListItemUpdate;
 import net.md_5.bungee.tab.ServerUnique;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -22,11 +23,7 @@ import java.util.UUID;
  * Abstract TabList class for BungeeCord containing
  * common code for all implementations.
  */
-public abstract class BungeeTabList implements TabList {
-
-    /** Player this TabList belongs to */
-    @NotNull
-    protected final BungeeTabPlayer player;
+public abstract class BungeeTabList extends TabList<BungeeTabPlayer, BaseComponent> {
 
     /** Pointer to UUIDs in player's TabList */
     private final Collection<UUID> uuids;
@@ -39,17 +36,14 @@ public abstract class BungeeTabList implements TabList {
      */
     @SneakyThrows
     @SuppressWarnings("unchecked")
-    protected BungeeTabList(@NotNull BungeeTabPlayer player) {
-        this.player = player;
+    protected BungeeTabList(@NonNull BungeeTabPlayer player) {
+        super(player);
         uuids = (Collection<UUID>) ReflectionUtils.getField(ServerUnique.class, "uuids").get(((UserConnection)player.getPlayer()).getTabListHandler());
     }
 
     @Override
-    public void setPlayerListHeaderFooter(@NotNull IChatBaseComponent header, @NotNull IChatBaseComponent footer) {
-        player.sendPacket(new PlayerListHeaderFooter(
-                player.getPlatform().toComponent(header, player.getVersion()),
-                player.getPlatform().toComponent(footer, player.getVersion())
-        ));
+    public void setPlayerListHeaderFooter0(@NonNull BaseComponent header, @NonNull BaseComponent footer) {
+        player.sendPacket(new PlayerListHeaderFooter(header, footer));
     }
 
     /**
@@ -59,35 +53,45 @@ public abstract class BungeeTabList implements TabList {
      *          UUID to use
      * @return  New {@link Item} with given UUID.
      */
-    @NotNull
-    public Item item(@NotNull UUID id) {
+    @NonNull
+    public Item item(@NonNull UUID id) {
         Item item = new Item();
         item.setUuid(id);
         return item;
     }
 
     /**
-     * Converts {@link Entry} to {@link Item}.
+     * Converts entry data to item.
      *
-     * @param   entry
-     *          Entry to convert
-     * @return  Converted {@link Item}
+     * @param   id
+     *          Entry UUID
+     * @param   name
+     *          Entry name
+     * @param   skin
+     *          Entry skin
+     * @param   listed
+     *          Whether entry should be listed or not
+     * @param   latency
+     *          Entry latency
+     * @param   gameMode
+     *          Entry game mode
+     * @param   displayName
+     *          Entry display name
+     * @return  Converted item from parameters
      */
-    @NotNull
-    public Item entryToItem(Entry entry) {
-        Item item = item(entry.getUniqueId());
-        if (entry.getDisplayName() != null) {
-            item.setDisplayName(player.getPlatform().toComponent(entry.getDisplayName(), player.getVersion()));
-        }
-        item.setGamemode(entry.getGameMode());
-        item.setListed(true);
-        item.setPing(entry.getLatency());
-        if (entry.getSkin() != null) {
-            item.setProperties(new Property[]{new Property(TEXTURES_PROPERTY, entry.getSkin().getValue(), entry.getSkin().getSignature())});
+    @NonNull
+    public Item entryToItem(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable BaseComponent displayName) {
+        Item item = item(id);
+        item.setUsername(name);
+        item.setDisplayName(displayName);
+        item.setGamemode(gameMode);
+        item.setListed(listed);
+        item.setPing(latency);
+        if (skin != null) {
+            item.setProperties(new Property[]{new Property(TEXTURES_PROPERTY, skin.getValue(), skin.getSignature())});
         } else {
             item.setProperties(new Property[0]);
         }
-        item.setUsername(entry.getName());
         return item;
     }
 
@@ -97,7 +101,7 @@ public abstract class BungeeTabList implements TabList {
      * @param   id
      *          UUID to add
      */
-    public void addUuid(@NotNull UUID id) {
+    public void addUuid(@NonNull UUID id) {
         uuids.add(id);
     }
 
@@ -107,18 +111,18 @@ public abstract class BungeeTabList implements TabList {
      * @param   id
      *          UUID to remove
      */
-    public void removeUuid(@NotNull UUID id) {
+    public void removeUuid(@NonNull UUID id) {
         uuids.remove(id);
     }
 
     @Override
-    public void onPacketSend(@NotNull Object packet) {
+    public void onPacketSend(@NonNull Object packet) {
         if (packet instanceof PlayerListItem) {
             PlayerListItem listItem = (PlayerListItem) packet;
             for (PlayerListItem.Item item : listItem.getItems()) {
                 if (listItem.getAction() == PlayerListItem.Action.UPDATE_DISPLAY_NAME || listItem.getAction() == PlayerListItem.Action.ADD_PLAYER) {
-                    IChatBaseComponent newDisplayName = TAB.getInstance().getFeatureManager().onDisplayNameChange(player, item.getUuid());
-                    if (newDisplayName != null) item.setDisplayName(player.getPlatform().toComponent(newDisplayName, player.getVersion()));
+                    BaseComponent expectedDisplayName = getExpectedDisplayName(item.getUuid());
+                    if (expectedDisplayName != null) item.setDisplayName(expectedDisplayName);
                 }
                 if (listItem.getAction() == PlayerListItem.Action.UPDATE_LATENCY || listItem.getAction() == PlayerListItem.Action.ADD_PLAYER) {
                     item.setPing(TAB.getInstance().getFeatureManager().onLatencyChange(player, item.getUuid(), item.getPing()));
@@ -131,8 +135,8 @@ public abstract class BungeeTabList implements TabList {
             PlayerListItemUpdate update = (PlayerListItemUpdate) packet;
             for (PlayerListItem.Item item : update.getItems()) {
                 if (update.getActions().contains(PlayerListItemUpdate.Action.UPDATE_DISPLAY_NAME)) {
-                    IChatBaseComponent newDisplayName = TAB.getInstance().getFeatureManager().onDisplayNameChange(player, item.getUuid());
-                    if (newDisplayName != null) item.setDisplayName(player.getPlatform().toComponent(newDisplayName, player.getVersion()));
+                    BaseComponent expectedDisplayName = getExpectedDisplayName(item.getUuid());
+                    if (expectedDisplayName != null) item.setDisplayName(expectedDisplayName);
                 }
                 if (update.getActions().contains(PlayerListItemUpdate.Action.UPDATE_LATENCY)) {
                     item.setPing(TAB.getInstance().getFeatureManager().onLatencyChange(player, item.getUuid(), item.getPing()));
@@ -142,5 +146,10 @@ public abstract class BungeeTabList implements TabList {
                 }
             }
         }
+    }
+
+    @Override
+    public boolean containsEntry(@NonNull UUID entry) {
+        return uuids.contains(entry);
     }
 }

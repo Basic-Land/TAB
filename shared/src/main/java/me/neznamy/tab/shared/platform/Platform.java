@@ -1,9 +1,8 @@
 package me.neznamy.tab.shared.platform;
 
 import me.neznamy.tab.shared.GroupManager;
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.nametags.NameTag;
@@ -30,11 +29,11 @@ public interface Platform {
     @NotNull GroupManager detectPermissionPlugin();
 
     /**
-     * Returns bossbar feature for servers 1.8 and lower
+     * Returns bossbar feature.
      *
-     * @return  bossbar feature for 1.8 and lower
+     * @return  bossbar feature
      */
-    default @NotNull BossBarManagerImpl getLegacyBossBar() {
+    default @NotNull BossBarManagerImpl getBossBar() {
         return new BossBarManagerImpl();
     }
 
@@ -100,7 +99,7 @@ public interface Platform {
      * @param   message
      *          Message to send
      */
-    void logInfo(@NotNull IChatBaseComponent message);
+    void logInfo(@NotNull TabComponent message);
 
     /**
      * Sends a red console message with TAB's prefix using logger with warn type if available,
@@ -109,7 +108,7 @@ public interface Platform {
      * @param   message
      *          Message to send
      */
-    void logWarn(@NotNull IChatBaseComponent message);
+    void logWarn(@NotNull TabComponent message);
 
     /**
      * Returns information about server version, which is displayed in debug command
@@ -134,18 +133,29 @@ public interface Platform {
     void startMetrics();
 
     /**
-     * Returns server's version
-     *
-     * @return  server's version
-     */
-    ProtocolVersion getServerVersion();
-
-    /**
      * Returns plugin's data folder for configuration files
      *
      * @return  plugin's data folder
      */
     File getDataFolder();
+
+    /**
+     * Returns {@code true} if this platform is a proxy, {@code false} if not.
+     *
+     * @return  {@code true} if this platform is a proxy, {@code false} if not
+     */
+    boolean isProxy();
+
+    /**
+     * Converts TAB component into platform's component.
+     *
+     * @param   component
+     *          Component to convert
+     * @param   modern
+     *          Whether clients supports RGB or not
+     * @return  Converted component
+     */
+    Object convertComponent(@NotNull TabComponent component, boolean modern);
 
     /**
      * Returns {@code true} if the viewer can see the target, {@code false} otherwise.

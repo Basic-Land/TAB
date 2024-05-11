@@ -27,7 +27,8 @@ public abstract class NettyPipelineInjector extends PipelineInjector {
 
     @Getter private final Function<TabPlayer, ChannelDuplexHandler> channelFunction = TabChannelDuplexHandler::new;
 
-    protected abstract @Nullable Channel getChannel(@NotNull TabPlayer player);
+    @Nullable
+    protected abstract Channel getChannel(@NotNull TabPlayer player);
 
     /**
      * Injects custom channel duplex handler to prevent other plugins from overriding this one
@@ -63,8 +64,20 @@ public abstract class NettyPipelineInjector extends PipelineInjector {
         }
     }
 
-    public abstract boolean isLogin(@NotNull Object packet);
+    /**
+     * Returns {@code true} if packet is Login packet, {@code false} if not.
+     *
+     * @param   packet
+     *          Packet to check
+     * @return  {@code true} if packet is Login packet, {@code false} if not
+     */
+    public boolean isLogin(@NotNull Object packet) {
+        return false; // Default implementation
+    }
 
+    /**
+     * TAB's custom channel duplex handler.
+     */
     @RequiredArgsConstructor
     public class TabChannelDuplexHandler extends ChannelDuplexHandler {
 
@@ -76,15 +89,11 @@ public abstract class NettyPipelineInjector extends PipelineInjector {
             try {
                 if (player.getVersion().getMinorVersion() >= 8)
                     player.getTabList().onPacketSend(packet);
-                if (player.getScoreboard().isDisplayObjective(packet))
-                    player.getScoreboard().onDisplayObjective(packet);
-                if (player.getScoreboard().isObjective(packet))
-                    player.getScoreboard().onObjective(packet);
-                if (antiOverrideTeams && player.getScoreboard().isTeamPacket(packet)) {
-                    long time = System.nanoTime();
-                    player.getScoreboard().onTeamPacket(packet);
-                    TAB.getInstance().getCPUManager().addTime("NameTags", TabConstants.CpuUsageCategory.ANTI_OVERRIDE, System.nanoTime()-time);
-                }
+
+                long time = System.nanoTime();
+                player.getScoreboard().onPacketSend(packet);
+                TAB.getInstance().getCPUManager().addTime("Scoreboard management", TabConstants.CpuUsageCategory.ANTI_OVERRIDE, System.nanoTime()-time);
+
                 if (isLogin(packet)) {
                     player.getScoreboard().freeze();
                     super.write(context, packet, channelPromise);

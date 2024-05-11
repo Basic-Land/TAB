@@ -1,41 +1,50 @@
 package me.neznamy.tab.shared.hook;
 
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.chat.ChatModifier;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
+import me.neznamy.tab.shared.chat.StructuredComponent;
+import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.util.ComponentCache;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.EnumSet;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 
 /**
  * Class for Adventure component conversion.
  */
 public class AdventureHook {
 
-    /** Component cache for adventure components */
-    private static final ComponentCache<IChatBaseComponent, Component> cache =
-            new ComponentCache<>(1000, AdventureHook::toAdventureComponent0);
+    /** Component to string cache for better performance */
+    private static final ComponentCache<Component, String> componentToString = new ComponentCache<>(1000,
+            (component, version) -> GsonComponentSerializer.gson().serialize(component));
+
+    /** Array of all 32 possible decoration combinations for fast access */
+    private static final EnumSet<TextDecoration>[] decorations = loadDecorations();
 
     /**
-     * Converts component to adventure component
+     * Loads decoration array.
      *
-     * @param   component
-     *          Component to convert
-     * @param   clientVersion
-     *          Version to create component for
-     * @return  Adventure component from this component.
+     * @return  Decoration array with all possible options
      */
-    @NotNull
-    public static Component toAdventureComponent(@NotNull IChatBaseComponent component, @NotNull ProtocolVersion clientVersion) {
-        return cache.get(component, clientVersion);
+    @SuppressWarnings("unchecked")
+    private static EnumSet<TextDecoration>[] loadDecorations() {
+        EnumSet<TextDecoration>[] decorations = new EnumSet[32];
+        for (int i=0; i<32; i++) {
+            EnumSet<TextDecoration> set = EnumSet.noneOf(TextDecoration.class);
+            if ((i & 1) > 0) set.add(TextDecoration.BOLD);
+            if ((i & 2) > 0) set.add(TextDecoration.ITALIC);
+            if ((i & 4) > 0) set.add(TextDecoration.OBFUSCATED);
+            if ((i & 8) > 0) set.add(TextDecoration.STRIKETHROUGH);
+            if ((i & 16) > 0) set.add(TextDecoration.UNDERLINED);
+            decorations[i] = set;
+        }
+        return decorations;
     }
 
     /**
@@ -43,44 +52,63 @@ public class AdventureHook {
      *
      * @param   component
      *          Component to convert
-     * @param   clientVersion
-     *          Version to create component for
+     * @param   modern
+     *          Whether client supports RGB or not
      * @return  Adventure component from this component.
      */
     @NotNull
-    private static Component toAdventureComponent0(@NotNull IChatBaseComponent component, @NotNull ProtocolVersion clientVersion) {
-        ChatModifier modifier = component.getModifier();
-        TextColor color = null;
-        if (modifier.getColor() != null) {
-            if (clientVersion.supportsRGB()) {
-                color = TextColor.color(modifier.getColor().getRgb());
-            } else {
-                color = TextColor.color(modifier.getColor().getLegacyColor().getHexCode());
-            }
-        }
-        Set<TextDecoration> decorations = EnumSet.noneOf(TextDecoration.class);
-        if (modifier.isBold()) decorations.add(TextDecoration.BOLD);
-        if (modifier.isItalic()) decorations.add(TextDecoration.ITALIC);
-        if (modifier.isObfuscated()) decorations.add(TextDecoration.OBFUSCATED);
-        if (modifier.isStrikethrough()) decorations.add(TextDecoration.STRIKETHROUGH);
-        if (modifier.isUnderlined()) decorations.add(TextDecoration.UNDERLINED);
+    public static Component toAdventureComponent(@NotNull TabComponent component, boolean modern) {
+        if (component instanceof SimpleComponent) return Component.text(((SimpleComponent) component).getText());
+        StructuredComponent iComponent = (StructuredComponent) component;
+        ChatModifier modifier = iComponent.getModifier();
 
-        Component adventureComponent = Component.text(component.getText(), color, decorations);
-
-        if (modifier.getClickEvent() != null) {
-            adventureComponent = adventureComponent.clickEvent(ClickEvent.clickEvent(
-                    ClickEvent.Action.valueOf(modifier.getClickEvent().getAction().name()),
-                    modifier.getClickEvent().getValue()
-            ));
-        }
+        Component adventureComponent = Component.text(
+                iComponent.getText(),
+                convertColor(modifier.getColor(), modern),
+                decorations[modifier.getMagicCodeBitMask()]
+        );
 
         if (modifier.getFont() != null) {
             adventureComponent = adventureComponent.font(Key.key(modifier.getFont()));
         }
-        if (!component.getExtra().isEmpty()) {
-            adventureComponent = adventureComponent.children(component.getExtra().stream().map(
-                    c -> toAdventureComponent0(c, clientVersion)).collect(Collectors.toList()));
+        if (!iComponent.getExtra().isEmpty()) {
+            List<Component> list = new ArrayList<>();
+            for (StructuredComponent extra : iComponent.getExtra()) {
+                list.add(toAdventureComponent(extra, modern));
+            }
+            adventureComponent = adventureComponent.children(list);
         }
         return adventureComponent;
+    }
+
+    /**
+     * Serializes component using Adventure API.
+     *
+     * @param   component
+     *          Component to serialize
+     * @return  Serialized component to json
+     */
+    @NotNull
+    public static String serialize(@NotNull Component component) {
+        return componentToString.get(component, null);
+    }
+
+    /**
+     * Converts TAB color into adventure color.
+     *
+     * @param   color
+     *          Color to convert
+     * @param   rgbSupport
+     *          Whether RGB is supported or not
+     * @return  Converted color
+     */
+    @Nullable
+    private static TextColor convertColor(@Nullable me.neznamy.tab.shared.chat.TextColor color, boolean rgbSupport) {
+        if (color == null) return null;
+        if (rgbSupport) {
+            return TextColor.color(color.getRgb());
+        } else {
+            return TextColor.color(color.getLegacyColor().getRgb());
+        }
     }
 }

@@ -5,23 +5,18 @@ import com.google.common.io.ByteArrayDataOutput;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.IChatBaseComponent;
-import me.neznamy.tab.shared.features.globalplayerlist.GlobalPlayerList;
+import me.neznamy.tab.shared.features.GlobalPlayerList;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.TabList;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-import java.util.WeakHashMap;
-
 @RequiredArgsConstructor
 public class RedisGlobalPlayerList extends RedisFeature {
 
     private final RedisSupport redisSupport;
     private final GlobalPlayerList globalPlayerList;
-    private final Map<RedisPlayer, TabList.Skin> skins = new WeakHashMap<>();
 
     @Override
     public void onJoin(@NotNull TabPlayer player) {
@@ -84,7 +79,7 @@ public class RedisGlobalPlayerList extends RedisFeature {
             if (in.readBoolean()) {
                 signature = in.readUTF();
             }
-            skins.put(player, new TabList.Skin(value, signature));
+            player.setSkin(new TabList.Skin(value, signature));
         }
     }
 
@@ -99,10 +94,9 @@ public class RedisGlobalPlayerList extends RedisFeature {
         return globalPlayerList.getServerGroup(viewer.getServer()).equals(globalPlayerList.getServerGroup(target.getServer()));
     }
 
-    private @NotNull TabList.Entry getEntry(@NotNull RedisPlayer player) {
-        return new TabList.Entry(player.getUniqueId(), player.getNickname(), skins.get(player), 0, 0,
-                redisSupport.getRedisPlayerList() == null ? null :
-                        IChatBaseComponent.optimizedComponent(redisSupport.getRedisPlayerList().getFormat(player)));
+    @NotNull
+    private TabList.Entry getEntry(@NotNull RedisPlayer player) {
+        return new TabList.Entry(player.getUniqueId(), player.getNickname(), player.getSkin(), true, 0, 0, player.getTabFormat());
     }
 
     @Override

@@ -63,7 +63,7 @@ public class ServerPlaceholderImpl extends TabPlaceholder implements ServerPlace
     }
 
     public boolean hasValueChanged(@Nullable Object value) {
-        String newValue = setPlaceholders(getReplacements().findReplacement(String.valueOf(value)), null);
+        String newValue = setPlaceholders(replacements.findReplacement(String.valueOf(value)), null);
 
         if (!ERROR_VALUE.equals(newValue) && !identifier.equals(newValue) && !lastValue.equals(newValue)) {
             lastValue = newValue;
@@ -85,6 +85,12 @@ public class ServerPlaceholderImpl extends TabPlaceholder implements ServerPlace
     @NotNull
     public String getLastValue(@Nullable TabPlayer p) {
         return lastValue;
+    }
+
+    @Override
+    @NotNull
+    public String getLastValueSafe(@NotNull TabPlayer player) {
+        return identifier;
     }
 
     /**
