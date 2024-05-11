@@ -173,9 +173,6 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
         String currentSuffix = p.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer);
         viewer.getScoreboard().updateTeam(
                 p.sortingData.getShortTeamName(),
-                prefix,
-                p.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer),
-                sorting.getShortTeamName(p),
                 currentPrefix,
                 currentSuffix,
                 visible ? NameVisibility.ALWAYS : NameVisibility.NEVER,
@@ -213,9 +210,6 @@ public class NameTag extends TabFeature implements NameTagManager, JoinListener,
 
         viewer.getScoreboard().registerTeam(
                 p.sortingData.getShortTeamName(),
-                prefix,
-                p.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer),
-                sorting.getShortTeamName(p),
                 replacedPrefix,
                 replacedSuffix,
                 getTeamVisibility(p, viewer) ? NameVisibility.ALWAYS : NameVisibility.NEVER,
