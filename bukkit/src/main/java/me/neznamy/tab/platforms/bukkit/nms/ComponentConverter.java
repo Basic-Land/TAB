@@ -29,8 +29,8 @@ public class ComponentConverter {
     private final FunctionWithException<String, Object> newTextComponent;
     private final BiFunction<ChatModifier, Boolean, Object> convertModifier;
 
-    private final Class<?> ChatModifier = BukkitReflection.getClass("network.chat.ChatModifier", "ChatModifier");
-    private final Class<Enum> EnumChatFormat = (Class<Enum>) BukkitReflection.getClass("EnumChatFormat");
+    private final Class<?> ChatModifier = BukkitReflection.getClass("network.chat.Style", "network.chat.ChatModifier", "ChatModifier");
+    private final Class<Enum> EnumChatFormat = (Class<Enum>) BukkitReflection.getClass("ChatFormatting", "EnumChatFormat");
     private final Constructor<?> newChatModifier;
     private final Method ChatBaseComponent_addSibling;
     private final Field Component_modifier;
@@ -41,7 +41,7 @@ public class ComponentConverter {
 
     // 1.16+
     private Method ChatHexColor_fromRGB;
-    private Constructor<?> newMinecraftKey;
+    private Method ResourceLocation_tryParse;
 
     /**
      * Constructs new instance and loads all NMS classes, constructors and methods.
@@ -50,30 +50,30 @@ public class ComponentConverter {
      *          If something failed
      */
     private ComponentConverter() throws ReflectiveOperationException {
-        Class<?> IChatBaseComponent = BukkitReflection.getClass("network.chat.IChatBaseComponent", "IChatBaseComponent");
+        Class<?> IChatBaseComponent = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent", "IChatBaseComponent");
         if (BukkitReflection.getMinorVersion() >= 19) {
             Method IChatBaseComponent_b = ReflectionUtils.getMethod(IChatBaseComponent, new String[] {"b", "literal"}, String.class);
             newTextComponent = text -> IChatBaseComponent_b.invoke(null, text);
-            Class<?> IChatMutableComponent = BukkitReflection.getClass("network.chat.IChatMutableComponent", "IChatMutableComponent");
+            Class<?> IChatMutableComponent = BukkitReflection.getClass("network.chat.MutableComponent", "network.chat.IChatMutableComponent", "IChatMutableComponent");
             Component_modifier = ReflectionUtils.getOnlyField(IChatMutableComponent, ChatModifier);
             ChatBaseComponent_addSibling = ReflectionUtils.getOnlyMethod(IChatMutableComponent, IChatMutableComponent, IChatBaseComponent);
         } else {
-            Class<?> ChatComponentText = BukkitReflection.getClass("network.chat.ChatComponentText", "ChatComponentText");
+            Class<?> ChatComponentText = BukkitReflection.getClass("network.chat.TextComponent", "network.chat.ChatComponentText", "ChatComponentText");
             Constructor<?> newChatComponentText = ChatComponentText.getConstructor(String.class);
             newTextComponent = newChatComponentText::newInstance;
-            Class<?> ChatBaseComponent = BukkitReflection.getClass("network.chat.ChatBaseComponent", "ChatBaseComponent");
+            Class<?> ChatBaseComponent = BukkitReflection.getClass("network.chat.BaseComponent", "network.chat.ChatBaseComponent", "ChatBaseComponent");
             Component_modifier = ReflectionUtils.getOnlyField(ChatBaseComponent, ChatModifier);
             ChatBaseComponent_addSibling = ReflectionUtils.getOnlyMethod(ChatComponentText, IChatBaseComponent, IChatBaseComponent);
         }
         if (BukkitReflection.getMinorVersion() >= 16) {
-            Class<?> chatHexColor = BukkitReflection.getClass("network.chat.ChatHexColor", "ChatHexColor");
-            Class<?> MinecraftKey = BukkitReflection.getClass("resources.MinecraftKey", "MinecraftKey");
-            Class<?> chatClickable = BukkitReflection.getClass("network.chat.ChatClickable", "ChatClickable");
-            Class<?> chatHoverable = BukkitReflection.getClass("network.chat.ChatHoverable", "ChatHoverable");
-            newMinecraftKey = MinecraftKey.getConstructor(String.class);
+            Class<?> chatHexColor = BukkitReflection.getClass("network.chat.TextColor", "network.chat.ChatHexColor", "ChatHexColor");
+            Class<?> ResourceLocation = BukkitReflection.getClass("resources.ResourceLocation", "resources.MinecraftKey", "MinecraftKey");
+            Class<?> chatClickable = BukkitReflection.getClass("network.chat.ClickEvent", "network.chat.ChatClickable", "ChatClickable");
+            Class<?> chatHoverable = BukkitReflection.getClass("network.chat.HoverEvent", "network.chat.ChatHoverable", "ChatHoverable");
+            ResourceLocation_tryParse = ReflectionUtils.getMethod(ResourceLocation, new String[]{"tryParse", "m_135820_", "a"}, String.class);
             ChatHexColor_fromRGB = ReflectionUtils.getOnlyMethod(chatHexColor, chatHexColor, int.class);
             newChatModifier = ReflectionUtils.setAccessible(ChatModifier.getDeclaredConstructor(chatHexColor, Boolean.class, Boolean.class, Boolean.class,
-                    Boolean.class, Boolean.class, chatClickable, chatHoverable, String.class, MinecraftKey));
+                    Boolean.class, Boolean.class, chatClickable, chatHoverable, String.class, ResourceLocation));
             convertModifier = this::createModifierModern;
         } else {
             newChatModifier = ChatModifier.getConstructor();
@@ -124,7 +124,7 @@ public class ComponentConverter {
                 null,
                 null,
                 null,
-                modifier.getFont() == null ? null : newMinecraftKey.newInstance(modifier.getFont())
+                modifier.getFont() == null ? null : ResourceLocation_tryParse.invoke(null, modifier.getFont())
         );
     }
 
