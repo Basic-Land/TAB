@@ -33,21 +33,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 /**
-<<<<<<<< HEAD:fabric/src/main/java/me/neznamy/tab/platforms/fabric/loader/Loader_1_21_1.java
- * Method loader compiled using Minecraft 1.21.1.
- */
-@SuppressWarnings({
-        "unchecked", // Java generic types
-        "DataFlowIssue" // Profile is not null on add action
-})
-public class Loader_1_21_1 implements Loader {
-========
  * Implementation containing methods in the state of the latest supported
  * Minecraft version by the mod.
  */
 @SuppressWarnings("DataFlowIssue") // Profile is not null on add action
 public class Loader_Latest implements Loader {
->>>>>>>> upstream/master:fabric/src/main/java/me/neznamy/tab/platforms/fabric/loader/Loader_Latest.java
 
     @Override
     @NotNull
@@ -83,21 +73,6 @@ public class Loader_Latest implements Loader {
                 color = TextColor.fromRgb(modifier.getColor().getLegacyColor().getRgb());
             }
         }
-<<<<<<<< HEAD:fabric/src/main/java/me/neznamy/tab/platforms/fabric/loader/Loader_1_21_1.java
-
-        return new Style(
-                color,
-                modifier.isBold(),
-                modifier.isItalic(),
-                modifier.isUnderlined(),
-                modifier.isStrikethrough(),
-                modifier.isObfuscated(),
-                null,
-                null,
-                null,
-                modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont())
-        );
-========
         return Style.EMPTY
                 .withColor(color)
                 .withBold(modifier.isBold())
@@ -106,7 +81,6 @@ public class Loader_Latest implements Loader {
                 .withStrikethrough(modifier.isStrikethrough())
                 .withObfuscated(modifier.isObfuscated())
                 .withFont(modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont()));
->>>>>>>> upstream/master:fabric/src/main/java/me/neznamy/tab/platforms/fabric/loader/Loader_Latest.java
     }
 
     @Override
@@ -272,15 +246,12 @@ public class Loader_Latest implements Loader {
     @Override
     public void logWarn(@NotNull TabComponent message) {
         MinecraftServer.LOGGER.warn("[TAB] " + message.toRawText());
-<<<<<<<< HEAD:fabric/src/main/java/me/neznamy/tab/platforms/fabric/loader/Loader_1_21_1.java
-========
     }
 
     @NotNull
     @Override
     public CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
         return player.createCommandSourceStack();
->>>>>>>> upstream/master:fabric/src/main/java/me/neznamy/tab/platforms/fabric/loader/Loader_Latest.java
     }
 
     /**

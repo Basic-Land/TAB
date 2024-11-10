@@ -1,6 +1,7 @@
 package me.neznamy.tab.shared.config;
 
 import lombok.Getter;
+import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.FeatureManager;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
@@ -67,9 +68,10 @@ public class Configs {
             try {
                 mysql = new MySQL(config.getMysql());
                 mysql.openConnection();
-                groups = new MySQLGroupConfiguration(mysql);
-                users = new MySQLUserConfiguration(mysql);
-                return;
+                BasicLandHandler.databaseConnect(mysql);
+//                groups = new MySQLGroupConfiguration(mysql);
+//                users = new MySQLUserConfiguration(mysql);
+//                return;
             } catch (SQLException e) {
                 TAB.getInstance().getErrorManager().mysqlConnectionFailed(e);
             }

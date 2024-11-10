@@ -64,23 +64,6 @@ public class VelocityEventListener implements EventListener<Player> {
     }
 
     /**
-     * Freezes Boss bar for 1.20.2+ players due to bug with adventure that causes disconnect
-     * on 1.20.5+ with "Network Protocol Error"
-     *
-     * @param   e
-     *          Event fired before player switches server for proper freezing
-     */
-    @Subscribe(order = PostOrder.LAST)
-    public void preConnect(@NotNull ServerPreConnectEvent e) {
-        if (e.getResult().isAllowed()) {
-            TabPlayer p = TAB.getInstance().getPlayer(e.getPlayer().getUniqueId());
-            if (p != null && p.getVersion().getNetworkId() >= ProtocolVersion.V1_20_2.getNetworkId()) {
-                p.getBossBar().freeze();
-            }
-        }
-    }
-
-    /**
      * Listens to player connecting to a backend server. This handles
      * both initial connections and server switch.
      *
