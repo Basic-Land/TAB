@@ -28,8 +28,6 @@ import org.jetbrains.annotations.Nullable;
 import org.yaml.snakeyaml.error.YAMLException;
 
 import java.io.File;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,6 +44,9 @@ public class TAB extends TabAPI {
 
     /** Player data storage */
     private final Map<UUID, TabPlayer> data = new ConcurrentHashMap<>();
+
+    /** Players by their exact username */
+    private final Map<String, TabPlayer> playersByName = new ConcurrentHashMap<>();
 
     /** Players by their TabList UUID for faster lookup */
     private final Map<UUID, TabPlayer> playersByTabListId = new ConcurrentHashMap<>();
@@ -172,7 +173,7 @@ public class TAB extends TabAPI {
             cpu = new CpuManager();
             configuration = new Configs();
             featureManager = new FeatureManager();
-            placeholderManager = new PlaceholderManagerImpl(cpu);
+            placeholderManager = new PlaceholderManagerImpl(cpu, configuration.getConfig().getRefresh());
             featureManager.registerFeature(TabConstants.Feature.PLACEHOLDER_MANAGER, placeholderManager);
             groupManager = platform.detectPermissionPlugin();
             platform.registerPlaceholders();
@@ -184,7 +185,6 @@ public class TAB extends TabAPI {
             if (eventBus != null) eventBus.fire(TabLoadEventImpl.getInstance());
             pluginDisabled = false;
             cpu.enable();
-            configHelper.startup().checkErrorLog();
             configHelper.startup().printWarnCount();
             platform.logInfo(TabComponent.fromColoredText(EnumChatFormat.GREEN + "Enabled in " + (System.currentTimeMillis()-time) + "ms"));
             return configuration.getMessages().getReloadSuccess();
@@ -223,6 +223,7 @@ public class TAB extends TabAPI {
     private void kill() {
         pluginDisabled = true;
         data.clear();
+        playersByName.clear();
         playersByTabListId.clear();
         onlinePlayers = new TabPlayer[0];
         cpu.cancelAllTasks();
@@ -236,6 +237,7 @@ public class TAB extends TabAPI {
      */
     public void addPlayer(@NotNull TabPlayer player) {
         data.put(player.getUniqueId(), player);
+        playersByName.put(player.getName(), player);
         playersByTabListId.put(player.getTablistId(), player);
         onlinePlayers = data.values().toArray(new TabPlayer[0]);
     }
@@ -248,6 +250,7 @@ public class TAB extends TabAPI {
      */
     public void removePlayer(@NotNull TabPlayer player) {
         data.remove(player.getUniqueId());
+        playersByName.remove(player.getName());
         playersByTabListId.remove(player.getTablistId());
         onlinePlayers = data.values().toArray(new TabPlayer[0]);
     }
@@ -273,16 +276,12 @@ public class TAB extends TabAPI {
 
     @Override
     public @Nullable NameTag getNameTagManager() {
-        if (featureManager.isFeatureEnabled(TabConstants.Feature.NAME_TAGS)) return featureManager.getFeature(TabConstants.Feature.NAME_TAGS);
-        return featureManager.getFeature(TabConstants.Feature.UNLIMITED_NAME_TAGS);
+        return featureManager.getFeature(TabConstants.Feature.NAME_TAGS);
     }
 
     @Override
     public @Nullable TabPlayer getPlayer(@NotNull String name) {
-        for (TabPlayer p : data.values()) {
-            if (p.getName().equalsIgnoreCase(name)) return p;
-        }
-        return null;
+        return playersByName.get(name);
     }
 
     @Override
@@ -293,11 +292,6 @@ public class TAB extends TabAPI {
     @Override
     public @Nullable HeaderFooterManager getHeaderFooterManager() {
         return featureManager.getFeature(TabConstants.Feature.HEADER_FOOTER);
-    }
-
-    @Override
-    public @NotNull Collection<? extends TabPlayer> onlinePlayers() {
-        return Collections.unmodifiableCollection(data.values());
     }
 
     @Override
@@ -323,7 +317,7 @@ public class TAB extends TabAPI {
      *          Message to send
      */
     public void debug(@NotNull String message) {
-        if (configuration != null && configuration.isDebugMode())
+        if (configuration != null && configuration.getConfig().isDebugMode())
             platform.logInfo(TabComponent.fromColoredText(EnumChatFormat.BLUE + "[DEBUG] " + message));
     }
 }

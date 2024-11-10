@@ -1,20 +1,15 @@
 package me.neznamy.tab.platforms.bukkit;
 
 import lombok.Getter;
-import me.neznamy.tab.platforms.bukkit.bossbar.BossBarLoader;
+import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.hook.LibsDisguisesHook;
-import me.neznamy.tab.platforms.bukkit.entity.PacketEntityView;
+import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.platforms.bukkit.nms.PingRetriever;
 import me.neznamy.tab.platforms.bukkit.platform.BukkitPlatform;
-import me.neznamy.tab.platforms.bukkit.scoreboard.ScoreboardLoader;
 import me.neznamy.tab.platforms.bukkit.tablist.TabListBase;
-import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
-import me.neznamy.tab.shared.backend.entityview.EntityView;
-import me.neznamy.tab.shared.platform.BossBar;
+import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.Scoreboard;
-import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffectType;
@@ -25,20 +20,16 @@ import org.jetbrains.annotations.Nullable;
  * TabPlayer implementation for Bukkit platform
  */
 @SuppressWarnings("deprecation")
-@Getter
 public class BukkitTabPlayer extends BackendTabPlayer {
 
+    /** NMS handle of this player */
     @NotNull
-    private final Scoreboard<BukkitTabPlayer, ?> scoreboard = ScoreboardLoader.getInstance().apply(this);
+    @Getter
+    private final Object handle;
 
-    @NotNull
-    private final TabListBase<?> tabList = TabListBase.getInstance().apply(this);
-
-    @NotNull
-    private final BossBar bossBar = BossBarLoader.findInstance(this);
-
-    @NotNull
-    private final EntityView entityView = PacketEntityView.isAvailable() ? new PacketEntityView(this) : new DummyEntityView();
+    /** Player's connection for sending packets */
+    @Nullable
+    public Object connection;
 
     /**
      * Constructs new instance with given bukkit player
@@ -48,8 +39,10 @@ public class BukkitTabPlayer extends BackendTabPlayer {
      * @param   p
      *          bukkit player
      */
+    @SneakyThrows
     public BukkitTabPlayer(@NotNull BukkitPlatform platform, @NotNull Player p) {
         super(platform, p, p.getUniqueId(), p.getName(), p.getWorld().getName(), platform.getServerVersion().getNetworkId());
+        handle = BukkitReflection.CraftPlayer_getHandle.invoke(p);
     }
 
     @Override
@@ -59,7 +52,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
 
     @Override
     public int getPing() {
-        return PingRetriever.getPing(getPlayer());
+        return PingRetriever.getPing(this);
     }
 
     @Override
@@ -80,7 +73,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     @Override
     @Nullable
     public TabList.Skin getSkin() {
-        return tabList.getSkin();
+        return ((TabListBase<?>)getTabList()).getSkin();
     }
 
     @Override
@@ -95,7 +88,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public boolean isVanished() {
+    public boolean isVanished0() {
         for (MetadataValue v : getPlayer().getMetadata("vanished")) {
             if (v.asBoolean()) return true;
         }

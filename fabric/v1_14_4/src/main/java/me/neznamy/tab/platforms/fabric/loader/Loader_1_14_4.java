@@ -7,11 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.fabric.FabricScoreboard;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
-import me.neznamy.tab.platforms.fabric.FabricTabPlayer;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.backend.EntityData;
-import me.neznamy.tab.shared.backend.Location;
 import me.neznamy.tab.shared.chat.ChatModifier;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.Scoreboard;
@@ -27,14 +24,10 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket.PlayerUpdate;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.scores.Objective;
@@ -48,7 +41,8 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 /**
- * Method loader compiled using Minecraft 1.14.4.
+ * Implementation containing methods in the state of the oldest supported
+ * Minecraft version by the mod - 1.14.4.
  */
 @SuppressWarnings({
         "unchecked", // Java generic types
@@ -58,7 +52,6 @@ import java.util.*;
 public class Loader_1_14_4 implements Loader {
 
     private final ProtocolVersion serverVersion;
-    private ArmorStand dummyEntity;
 
     @Override
     @NotNull
@@ -117,11 +110,6 @@ public class Loader_1_14_4 implements Loader {
     }
 
     @Override
-    public boolean isSneaking(@NotNull ServerPlayer player) {
-        return player.isSneaking();
-    }
-
-    @Override
     public void sendMessage(@NotNull ServerPlayer player, @NotNull Component message) {
         player.sendMessage(message);
     }
@@ -156,34 +144,6 @@ public class Loader_1_14_4 implements Loader {
     }
 
     @Override
-    @NotNull
-    public Packet<ClientGamePacketListener> spawnEntity(@NotNull Level level, int id, @NotNull UUID uuid, @NotNull Object type, @NotNull Location location) {
-        if (dummyEntity == null) dummyEntity = new ArmorStand(level, 0, 0, 0);
-        dummyEntity.setId(id);
-        dummyEntity.setUUID(uuid);
-        dummyEntity.setPos(location.getX(), location.getY(), location.getZ());
-        return new ClientboundAddMobPacket(dummyEntity);
-    }
-
-    @Override
-    @NotNull
-    public Packet<ClientGamePacketListener> newEntityMetadata(int entityId, @NotNull EntityData data) {
-        return new ClientboundSetEntityDataPacket(entityId, (SynchedEntityData) data.build(), true);
-    }
-
-    @Override
-    @NotNull
-    public EntityData createDataWatcher(@NotNull TabPlayer viewer, byte flags, @NotNull String displayName, boolean nameVisible, int markerPosition) {
-        Optional<Component> name = Optional.of(TabComponent.optimized(displayName).convert(viewer.getVersion()));
-        SynchedEntityData data = new SynchedEntityData(null);
-        data.define(new EntityDataAccessor<>(0, EntityDataSerializers.BYTE), flags);
-        data.define(new EntityDataAccessor<>(2, EntityDataSerializers.OPTIONAL_COMPONENT), name);
-        data.define(new EntityDataAccessor<>(3, EntityDataSerializers.BOOLEAN), nameVisible);
-        data.define(new EntityDataAccessor<>(markerPosition, EntityDataSerializers.BYTE), EntityData.MARKER_FLAG);
-        return () -> data;
-    }
-
-    @Override
     public boolean isPlayerInfo(@NotNull Packet<?> packet) {
         return packet instanceof ClientboundPlayerInfoPacket;
     }
@@ -198,7 +158,7 @@ public class Loader_1_14_4 implements Loader {
             Field displayNameField = ReflectionUtils.getFields(PlayerUpdate.class, Component.class).get(0);
             Field latencyField = ReflectionUtils.getFields(PlayerUpdate.class, int.class).get(0);
             if (action.name().equals(TabList.Action.UPDATE_DISPLAY_NAME.name()) || action.name().equals(TabList.Action.ADD_PLAYER.name())) {
-                Object expectedName = ((FabricTabPlayer)receiver).getTabList().getExpectedDisplayName(profile.getId());
+                Object expectedName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(profile.getId());
                 if (expectedName != null) displayNameField.set(nmsData, expectedName);
             }
             if (action.name().equals(TabList.Action.UPDATE_LATENCY.name()) || action.name().equals(TabList.Action.ADD_PLAYER.name())) {
@@ -221,38 +181,9 @@ public class Loader_1_14_4 implements Loader {
     }
 
     @Override
-    public boolean isBundlePacket(@NotNull Packet<?> packet) {
-        return false;
-    }
-
-    @Override
-    @NotNull
-    public Iterable<Object> getBundledPackets(@NotNull Packet<?> bundlePacket) {
-        return Collections.emptyList();
-    }
-
-    @Override
-    public void sendPackets(@NotNull ServerPlayer player, @NotNull Iterable<Packet<ClientGamePacketListener>> packets) {
-        for (Packet<?> packet : packets) {
-            player.connection.send(packet);
-        }
-    }
-
-    @Override
     @NotNull
     public Level getLevel(@NotNull ServerPlayer player) {
         return player.level;
-    }
-
-    @Override
-    public boolean isSpawnPlayerPacket(@NotNull Packet<?> packet) {
-        return packet instanceof ClientboundAddPlayerPacket;
-    }
-
-    @Override
-    @SneakyThrows
-    public int getSpawnedPlayerId(@NotNull Packet<?> packet) {
-        return ReflectionUtils.getFields(ClientboundAddPlayerPacket.class, int.class).get(0).getInt(packet);
     }
 
     @Override
@@ -292,21 +223,15 @@ public class Loader_1_14_4 implements Loader {
     }
 
     @Override
-    @SneakyThrows
-    public int[] getDestroyedEntities(@NotNull Packet<?> destroyPacket) {
-        return (int[]) ReflectionUtils.getOnlyField(destroyPacket.getClass()).get(destroyPacket);
-    }
-
-    @Override
     @NotNull
     public Objective newObjective(@NotNull String name, @NotNull Component displayName,
-                                  @NotNull RenderType renderType, @Nullable Component numberFormat) {
+                                  @NotNull RenderType renderType, @Nullable TabComponent numberFormat) {
         return new Objective(dummyScoreboard, name, ObjectiveCriteria.DUMMY, displayName, renderType);
     }
 
     @Override
     @NotNull
-    public Packet<?> setScore(@NotNull String objective, @NotNull String holder, int score, @Nullable Component displayName, @Nullable Component numberFormat) {
+    public Packet<?> setScore(@NotNull String objective, @NotNull String holder, int score, @Nullable Component displayName, @Nullable TabComponent numberFormat) {
         return new ClientboundSetScorePacket(ServerScoreboard.Method.CHANGE, objective, holder, score);
     }
 
@@ -327,5 +252,11 @@ public class Loader_1_14_4 implements Loader {
     public void logWarn(@NotNull TabComponent message) {
         Object logger = ReflectionUtils.getFields(MinecraftServer.class, Class.forName("org.apache.logging.log4j.Logger")).get(0).get(null);
         logger.getClass().getMethod("warn", String.class).invoke(logger, "[TAB] " + message.toRawText());
+    }
+
+    @NotNull
+    @Override
+    public CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
+        return player.createCommandSourceStack();
     }
 }

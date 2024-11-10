@@ -1,11 +1,7 @@
 package me.neznamy.tab.platforms.sponge7;
 
-import lombok.Getter;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
-import me.neznamy.tab.shared.backend.entityview.DummyEntityView;
-import me.neznamy.tab.shared.backend.entityview.EntityView;
 import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.TabList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,20 +19,7 @@ import java.util.Collection;
 /**
  * TabPlayer implementation for Sponge 7.
  */
-@Getter
 public class SpongeTabPlayer extends BackendTabPlayer {
-
-    @NotNull
-    private final SpongeScoreboard scoreboard = new SpongeScoreboard(this);
-
-    @NotNull
-    private final SpongeTabList tabList = new SpongeTabList(this);
-
-    @NotNull
-    private final BossBar bossBar = new SpongeBossBar(this);
-
-    @NotNull
-    private final EntityView entityView = new DummyEntityView();
 
     /**
      * Constructs new instance with given parameters.
@@ -98,7 +81,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public boolean isVanished() {
+    public boolean isVanished0() {
         return getPlayer().get(Keys.VANISH).orElse(false);
     }
 

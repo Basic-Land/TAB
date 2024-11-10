@@ -1,9 +1,8 @@
 package me.neznamy.tab.platforms.sponge8;
 
 import lombok.NonNull;
-import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -18,7 +17,7 @@ import java.util.UUID;
 /**
  * TabList implementation for Sponge 8 and up
  */
-public class SpongeTabList extends TabList<SpongeTabPlayer, Component> {
+public class SpongeTabList extends TrackedTabList<SpongeTabPlayer, Component> {
 
     /** Gamemode array for fast access */
     private static final GameMode[] gameModes = {
@@ -41,7 +40,7 @@ public class SpongeTabList extends TabList<SpongeTabPlayer, Component> {
     }
 
     @Override
-    public void updateDisplayName0(@NonNull UUID entry, @Nullable Component displayName) {
+    public void updateDisplayName(@NonNull UUID entry, @Nullable Component displayName) {
         player.getPlayer().tabList().entry(entry).ifPresent(e -> e.setDisplayName(displayName));
     }
 
@@ -61,11 +60,22 @@ public class SpongeTabList extends TabList<SpongeTabPlayer, Component> {
     }
 
     @Override
-    public void addEntry0(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable Component displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // TODO
+    }
+
+    @Override
+    public void updateHat(@NonNull UUID entry, boolean showHat) {
+        // TODO
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable Component displayName, int listOrder, boolean showHat) {
         GameProfile profile = GameProfile.of(id, name);
         if (skin != null) profile = profile.withProperty(ProfileProperty.of(
                 TEXTURES_PROPERTY, skin.getValue(), skin.getSignature()));
-        //TODO listed
+        //TODO listed, listOrder, showHat
         TabListEntry tabListEntry = TabListEntry.builder()
                 .list(player.getPlayer().tabList())
                 .profile(profile)
@@ -77,8 +87,8 @@ public class SpongeTabList extends TabList<SpongeTabPlayer, Component> {
     }
 
     @Override
-    public void setPlayerListHeaderFooter0(@NonNull Component header, @NonNull Component footer) {
-        player.getPlayer().tabList().setHeaderAndFooter(header, footer);
+    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+        player.getPlayer().tabList().setHeaderAndFooter(header.toAdventure(player.getVersion()), footer.toAdventure(player.getVersion()));
     }
 
     @Override
@@ -88,14 +98,11 @@ public class SpongeTabList extends TabList<SpongeTabPlayer, Component> {
 
     @Override
     public void checkDisplayNames() {
-        for (TabPlayer target : TAB.getInstance().getOnlinePlayers()) {
-            player.getPlayer().tabList().entry(target.getUniqueId()).ifPresent(entry -> {
-                Component expectedComponent = getExpectedDisplayName(target);
-                if (expectedComponent != null && entry.displayName().orElse(null) != expectedComponent) {
-                    displayNameWrong(target.getName(), player);
-                    entry.setDisplayName(expectedComponent);
-                }
-            });
+        for (TabListEntry entry : player.getPlayer().tabList().entries()) {
+            Component expectedComponent = getExpectedDisplayNames().get(entry.profile().uniqueId());
+            if (expectedComponent != null && entry.displayName().orElse(null) != expectedComponent) {
+                entry.setDisplayName(expectedComponent);
+            }
         }
     }
 }

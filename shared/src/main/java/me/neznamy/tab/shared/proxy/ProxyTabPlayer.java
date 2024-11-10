@@ -2,14 +2,16 @@ package me.neznamy.tab.shared.proxy;
 
 import lombok.Getter;
 import lombok.Setter;
+import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
+import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.cpu.CpuManager;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.features.nametags.unlimited.NameTagX;
 import me.neznamy.tab.shared.proxy.message.outgoing.OutgoingMessage;
 import me.neznamy.tab.shared.proxy.message.outgoing.PermissionRequest;
 import me.neznamy.tab.shared.proxy.message.outgoing.PlayerJoin;
+import me.neznamy.tab.shared.task.PluginMessageEncodeTask;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
@@ -31,9 +33,6 @@ public abstract class ProxyTabPlayer extends TabPlayer {
 
     /** Player's invisibility potion status from backend server */
     private boolean invisibilityPotion;
-
-    /** Player's boat vehicle status for unlimited NameTags */
-    private boolean onBoat;
 
     /** Timestamp when join plugin message was sent to track how long bridge took to respond */
     private long bridgeRequestTime;
@@ -66,7 +65,7 @@ public abstract class ProxyTabPlayer extends TabPlayer {
      */
     protected ProxyTabPlayer(@NotNull ProxyPlatform platform, @NotNull Object player, @NotNull UUID uniqueId,
                              @NotNull String name, @NotNull String server, int protocolVersion) {
-        super(platform, player, uniqueId, name, server, "N/A", protocolVersion, TAB.getInstance().getConfiguration().isOnlineUuidInTabList());
+        super(platform, player, uniqueId, name, server, "N/A", protocolVersion, TAB.getInstance().getConfiguration().getConfig().isOnlineUuidInTabList());
         sendJoinPluginMessage();
     }
 
@@ -76,25 +75,12 @@ public abstract class ProxyTabPlayer extends TabPlayer {
      */
     public void sendJoinPluginMessage() {
         bridgeConnected = false; // Reset on server switch
-
-        PlayerJoin.UnlimitedNametagSettings settings = null;
-        NameTagX nametagx = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.UNLIMITED_NAME_TAGS);
-        if (nametagx != null) {
-            settings = new PlayerJoin.UnlimitedNametagSettings(
-                    nametagx.isDisableOnBoats(),
-                    nametagx.isArmorStandsAlwaysVisible(),
-                    disabledNametags.get() || disabledUnlimitedNametags.get(),
-                    nametagx.getDynamicLines(),
-                    nametagx.getStaticLines()
-            );
-        }
         sendPluginMessage(new PlayerJoin(
                 getVersion().getNetworkId(),
                 TAB.getInstance().getGroupManager().getPermissionPlugin().contains("Vault") &&
-                    !TAB.getInstance().getGroupManager().isGroupsByPermissions(),
+                    !TAB.getInstance().getConfiguration().getConfig().isGroupsByPermissions(),
                 ((ProxyPlatform) getPlatform()).getBridgePlaceholders(),
-                TAB.getInstance().getConfiguration().getConfig().getConfigurationSection("placeholder-output-replacements"),
-                settings
+                TAB.getInstance().getConfiguration().getConfig().getReplacements().getValues()
         ));
         TabExpansion expansion = TAB.getInstance().getPlaceholderManager().getTabExpansion();
         if (expansion instanceof ProxyTabExpansion) {
@@ -113,6 +99,30 @@ public abstract class ProxyTabPlayer extends TabPlayer {
      */
     public void setHasPermission(@NotNull String permission, boolean value) {
         permissions.put(permission, value);
+    }
+
+    /**
+     * Updates player's tracked gamemode for internal logic and placeholders.
+     *
+     * @param   gamemode
+     *          New gamemode
+     */
+    public void setGamemode(int gamemode) {
+        if (this.gamemode == gamemode) return; // Player join with player in survival mode
+        this.gamemode = gamemode;
+        ((PlayerPlaceholder) TAB.getInstance().getPlaceholderManager().getPlaceholder(TabConstants.Placeholder.GAMEMODE)).update(this);
+    }
+
+    /**
+     * Updates player's tracked invisibility potion value for internal logic and placeholders.
+     *
+     * @param   invisibilityPotion
+     *          Whether player has invisibility potion or not
+     */
+    public void setInvisibilityPotion(boolean invisibilityPotion) {
+        if (this.invisibilityPotion == invisibilityPotion) return; // Player join without invisibility potion
+        this.invisibilityPotion = invisibilityPotion;
+        ((PlayerPlaceholder) TAB.getInstance().getPlaceholderManager().getPlaceholder(TabConstants.Placeholder.INVISIBLE)).update(this);
     }
 
     /**
@@ -139,7 +149,7 @@ public abstract class ProxyTabPlayer extends TabPlayer {
 
     @Override
     public boolean hasPermission(@NotNull String permission) {
-        if (TAB.getInstance().getConfiguration().isBukkitPermissions()) {
+        if (TAB.getInstance().getConfiguration().getConfig().isBukkitPermissions()) {
             sendPluginMessage(new PermissionRequest(permission));
             return permissions != null && permissions.getOrDefault(permission, false);
         }
@@ -153,6 +163,6 @@ public abstract class ProxyTabPlayer extends TabPlayer {
      *          Plugin message to send
      */
     public void sendPluginMessage(@NotNull OutgoingMessage message) {
-        sendPluginMessage(message.write().toByteArray());
+        CpuManager.getPluginMessageEncodeThread().execute(new PluginMessageEncodeTask(this, message));
     }
 }

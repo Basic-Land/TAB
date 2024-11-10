@@ -30,7 +30,7 @@ public class RedisPlayer {
 
     /** Name of server the player is connected to */
     @NotNull
-    private String server;
+    public String server;
 
     /** Whether player is vanished or not */
     private boolean vanished;
@@ -67,6 +67,9 @@ public class RedisPlayer {
 
     /** Playerlist objective NumberFormat for 1.20.3+ */
     private TabComponent playerlistFancy;
+
+    /** Global playerlist server group of server this player is on */
+    public Object serverGroup;
 
     /**
      * Constructs new instance with given parameters.

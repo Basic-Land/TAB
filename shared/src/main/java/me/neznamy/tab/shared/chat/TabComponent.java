@@ -1,14 +1,18 @@
 package me.neznamy.tab.shared.chat;
 
+import lombok.SneakyThrows;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
-import me.neznamy.tab.shared.util.ComponentCache;
+import me.neznamy.tab.shared.hook.AdventureHook;
+import me.neznamy.tab.shared.util.FunctionWithException;
+import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,21 +24,33 @@ public abstract class TabComponent {
     /** Pattern for detecting fonts */
     private static final Pattern fontPattern = Pattern.compile("<font:(.*?)>(.*?)</font>");
 
+    @Nullable
+    private Object convertedModern;
+
+    @Nullable
+    private Object convertedLegacy;
+
+    /** Adventure component from this component for 1.16+ players */
+    @Nullable
+    private Component adventureModern;
+
+    /** Adventure component from this component for 1.15- players */
+    @Nullable
+    private Component adventureLegacy;
+
+    @Nullable
+    private Object fixedFormat;
+
+    /** TextHolder object for Velocity */
+    @Nullable
+    private Object textHolder;
+
     /**
-     * Component cache maps to avoid large memory allocations as well as
-     * higher CPU usage when using animations which send the same text on repeat.
+     * Last color of this component. Used to determine team color based on last color of prefix.
+     * Saves as TextColor instead of EnumChatFormat to have things ready if Mojang adds RGB support to team color.
      */
-    private static final ComponentCache<String, TabComponent> stringCache = new ComponentCache<>(1000, (text, clientVersion) -> {
-        return text.contains("#") || text.contains("&x") || text.contains(EnumChatFormat.COLOR_CHAR + "x") || text.contains("<") ?
-                fromColoredText(text) : //contains RGB colors or font
-                new SimpleComponent(text); //no RGB
-    });
-
     @Nullable
-    protected Object convertedModern;
-
-    @Nullable
-    protected Object convertedLegacy;
+    private TextColor lastColor;
 
     /**
      * Converts this component to platform's component.
@@ -58,11 +74,86 @@ public abstract class TabComponent {
     }
 
     /**
+     * Converts this component to adventure component.
+     *
+     * @param   clientVersion
+     *          Client version
+     * @return  Converted component
+     */
+    @NotNull
+    public Component toAdventure(@NotNull ProtocolVersion clientVersion) {
+        if (clientVersion.supportsRGB()) {
+            if (adventureModern == null) adventureModern = AdventureHook.toAdventureComponent(this, true);
+            return adventureModern;
+        } else {
+            if (adventureLegacy == null) adventureLegacy = AdventureHook.toAdventureComponent(this, false);
+            return adventureLegacy;
+        }
+    }
+
+    /**
+     * Creates a FixedFormat using given platform-specific create function.
+     * If the value is already initialized, it is returned immediately instead.
+     *
+     * @param   createFunction
+     *          Platform's function to convert platform component to FixedFormat
+     * @return  Platform's FixedFormat from this component
+     * @param   <F>
+     *          Platform's FixedFormat type
+     * @param   <C>
+     *          Platform's Component type
+     */
+    @SuppressWarnings("unchecked")
+    @SneakyThrows
+    public <F, C> F toFixedFormat(@NotNull FunctionWithException<C, F> createFunction) {
+        if (fixedFormat == null) fixedFormat = createFunction.apply(convert(ProtocolVersion.LATEST_KNOWN_VERSION)); // Numbers formats are 1.20.3+, which is above 1.16
+        return (F) fixedFormat;
+    }
+
+    /**
+     * Creates a text holder object using provided function if it does not exist and returns it.
+     *
+     * @param   convertFunction
+     *          Function for converting adventure Component to TextHolder
+     * @param   version
+     *          Player version
+     * @return  Converted TextHolder
+     * @param   <T>
+     *          TextHolder type
+     */
+    @SuppressWarnings("unchecked")
+    @NotNull
+    public <T> T toTextHolder(@NotNull BiFunction<TabComponent, ProtocolVersion, T> convertFunction, @NotNull ProtocolVersion version) {
+        if (textHolder == null) textHolder = convertFunction.apply(this, version);
+        return (T) textHolder;
+    }
+
+    /**
+     * Returns last color of this component. This value is cached.
+     *
+     * @return  Last color of this component
+     */
+    @NotNull
+    public TextColor getLastColor() {
+        if (lastColor == null) lastColor = fetchLastColor();
+        return lastColor;
+    }
+
+    /**
      * Converts this component into a simple text with legacy colors (the closest match if color is set to RGB)
      *
      * @return  The simple text format using legacy colors
      */
+    @NotNull
     public abstract String toLegacyText();
+
+    /**
+     * Converts this component into a string. RGB colors are represented as #RRGGBB.
+     *
+     * @return  String version of this component
+     */
+    @NotNull
+    public abstract String toFlatText();
 
     /**
      * Converts this component into a string that only consists of text without any formatting.
@@ -72,20 +163,13 @@ public abstract class TabComponent {
     @NotNull
     public abstract String toRawText();
 
-
     /**
-     * Returns the most optimized component based on text. Returns null if text is null,
-     * organized component if RGB colors are used or simple component with only text field
-     * containing the whole text when no RGB colors are used
+     * Returns last color of this component.
      *
-     * @param   text
-     *          text to create component from
-     * @return  The most performance-optimized component based on text
+     * @return  Last color of this component
      */
     @NotNull
-    public static TabComponent optimized(@NotNull String text) {
-        return stringCache.get(text, null);
-    }
+    protected abstract TextColor fetchLastColor();
 
     /**
      * Returns organized component from colored text

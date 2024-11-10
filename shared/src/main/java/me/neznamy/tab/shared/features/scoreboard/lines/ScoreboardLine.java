@@ -3,14 +3,14 @@ package me.neznamy.tab.shared.features.scoreboard.lines;
 import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.shared.Limitations;
-import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.api.scoreboard.Line;
+import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.features.scoreboard.ScoreRefresher;
-import me.neznamy.tab.shared.features.types.Refreshable;
-import me.neznamy.tab.shared.features.types.TabFeature;
+import me.neznamy.tab.shared.features.types.CustomThreaded;
+import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardImpl;
@@ -25,12 +25,10 @@ import java.util.WeakHashMap;
  * Abstract class representing a line of scoreboard
  */
 @Getter
-public abstract class ScoreboardLine extends TabFeature implements Line, Refreshable {
+public abstract class ScoreboardLine extends RefreshableFeature implements Line, CustomThreaded {
 
     //ID of this line
     protected final int lineNumber;
-
-    protected final String textProperty = Property.randomName();
 
     //text to display
     protected String text;
@@ -143,8 +141,8 @@ public abstract class ScoreboardLine extends TabFeature implements Line, Refresh
         );
         p.getScoreboard().registerTeam(
                 teamName,
-                prefix,
-                suffix,
+                parent.getManager().getCache().get(prefix),
+                parent.getManager().getCache().get(suffix),
                 Scoreboard.NameVisibility.NEVER,
                 Scoreboard.CollisionRule.NEVER,
                 Collections.singletonList(fakePlayer),
@@ -176,10 +174,10 @@ public abstract class ScoreboardLine extends TabFeature implements Line, Refresh
      * @return  number displayed
      */
     public int getNumber(@NonNull TabPlayer p) {
-        if (parent.getManager().isUsingNumbers() || p.getVersion().getMinorVersion() < 8 || p.isBedrockPlayer()) {
+        if (parent.getManager().getConfiguration().isUseNumbers() || p.getVersion().getMinorVersion() < 8) {
             return parent.getLines().size() + 1 - lineNumber;
         } else {
-            return parent.getManager().getStaticNumber();
+            return parent.getManager().getConfiguration().getStaticNumber();
         }
     }
 
@@ -253,24 +251,27 @@ public abstract class ScoreboardLine extends TabFeature implements Line, Refresh
     protected void updateTeam(@NotNull TabPlayer player, @NotNull String prefix, @NotNull String suffix) {
         player.getScoreboard().updateTeam(
                 teamName,
-                prefix,
-                suffix,
-                Scoreboard.NameVisibility.ALWAYS,
-                Scoreboard.CollisionRule.ALWAYS,
-                0,
+                parent.getManager().getCache().get(prefix),
+                parent.getManager().getCache().get(suffix),
                 EnumChatFormat.RESET
         );
     }
 
     @Override
     @NotNull
-    public String getRefreshDisplayName() {
-        return "Updating Scoreboard lines";
+    public ThreadExecutor getCustomThread() {
+        return parent.getCustomThread();
     }
 
-    @Override
     @NotNull
+    @Override
     public String getFeatureName() {
         return parent.getFeatureName();
+    }
+
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Updating Scoreboard lines";
     }
 }

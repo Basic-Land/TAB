@@ -8,16 +8,17 @@ repositories {
     maven("https://repo.opencollab.dev/maven-snapshots/")
     maven("https://repo.viaversion.com/")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
+    maven("https://maven.nucleoid.xyz/")
 }
 
 dependencies {
     api(projects.shared)
-    minecraft("com.mojang:minecraft:1.21.1")
+    minecraft("com.mojang:minecraft:24w45a")
     mappings(loom.officialMojangMappings())
     modImplementation("me.lucko:fabric-permissions-api:0.2-SNAPSHOT")
+    modImplementation("eu.pb4:placeholder-api:2.5.0+1.21.2")
     modImplementation("net.fabricmc:fabric-loader:0.15.9")
     val version = "0.100.1+1.21"
-    modImplementation(fabricApi.module("fabric-api-base", version))
     modImplementation(fabricApi.module("fabric-lifecycle-events-v1", version))
     modImplementation(fabricApi.module("fabric-networking-api-v1", version))
     modImplementation(fabricApi.module("fabric-entity-events-v1", version))

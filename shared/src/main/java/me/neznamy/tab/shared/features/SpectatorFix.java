@@ -3,6 +3,8 @@ package me.neznamy.tab.shared.features;
 import lombok.Getter;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.cpu.ThreadExecutor;
+import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.features.types.*;
 import org.jetbrains.annotations.NotNull;
@@ -14,7 +16,9 @@ import org.jetbrains.annotations.NotNull;
  */
 @Getter
 public class SpectatorFix extends TabFeature implements JoinListener, GameModeListener, Loadable, UnLoadable,
-        ServerSwitchListener, WorldSwitchListener, VanishListener {
+        ServerSwitchListener, WorldSwitchListener, VanishListener, CustomThreaded {
+
+    private final ThreadExecutor customThread = new ThreadExecutor("TAB Spectator Fix Thread");
 
     /**
      * Sends GameMode update of all players to either their real GameMode if
@@ -44,7 +48,7 @@ public class SpectatorFix extends TabFeature implements JoinListener, GameModeLi
         if (player.getGamemode() != 3) return;
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
             if (viewer.hasPermission(TabConstants.Permission.SPECTATOR_BYPASS)) continue;
-            if (player != viewer && player.getServer().equals(viewer.getServer())) {
+            if (player != viewer && player.server.equals(viewer.server)) {
                 viewer.getTabList().updateGameMode(player.getTablistId(), 0);
             }
         }
@@ -52,8 +56,8 @@ public class SpectatorFix extends TabFeature implements JoinListener, GameModeLi
 
     @Override
     public void onJoin(@NotNull TabPlayer p) {
-        TAB.getInstance().getCPUManager().runTaskLater(100, getFeatureName(), TabConstants.CpuUsageCategory.PLAYER_JOIN,
-                () -> updatePlayer(p, false, true));
+        customThread.executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> updatePlayer(p, false, true),
+                getFeatureName(), TabConstants.CpuUsageCategory.PLAYER_JOIN), 100);
     }
 
     @Override
@@ -73,11 +77,11 @@ public class SpectatorFix extends TabFeature implements JoinListener, GameModeLi
     @Override
     public void onServerChange(@NotNull TabPlayer changed, @NotNull String from, @NotNull String to) {
         // 200ms delay for global playerlist, taking extra time
-        TAB.getInstance().getCPUManager().runTaskLater(300, getFeatureName(), TabConstants.CpuUsageCategory.SERVER_SWITCH, () -> {
+        customThread.executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
             for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
                 updatePlayer(all, false, true);
             }
-        });
+        }, getFeatureName(), TabConstants.CpuUsageCategory.SERVER_SWITCH), 300);
     }
 
     @Override
@@ -99,8 +103,8 @@ public class SpectatorFix extends TabFeature implements JoinListener, GameModeLi
         }
     }
 
-    @Override
     @NotNull
+    @Override
     public String getFeatureName() {
         return "Spectator fix";
     }

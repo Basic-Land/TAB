@@ -117,13 +117,13 @@ public class ErrorManager {
                 if (message != null) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + EnumChatFormat.decolor(message) + System.lineSeparator());
-                    if (intoConsoleToo || TAB.getInstance().getConfiguration().isDebugMode())
+                    if (intoConsoleToo || TAB.getInstance().getConfiguration().getConfig().isDebugMode())
                         TAB.getInstance().getPlatform().logWarn(TabComponent.fromColoredText(message));
                 }
                 for (String line : error) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + line + System.lineSeparator());
-                    if (intoConsoleToo || TAB.getInstance().getConfiguration().isDebugMode())
+                    if (intoConsoleToo || TAB.getInstance().getConfiguration().getConfig().isDebugMode())
                         TAB.getInstance().getPlatform().logWarn(TabComponent.fromColoredText(line));
                 }
             }
@@ -279,20 +279,6 @@ public class ErrorManager {
     }
 
     /**
-     * Prints error message if armor stand manager of player is unexpectedly {@code null}.
-     *
-     * @param   player
-     *          Player with null armor stand manager
-     * @param   action
-     *          Action during which armor stand manager was null
-     */
-    public void armorStandNull(@NotNull TabPlayer player, @NotNull String action) {
-        printError("ArmorStandManager of player " + player.getName() +
-                " is null when trying to process " + action + ", which is unexpected. Loaded = " + player.isLoaded(),
-                Collections.emptyList(), false, errorLog);
-    }
-
-    /**
      * Prints error message when a task throws an error.
      *
      * @param   t
@@ -338,5 +324,9 @@ public class ErrorManager {
         for (Throwable exception : exceptions) {
             printError("#" + i++ + ": \n", exception, false, errorLog);
         }
+    }
+
+    public void redisBungeeMessageSendFail(@NotNull Exception e) {
+        printError("Failed to deliver message through RedisBungee due to an error ", e, false, errorLog);
     }
 }

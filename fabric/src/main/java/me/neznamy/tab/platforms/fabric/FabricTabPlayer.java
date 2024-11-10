@@ -1,12 +1,10 @@
 package me.neznamy.tab.platforms.fabric;
 
 import com.mojang.authlib.properties.Property;
-import lombok.Getter;
+import me.neznamy.tab.platforms.fabric.hook.PermissionsAPIHook;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
-import me.neznamy.tab.shared.backend.entityview.EntityView;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.BossBar;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -17,20 +15,7 @@ import java.util.Collection;
 /**
  * TabPlayer implementation for Fabric.
  */
-@Getter
 public class FabricTabPlayer extends BackendTabPlayer {
-
-    @NotNull
-    private final FabricScoreboard scoreboard = new FabricScoreboard(this);
-
-    @NotNull
-    private final FabricTabList tabList = new FabricTabList(this);
-
-    @NotNull
-    private final BossBar bossBar = new FabricBossBar(this);
-
-    @NotNull
-    private final EntityView entityView = new FabricEntityView(this);
 
     /**
      * Constructs new instance with given parameters.
@@ -47,7 +32,7 @@ public class FabricTabPlayer extends BackendTabPlayer {
 
     @Override
     public boolean hasPermission(@NotNull String permission) {
-        return getPlatform().hasPermission(getPlayer().createCommandSourceStack(), permission);
+        return PermissionsAPIHook.hasPermission(FabricMultiVersion.createCommandSourceStack(getPlayer()), permission);
     }
 
     @Override
@@ -90,7 +75,7 @@ public class FabricTabPlayer extends BackendTabPlayer {
     }
 
     @Override
-    public boolean isVanished() {
+    public boolean isVanished0() {
         return false;
     }
 

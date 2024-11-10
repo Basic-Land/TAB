@@ -5,7 +5,8 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.bukkit.entity.Entity;
@@ -37,14 +38,14 @@ public class FoliaPlatform extends BukkitPlatform {
         super.loadPlayers();
 
         // Values are never updated in the API, warn users
-        logWarn(new SimpleComponent("Folia never updates MSPT and TPS values in the API, making " +
+        logWarn(TabComponent.fromColoredText("Folia never updates MSPT and TPS values in the API, making " +
                 "%mspt% and %tps% return the default values (0 and 20)."));
 
         // Folia never calls PlayerChangedWorldEvent, this is a workaround
-        TAB.getInstance().getCPUManager().startRepeatingMeasuredTask(100, "Folia compatibility", "Refreshing world", () -> {
+        TAB.getInstance().getCpu().getProcessingThread().repeatTask(new TimedCaughtTask(TAB.getInstance().getCpu(), ()  -> {
             for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
                 String bukkitWorld = ((Player)player.getPlayer()).getWorld().getName();
-                if (!player.getWorld().equals(bukkitWorld)) {
+                if (!player.world.equals(bukkitWorld)) {
                     TAB.getInstance().getFeatureManager().onWorldChange(player.getUniqueId(), bukkitWorld);
                     PerWorldPlayerList pwp = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PER_WORLD_PLAYER_LIST);
                     if (pwp != null) {
@@ -52,7 +53,7 @@ public class FoliaPlatform extends BukkitPlatform {
                     }
                 }
             }
-        });
+        }, "Folia compatibility", "Refreshing world"), 100);
     }
 
     @Override
@@ -80,6 +81,7 @@ public class FoliaPlatform extends BukkitPlatform {
      * @param   task
      *          Task to run
      */
+    @Override
     @SneakyThrows
     @SuppressWarnings("JavaReflectionMemberAccess")
     public void runSync(@NotNull Entity entity, @NotNull Runnable task) {
@@ -87,10 +89,5 @@ public class FoliaPlatform extends BukkitPlatform {
         Consumer<?> consumer = $ -> task.run(); // Reflection and lambdas don't go together
         entityScheduler.getClass().getMethod("run", Plugin.class, Consumer.class, Runnable.class)
                 .invoke(entityScheduler, getPlugin(), consumer, null);
-    }
-
-    @Override
-    public void runEntityTask(@NotNull Entity entity, @NotNull Runnable task) {
-        runSync(entity, task);
     }
 }

@@ -5,6 +5,7 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import me.neznamy.tab.shared.util.ReflectionUtils;
@@ -28,21 +29,14 @@ public class BukkitTabExpansion extends PlaceholderExpansion implements TabExpan
             "%tab_tagprefix%",
             "%tab_tagsuffix%",
             "%tab_customtabname%",
-            "%tab_customtagname%",
-            "%tab_belowname%",
-            "%tab_abovename%",
             "%tab_tabprefix_raw%",
             "%tab_tabsuffix_raw%",
             "%tab_tagprefix_raw%",
             "%tab_tagsuffix_raw%",
             "%tab_customtabname_raw%",
-            "%tab_customtagname_raw%",
-            "%tab_belowname_raw%",
-            "%tab_abovename_raw%",
             "%tab_scoreboard_name%",
             "%tab_scoreboard_visible%",
             "%tab_bossbar_visible%",
-            "%tab_nametag_preview%",
             "%tab_nametag_visibility%",
             "%tab_replace_<placeholder>%",
             "%tab_placeholder_<placeholder>%"
@@ -85,25 +79,33 @@ public class BukkitTabExpansion extends PlaceholderExpansion implements TabExpan
             String textBefore;
             do {
                 textBefore = text;
-                for (String placeholder : TAB.getInstance().getPlaceholderManager().detectPlaceholders(text)) {
+                for (String placeholder : PlaceholderManagerImpl.detectPlaceholders(text)) {
                     text = text.replace(placeholder, TAB.getInstance().getPlaceholderManager().findReplacement(placeholder,
                             PlaceholderAPI.setPlaceholders(player, placeholder)));
                 }
             } while (!textBefore.equals(text));
             return text;
         }
-        if (identifier.startsWith("placeholder_")) {
-            TAB.getInstance().getPlaceholderManager().addUsedPlaceholder("%" + identifier.substring("placeholder_".length()) + "%", TAB.getInstance().getPlaceholderManager());
-        }
         if (player == null) return "<Player cannot be null>";
         TabPlayer p = TAB.getInstance().getPlayer(player.getUniqueId());
         if (p == null) return "<Player is not loaded>";
-        return p.expansionValues.values.get(identifier);
+        if (identifier.startsWith("placeholder_")) {
+            String requestedPlaceholder = "%" + identifier.substring("placeholder_".length()) + "%";
+            PlaceholderManagerImpl pm = TAB.getInstance().getPlaceholderManager();
+            pm.addUsedPlaceholder(requestedPlaceholder, pm);
+            return pm.getPlaceholder(requestedPlaceholder).getLastValue(p);
+        }
+        return p.expansionValues.get(identifier);
+    }
+
+    @Override
+    public void setPlaceholderValue(@NotNull TabPlayer player, @NotNull String placeholder, @NotNull String value) {
+        // Do not unnecessarily do all placeholders, just retrieve them on request to save resources by not using string builder all the time
     }
 
     @Override
     public void setValue(@NotNull TabPlayer player, @NotNull String key, @NotNull String value) {
-        player.expansionValues.values.put(key, value);
+        player.expansionValues.put(key, value);
     }
 
     @Override

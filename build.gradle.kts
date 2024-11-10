@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "me.neznamy"
-    version = "4.1.7"
+    version = "5.0.2-SNAPSHOT"
     description = "An all-in-one solution that works"
 
     ext.set("id", "tab")
@@ -14,13 +14,16 @@ allprojects {
 
 val platforms = setOf(
     projects.bukkit,
+    projects.bukkit.paper,
     projects.bungeecord,
     projects.velocity,
     projects.sponge7,
     projects.sponge8,
     projects.fabric,
     projects.fabric.v1144,
-    projects.fabric.v1182
+    projects.fabric.v1182,
+    projects.fabric.v1203,
+    projects.fabric.v1213
 ).map { it.dependencyProject }
 
 val special = setOf(

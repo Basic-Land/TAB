@@ -2,18 +2,22 @@ package me.neznamy.tab.platforms.bungeecord;
 
 import com.google.common.collect.Lists;
 import lombok.NonNull;
+import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.protocol.Either;
 import net.md_5.bungee.protocol.NumberFormat;
-import net.md_5.bungee.protocol.packet.*;
+import net.md_5.bungee.protocol.packet.ScoreboardDisplay;
+import net.md_5.bungee.protocol.packet.ScoreboardObjective;
+import net.md_5.bungee.protocol.packet.ScoreboardScore;
+import net.md_5.bungee.protocol.packet.ScoreboardScoreReset;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,7 +26,7 @@ import java.util.List;
  * any Scoreboard API and the scoreboard class it has is just a
  * downstream tracker, we need to use packets.
  */
-public class BungeeScoreboard extends Scoreboard<BungeeTabPlayer, BaseComponent> {
+public class BungeeScoreboard extends SafeScoreboard<BungeeTabPlayer> {
 
     /** Version with a minor team recode */
     private final int TEAM_REWORK_VERSION = 13;
@@ -38,27 +42,22 @@ public class BungeeScoreboard extends Scoreboard<BungeeTabPlayer, BaseComponent>
     }
 
     @Override
-    public void setDisplaySlot0(int slot, @NonNull String objective) {
-        player.sendPacket(new ScoreboardDisplay(slot, objective));
-    }
-
-    @Override
-    public void registerObjective0(@NonNull String objectiveName, @NonNull String title, int display,
-                                   @Nullable BaseComponent numberFormat) {
+    public void registerObjective(@NonNull Objective objective) {
         player.sendPacket(new ScoreboardObjective(
-                objectiveName,
-                either(title),
-                ScoreboardObjective.HealthDisplay.values()[display],
+                objective.getName(),
+                either(objective.getTitle(), Limitations.SCOREBOARD_TITLE_PRE_1_13),
+                ScoreboardObjective.HealthDisplay.values()[objective.getHealthDisplay().ordinal()],
                 (byte) ObjectiveAction.REGISTER,
-                numberFormat == null ? null : new NumberFormat(NumberFormat.Type.FIXED, numberFormat)
+                numberFormat(objective.getNumberFormat())
         ));
+        player.sendPacket(new ScoreboardDisplay(objective.getDisplaySlot().ordinal(), objective.getName()));
     }
 
     @Override
-    public void unregisterObjective0(@NonNull String objectiveName) {
+    public void unregisterObjective(@NonNull Objective objective) {
         player.sendPacket(new ScoreboardObjective(
-                objectiveName,
-                either(""), // Empty value instead of null to prevent NPE kick on 1.7
+                objective.getName(),
+                either(objective.getTitle(), Limitations.SCOREBOARD_TITLE_PRE_1_13), // Empty value instead of null to prevent NPE kick on 1.7
                 null,
                 (byte) ObjectiveAction.UNREGISTER,
                 null
@@ -66,103 +65,110 @@ public class BungeeScoreboard extends Scoreboard<BungeeTabPlayer, BaseComponent>
     }
 
     @Override
-    public void updateObjective0(@NonNull String objectiveName, @NonNull String title, int display,
-                                 @Nullable BaseComponent numberFormat) {
+    public void updateObjective(@NonNull Objective objective) {
         player.sendPacket(new ScoreboardObjective(
-                objectiveName,
-                either(title),
-                ScoreboardObjective.HealthDisplay.values()[display],
+                objective.getName(),
+                either(objective.getTitle(), Limitations.SCOREBOARD_TITLE_PRE_1_13),
+                ScoreboardObjective.HealthDisplay.values()[objective.getHealthDisplay().ordinal()],
                 (byte) ObjectiveAction.UPDATE,
-                numberFormat == null ? null : new NumberFormat(NumberFormat.Type.FIXED, numberFormat)
+                numberFormat(objective.getNumberFormat())
         ));
     }
 
     @Override
-    public void registerTeam0(@NonNull String name, @NonNull String prefix, @NonNull String suffix,
-                              @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
-                              @NonNull Collection<String> players, int options, @NonNull EnumChatFormat color) {
-        player.sendPacket(new Team(
-                name,
+    public void setScore(@NonNull Score score) {
+        player.sendPacket(new ScoreboardScore(
+                score.getHolder(),
+                (byte) ScoreAction.CHANGE,
+                score.getObjective().getName(),
+                score.getValue(),
+                score.getDisplayName() == null ? null : score.getDisplayName().convert(player.getVersion()),
+                numberFormat(score.getNumberFormat())
+        ));
+    }
+
+    @Override
+    public void removeScore(@NonNull Score score) {
+        if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_20_3.getNetworkId()) {
+            player.sendPacket(new ScoreboardScoreReset(score.getHolder(), score.getObjective().getName()));
+        } else {
+            player.sendPacket(new ScoreboardScore(score.getHolder(), (byte) ScoreAction.REMOVE, score.getObjective().getName(), 0, null, null));
+        }
+    }
+
+    @Override
+    @NotNull
+    public Object createTeam(@NonNull String name) {
+        return new Object(); // This implementation does not use team objects
+    }
+
+    @Override
+    public void registerTeam(@NonNull Team team) {
+        player.sendPacket(new net.md_5.bungee.protocol.packet.Team(
+                team.getName(),
                 (byte) TeamAction.CREATE,
-                either(name),
-                either(prefix),
-                either(suffix),
-                visibility.toString(),
-                collision.toString(),
-                player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION ? color.ordinal() : 0,
-                (byte)options,
-                players.toArray(new String[0])
+                either(new SimpleComponent(team.getName()), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
+                either(team.getPrefix(), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
+                either(team.getSuffix(), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
+                team.getVisibility().toString(),
+                team.getCollision().toString(),
+                player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION ? team.getColor().ordinal() : 0,
+                (byte) team.getOptions(),
+                team.getPlayers().toArray(new String[0])
         ));
     }
 
     @Override
-    public void unregisterTeam0(@NonNull String name) {
-        player.sendPacket(new Team(name));
+    public void unregisterTeam(@NonNull Team team) {
+        player.sendPacket(new net.md_5.bungee.protocol.packet.Team(team.getName()));
     }
 
     @Override
-    public void updateTeam0(@NonNull String name, @NonNull String prefix, @NonNull String suffix,
-                            @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
-                            int options, @NonNull EnumChatFormat color) {
-        player.sendPacket(new Team(
-                name,
+    public void updateTeam(@NonNull Team team) {
+        player.sendPacket(new net.md_5.bungee.protocol.packet.Team(
+                team.getName(),
                 (byte) TeamAction.UPDATE,
-                either(name),
-                either(prefix),
-                either(suffix),
-                visibility.toString(),
-                collision.toString(),
-                player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION ? color.ordinal() : 0,
-                (byte)options,
+                either(new SimpleComponent(team.getName()), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
+                either(team.getPrefix(), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
+                either(team.getSuffix(), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
+                team.getVisibility().toString(),
+                team.getCollision().toString(),
+                player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION ? team.getColor().ordinal() : 0,
+                (byte) team.getOptions(),
                 null
         ));
     }
 
     @Override
-    public void setScore0(@NonNull String objective, @NonNull String scoreHolder, int score,
-                          @Nullable BaseComponent displayName, @Nullable BaseComponent numberFormat) {
-        player.sendPacket(new ScoreboardScore(
-                scoreHolder,
-                (byte) ScoreAction.CHANGE,
-                objective,
-                score,
-                displayName,
-                numberFormat == null ? null : new NumberFormat(NumberFormat.Type.FIXED, numberFormat)
-        ));
-    }
-
-    @Override
-    public void removeScore0(@NonNull String objective, @NonNull String scoreHolder) {
-        if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_20_3.getNetworkId()) {
-            player.sendPacket(new ScoreboardScoreReset(scoreHolder, objective));
-        } else {
-            player.sendPacket(new ScoreboardScore(scoreHolder, (byte) ScoreAction.REMOVE, objective, 0, null, null));
-        }
-    }
-
-    private Either<String, BaseComponent> either(@NonNull String text) {
-        if (player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION) {
-            return Either.right(TabComponent.optimized(text).convert(player.getVersion()));
-        } else {
-            return Either.left(text);
-        }
-    }
-
-    @Override
     public void onPacketSend(@NonNull Object packet) {
-        if (packet instanceof ScoreboardDisplay) {
-            ScoreboardDisplay display = (ScoreboardDisplay) packet;
-            TAB.getInstance().getFeatureManager().onDisplayObjective(player, display.getPosition(), display.getName());
+        if (isAntiOverrideScoreboard()) {
+            if (packet instanceof ScoreboardDisplay) {
+                ScoreboardDisplay display = (ScoreboardDisplay) packet;
+                TAB.getInstance().getFeatureManager().onDisplayObjective(player, display.getPosition(), display.getName());
+            }
+            if (packet instanceof ScoreboardObjective) {
+                ScoreboardObjective objective = (ScoreboardObjective) packet;
+                TAB.getInstance().getFeatureManager().onObjective(player, objective.getAction(), objective.getName());
+            }
         }
-        if (packet instanceof ScoreboardObjective) {
-            ScoreboardObjective objective = (ScoreboardObjective) packet;
-            TAB.getInstance().getFeatureManager().onObjective(player, objective.getAction(), objective.getName());
-        }
-        if (isAntiOverrideTeams() && packet instanceof Team) {
-            Team team = (Team) packet;
+        if (isAntiOverrideTeams() && packet instanceof net.md_5.bungee.protocol.packet.Team) {
+            net.md_5.bungee.protocol.packet.Team team = (net.md_5.bungee.protocol.packet.Team) packet;
             if (team.getMode() == TeamAction.UPDATE) return;
             List<String> players = team.getPlayers() == null ? Collections.emptyList() : Lists.newArrayList(team.getPlayers());
             team.setPlayers(onTeamPacket(team.getMode(), team.getName(), players).toArray(new String[0]));
         }
+    }
+
+    private Either<String, BaseComponent> either(@NonNull TabComponent text, int legacyLimit) {
+        if (player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION) {
+            return Either.right(text.convert(player.getVersion()));
+        } else {
+            return Either.left(cutTo(text.toLegacyText(), legacyLimit));
+        }
+    }
+
+    @Nullable
+    private NumberFormat numberFormat(@Nullable TabComponent component) {
+        return component == null ? null : component.toFixedFormat(baseComponent -> new NumberFormat(NumberFormat.Type.FIXED, baseComponent));
     }
 }

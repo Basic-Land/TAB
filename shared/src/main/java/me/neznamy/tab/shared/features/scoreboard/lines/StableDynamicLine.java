@@ -4,7 +4,6 @@ import lombok.NonNull;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.rgb.RGBUtils;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -35,7 +34,7 @@ public class StableDynamicLine extends ScoreboardLine {
 
     @Override
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
-        if (!parent.getPlayers().contains(refreshed)) return; //player has different scoreboard displayed
+        if (refreshed.scoreboardData.activeScoreboard != parent) return; //player has different scoreboard displayed
         String[] prefixSuffix = replaceText(refreshed, force, false);
         if (prefixSuffix.length == 0) return;
         updateTeam(refreshed, prefixSuffix[0], prefixSuffix[1]);
@@ -43,7 +42,7 @@ public class StableDynamicLine extends ScoreboardLine {
 
     @Override
     public void register(@NonNull TabPlayer p) {
-        p.setProperty(this, textProperty, text);
+        p.scoreboardData.lineProperties.put(this, new Property(this, p, text));
         getScoreRefresher().registerProperties(p);
         String[] prefixSuffix = replaceText(p, true, true);
         if (prefixSuffix.length == 0) return;
@@ -52,7 +51,7 @@ public class StableDynamicLine extends ScoreboardLine {
 
     @Override
     public void unregister(@NonNull TabPlayer p) {
-        if (parent.getPlayers().contains(p) && !p.getProperty(textProperty).get().isEmpty()) {
+        if (p.scoreboardData.activeScoreboard == parent && !p.scoreboardData.lineProperties.get(this).get().isEmpty()) {
             removeLine(p, getPlayerName());
         }
     }
@@ -70,13 +69,13 @@ public class StableDynamicLine extends ScoreboardLine {
      * @return  array of 2 elements for prefix/suffix
      */
     private String[] replaceText(TabPlayer p, boolean force, boolean suppressToggle) {
-        Property scoreProperty = p.getProperty(textProperty);
+        Property scoreProperty = p.scoreboardData.lineProperties.get(this);
         if (scoreProperty == null) return EMPTY_ARRAY; //not actually loaded yet (force refresh called from placeholder manager register method)
         boolean emptyBefore = scoreProperty.get().isEmpty();
         if (!scoreProperty.update() && !force) return EMPTY_ARRAY;
         String replaced = scoreProperty.get();
         if (!p.getVersion().supportsRGB()) {
-            replaced = RGBUtils.getInstance().convertRGBtoLegacy(replaced); //converting RGB to legacy here to avoid splitting in the middle of RGB code
+            replaced = parent.getManager().getCache().get(replaced).toLegacyText(); //converting RGB to legacy here to avoid splitting in the middle of RGB code
         }
         String[] split = split(p, replaced);
         if (!replaced.isEmpty()) {
@@ -120,7 +119,7 @@ public class StableDynamicLine extends ScoreboardLine {
                 suffix.insert(0, EnumChatFormat.COLOR_CHAR);
             }
             String prefixString = prefix.toString();
-            suffix.insert(0, EnumChatFormat.getLastColors(RGBUtils.getInstance().convertRGBtoLegacy(prefixString)));
+            suffix.insert(0, EnumChatFormat.getLastColors(parent.getManager().getCache().get(prefixString).toLegacyText()));
             return new String[] {prefixString, suffix.toString()};
         } else {
             return new String[] {text, ""};
@@ -132,7 +131,7 @@ public class StableDynamicLine extends ScoreboardLine {
         ensureActive();
         initializeText(text);
         for (TabPlayer p : parent.getPlayers()) {
-            p.setProperty(this, textProperty, text);
+            p.scoreboardData.lineProperties.get(this).changeRawValue(text);
             refresh(p, true);
         }
     }

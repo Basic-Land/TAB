@@ -2,10 +2,10 @@ package me.neznamy.tab.shared.proxy.message.incoming;
 
 import com.google.common.io.ByteArrayDataInput;
 import me.neznamy.tab.api.placeholder.Placeholder;
-import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
 import me.neznamy.tab.api.placeholder.RelationalPlaceholder;
 import me.neznamy.tab.api.placeholder.ServerPlaceholder;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -24,7 +24,7 @@ public class PlayerJoinResponse implements IncomingMessage {
     public void read(@NotNull ByteArrayDataInput in) {
         world = in.readUTF();
         if (TAB.getInstance().getGroupManager().getPermissionPlugin().contains("Vault") &&
-                !TAB.getInstance().getGroupManager().isGroupsByPermissions()) group = in.readUTF();
+                !TAB.getInstance().getConfiguration().getConfig().isGroupsByPermissions()) group = in.readUTF();
         placeholders = new HashMap<>();
         int placeholderCount = in.readInt();
         for (int i=0; i<placeholderCount; i++) {
@@ -52,33 +52,35 @@ public class PlayerJoinResponse implements IncomingMessage {
         TAB.getInstance().getFeatureManager().onWorldChange(player.getUniqueId(), world);
         if (group != null) player.setGroup(group);
         // reset attributes from previous server to default false values, new server will send separate update packets if needed
-        if (player.vanished) { // Only trigger if bridge says player is vanished, do not trigger on proxy vanish
-            player.vanished = false;
+        if (player.isVanished()) { // Only trigger if bridge says player is vanished, do not trigger on proxy vanish
+            player.setVanished(false);
             TAB.getInstance().getFeatureManager().onVanishStatusChange(player);
         }
         player.setDisguised(false);
         player.setInvisibilityPotion(false);
+        Map<PlayerPlaceholderImpl, String> playerPlaceholderUpdates = new HashMap<>();
         for (Map.Entry<String, Object> entry : placeholders.entrySet()) {
             String identifier = entry.getKey();
-            if (!TAB.getInstance().getPlaceholderManager().isPlaceholderRegistered(identifier)) continue;
+            Placeholder pl = TAB.getInstance().getPlaceholderManager().getPlaceholderRaw(identifier);
+            if (pl == null) continue;
             if (identifier.startsWith("%rel_")) {
+                RelationalPlaceholder rel = (RelationalPlaceholder) pl;
                 Map<String, String> map = (Map<String, String>) entry.getValue();
                 for (Map.Entry<String, String> entry2 : map.entrySet()) {
                     TabPlayer other = TAB.getInstance().getPlayer(entry2.getKey());
                     if (other != null) { // Backend player did not connect via this proxy if null
-                        ((RelationalPlaceholder)TAB.getInstance().getPlaceholderManager().getPlaceholder(identifier))
-                                .updateValue(player, other, entry2.getValue());
+                        rel.updateValue(player, other, entry2.getValue());
                     }
                 }
             } else {
-                Placeholder pl = TAB.getInstance().getPlaceholderManager().getPlaceholder(identifier);
-                if (pl instanceof PlayerPlaceholder) {
-                    ((PlayerPlaceholder) pl).updateValue(player, entry.getValue());
+                if (pl instanceof PlayerPlaceholderImpl) {
+                    playerPlaceholderUpdates.put((PlayerPlaceholderImpl) pl, (String) entry.getValue());
                 } else {
-                    ((ServerPlaceholder) pl).updateValue(entry.getValue());
+                    ((ServerPlaceholder) pl).updateValue((String) entry.getValue());
                 }
             }
         }
+        PlayerPlaceholderImpl.bulkUpdateValues(player, playerPlaceholderUpdates);
         player.setGamemode(gameMode);
         player.setBridgeConnected(true);
     }

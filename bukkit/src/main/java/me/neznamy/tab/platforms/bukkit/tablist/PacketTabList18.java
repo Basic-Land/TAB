@@ -7,12 +7,13 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.BukkitUtils;
-import me.neznamy.tab.platforms.bukkit.nms.ComponentConverter;
+import me.neznamy.tab.platforms.bukkit.nms.converter.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.platforms.bukkit.nms.PacketSender;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.util.ReflectionUtils;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
@@ -90,7 +91,7 @@ public class PacketTabList18 extends TabListBase<Object> {
         Class<?> IChatBaseComponent = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent", "IChatBaseComponent");
         PLAYERS = ReflectionUtils.getOnlyField(PlayerInfoClass, List.class);
         PlayerInfoData_Profile = ReflectionUtils.getOnlyField(infoData, GameProfile.class);
-        PlayerInfoData_Latency = ReflectionUtils.getOnlyField(infoData, int.class);
+        PlayerInfoData_Latency = ReflectionUtils.getFields(infoData, int.class).get(0);
         PlayerInfoData_DisplayName = ReflectionUtils.getOnlyField(infoData, IChatBaseComponent);
         gameModes = new Object[] {
                 Enum.valueOf(gameMode, "SURVIVAL"),
@@ -99,7 +100,7 @@ public class PacketTabList18 extends TabListBase<Object> {
                 Enum.valueOf(gameMode, "SPECTATOR")
         };
         packetSender = new PacketSender();
-        ComponentConverter.ensureAvailable();
+        if (ComponentConverter.INSTANCE == null) throw new IllegalStateException("Component converter is not available");
         try {
             skinData = new SkinData();
         } catch (Exception e) {
@@ -110,26 +111,26 @@ public class PacketTabList18 extends TabListBase<Object> {
 
     @Override
     public void removeEntry(@NonNull UUID entry) {
-        packetSender.sendPacket(player.getPlayer(),
-                createPacket(Action.REMOVE_PLAYER, entry, "", null, false, 0, 0, null));
+        packetSender.sendPacket(player,
+                createPacket(Action.REMOVE_PLAYER, entry, "", null, false, 0, 0, null, 0, false));
     }
 
     @Override
-    public void updateDisplayName0(@NonNull UUID entry, @Nullable Object displayName) {
-        packetSender.sendPacket(player.getPlayer(),
-                createPacket(Action.UPDATE_DISPLAY_NAME, entry, "", null, false, 0, 0, displayName));
+    public void updateDisplayName(@NonNull UUID entry, @Nullable Object displayName) {
+        packetSender.sendPacket(player,
+                createPacket(Action.UPDATE_DISPLAY_NAME, entry, "", null, false, 0, 0, displayName, 0, false));
     }
 
     @Override
     public void updateLatency(@NonNull UUID entry, int latency) {
-        packetSender.sendPacket(player.getPlayer(),
-                createPacket(Action.UPDATE_LATENCY, entry, "", null, false, latency, 0, null));
+        packetSender.sendPacket(player,
+                createPacket(Action.UPDATE_LATENCY, entry, "", null, false, latency, 0, null, 0, false));
     }
 
     @Override
     public void updateGameMode(@NonNull UUID entry, int gameMode) {
-        packetSender.sendPacket(player.getPlayer(),
-                createPacket(Action.UPDATE_GAME_MODE, entry, "", null, false, 0, gameMode, null));
+        packetSender.sendPacket(player,
+                createPacket(Action.UPDATE_GAME_MODE, entry, "", null, false, 0, gameMode, null, 0, false));
     }
 
     @Override
@@ -138,9 +139,20 @@ public class PacketTabList18 extends TabListBase<Object> {
     }
 
     @Override
-    public void addEntry0(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable Object displayName) {
-        packetSender.sendPacket(player.getPlayer(),
-                createPacket(Action.ADD_PLAYER, id, name, skin, listed, latency, gameMode, displayName));
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // Added in 1.21.2
+    }
+
+    @Override
+    public void updateHat(@NonNull UUID entry, boolean showHat) {
+        // Added in 1.21.4
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable Object displayName, int listOrder, boolean showHat) {
+        packetSender.sendPacket(player,
+                createPacket(Action.ADD_PLAYER, id, name, skin, listed, latency, gameMode, displayName, listOrder, showHat));
     }
 
     /**
@@ -162,12 +174,16 @@ public class PacketTabList18 extends TabListBase<Object> {
      *          Entry game mode
      * @param   displayName
      *          Entry display name
+     * @param   listOrder
+     *          Entry list order
+     * @param   showHat
+     *          Show hat flag
      * @return  Packet from given parameters
      */
     @SneakyThrows
-    @NonNull
+    @NotNull
     public Object createPacket(@NonNull Action action, @NonNull UUID id, @NonNull String name, @Nullable Skin skin,
-                               boolean listed, int latency, int gameMode, @Nullable Object displayName) {
+                               boolean listed, int latency, int gameMode, @Nullable Object displayName, int listOrder, boolean showHat) {
         Object packet = newPlayerInfo.newInstance(Enum.valueOf(ActionClass, action.name()), Collections.emptyList());
         List<Object> parameters = new ArrayList<>();
         if (newPlayerInfoData.getParameterTypes()[0] == PlayerInfoClass) {
@@ -193,7 +209,7 @@ public class PacketTabList18 extends TabListBase<Object> {
      *          Player skin
      * @return  GameProfile from given parameters
      */
-    @NonNull
+    @NotNull
     public GameProfile createProfile(@NonNull UUID id, @NonNull String name, @Nullable Skin skin) {
         GameProfile profile = new GameProfile(id, name);
         if (skin != null) {
@@ -212,12 +228,15 @@ public class PacketTabList18 extends TabListBase<Object> {
             GameProfile profile = (GameProfile) PlayerInfoData_Profile.get(nmsData);
             UUID id = profile.getId();
             if (action.equals(Action.UPDATE_DISPLAY_NAME.name()) || action.equals(Action.ADD_PLAYER.name())) {
-                Object expectedName = getExpectedDisplayName(id);
+                Object expectedName = getExpectedDisplayNames().get(id);
                 if (expectedName != null) PlayerInfoData_DisplayName.set(nmsData, expectedName);
             }
             if (action.equals(Action.UPDATE_LATENCY.name()) || action.equals(Action.ADD_PLAYER.name())) {
-                int latency = TAB.getInstance().getFeatureManager().onLatencyChange(player, id, PlayerInfoData_Latency.getInt(nmsData));
-                PlayerInfoData_Latency.set(nmsData, latency);
+                int oldLatency = PlayerInfoData_Latency.getInt(nmsData);
+                int newLatency = TAB.getInstance().getFeatureManager().onLatencyChange(player, id, oldLatency);
+                if (oldLatency != newLatency) {
+                    PlayerInfoData_Latency.set(nmsData, newLatency);
+                }
             }
             if (action.equals(Action.ADD_PLAYER.name())) {
                 TAB.getInstance().getFeatureManager().onEntryAdd(player, id, profile.getName());

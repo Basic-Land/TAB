@@ -1,7 +1,7 @@
 package me.neznamy.tab.shared.backend;
 
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.backend.entityview.EntityView;
+import me.neznamy.tab.shared.TabConstants.Placeholder;
 import me.neznamy.tab.shared.hook.ViaVersionHook;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -13,6 +13,12 @@ import java.util.UUID;
  * more data and can display it.
  */
 public abstract class BackendTabPlayer extends TabPlayer {
+
+    /** Vanish status of the player */
+    private boolean vanished;
+
+    /** Last time vanish status was retrieved (in milliseconds) */
+    private long lastVanishCheck;
 
     /**
      * Constructs new instance with given parameters
@@ -32,28 +38,38 @@ public abstract class BackendTabPlayer extends TabPlayer {
      */
     protected BackendTabPlayer(@NotNull BackendPlatform platform, @NotNull Object player, @NotNull UUID uniqueId,
                                @NotNull String name, @NotNull String world, int serverVersion) {
-        super(platform, player, uniqueId, name, TAB.getInstance().getConfiguration().getServerName(),
+        super(platform, player, uniqueId, name, TAB.getInstance().getConfiguration().getConfig().getServerName(),
                 world, ViaVersionHook.getInstance().getPlayerVersion(uniqueId, name, serverVersion), true);
     }
 
+    @Override
+    public boolean isVanished() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastVanishCheck >= 900) {
+            lastVanishCheck = currentTime;
+            vanished = isVanished0();
+        }
+        return vanished;
+    }
+
     /**
-     * Returns player's health for {@link me.neznamy.tab.shared.TabConstants.Placeholder#HEALTH} placeholder.
+     * Returns player's health for {@link Placeholder#HEALTH} placeholder.
      *
      * @return  player's health
      */
     public abstract double getHealth();
 
     /**
-     * Returns player's display name for {@link me.neznamy.tab.shared.TabConstants.Placeholder#DISPLAY_NAME} placeholder.
+     * Returns player's display name for {@link Placeholder#DISPLAY_NAME} placeholder.
      *
      * @return  player's display name
      */
     public abstract String getDisplayName();
 
     /**
-     * Returns player's entity view
+     * Calls platform's vanish check and returns the result.
      *
-     * @return  player's entity view
+     * @return  {@code true} if player is vanished, {@code false} if not
      */
-    public abstract EntityView getEntityView();
+    public abstract boolean isVanished0();
 }

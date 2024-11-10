@@ -3,15 +3,13 @@ package me.neznamy.tab.shared.features.layout;
 import lombok.Getter;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition.GroupPattern;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -44,19 +42,23 @@ public class LayoutView {
 
     public void send() {
         if (viewer.getVersion().getMinorVersion() < 8 || viewer.isBedrockPlayer()) return;
-        groups.forEach(ParentGroup::sendSlots);
+        for (ParentGroup group : groups) {
+            group.sendSlots();
+        }
         for (FixedSlot slot : fixedSlots) {
             viewer.getTabList().addEntry(slot.createEntry(viewer));
         }
         for (int slot : emptySlots) {
             viewer.getTabList().addEntry(new TabList.Entry(
                     manager.getUUID(slot),
-                    manager.getDirection().getEntryName(viewer, slot),
+                    manager.getConfiguration().getDirection().getEntryName(viewer, slot, LayoutManagerImpl.isTeamsEnabled()),
                     manager.getSkinManager().getDefaultSkin(slot),
                     true,
-                    manager.getEmptySlotPing(),
+                    manager.getConfiguration().getEmptySlotPing(),
                     0,
-                    new SimpleComponent("")
+                    new SimpleComponent(""),
+                    Integer.MAX_VALUE - manager.getConfiguration().getDirection().translateSlot(slot),
+                    true
             ));
         }
         tick();
@@ -64,7 +66,9 @@ public class LayoutView {
 
     public void destroy() {
         if (viewer.getVersion().getMinorVersion() < 8 || viewer.isBedrockPlayer()) return;
-        viewer.getTabList().removeEntries(manager.getUuids().values());
+        for (UUID id : manager.getUuids().values()) {
+            viewer.getTabList().removeEntry(id);
+        }
     }
 
     public void tick() {

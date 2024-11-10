@@ -31,7 +31,7 @@ public class BukkitTabList extends TabListBase<String> {
 
     @Override
     @SuppressWarnings("deprecation")
-    public void updateDisplayName0(@NonNull UUID entry, @Nullable String displayName) {
+    public void updateDisplayName(@NonNull UUID entry, @Nullable String displayName) {
         Player p = Bukkit.getPlayer(entry);
         if (p == null) return;
         p.setPlayerListName(displayName);
@@ -53,7 +53,18 @@ public class BukkitTabList extends TabListBase<String> {
     }
 
     @Override
-    public void addEntry0(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable String displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // Shrug
+    }
+
+    @Override
+    public void updateHat(@NonNull UUID entry, boolean showHat) {
+        // Shrug
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable String displayName, int listOrder, boolean showHat) {
         // Shrug
     }
 

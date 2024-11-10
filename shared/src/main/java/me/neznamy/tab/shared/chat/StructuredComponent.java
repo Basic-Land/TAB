@@ -30,6 +30,10 @@ public class StructuredComponent extends TabComponent {
     @Nullable
     private List<StructuredComponent> extra;
 
+    /** Component turned into flat text. RGB colors are represented as #RRGGBB. */
+    @Nullable
+    private String flatText;
+
     /**
      * Constructs a new component which is a clone of provided component
      *
@@ -74,6 +78,52 @@ public class StructuredComponent extends TabComponent {
         return builder.toString();
     }
 
+    @Override
+    @NotNull
+    public String toFlatText() {
+        if (flatText == null) {
+            StringBuilder builder = new StringBuilder();
+            TextColor color = modifier.getColor();
+            if (color != null) {
+                if (color.isLegacy()) {
+                    builder.append(color.getLegacyColor());
+                } else {
+                    builder.append("#").append(color.getHexCode());
+                }
+            }
+            builder.append(modifier.getMagicCodes());
+            builder.append(text);
+            for (StructuredComponent child : getExtra()) {
+                builder.append(child.toFlatText());
+            }
+            flatText = builder.toString();
+        }
+        return flatText;
+    }
+
+    @Override
+    @NotNull
+    public String toRawText() {
+        StringBuilder builder = new StringBuilder(text);
+        for (StructuredComponent extra : getExtra()) {
+            builder.append(extra.toRawText());
+        }
+        return builder.toString();
+    }
+
+    @Override
+    @NotNull
+    protected TextColor fetchLastColor() {
+        TextColor lastColor = modifier.getColor();
+        for (StructuredComponent extra : getExtra()) {
+            if (extra.modifier.getColor() != null) {
+                lastColor = extra.modifier.getColor();
+            }
+        }
+        if (lastColor == null) lastColor = TextColor.legacy(EnumChatFormat.WHITE);
+        return lastColor;
+    }
+
     /**
      * Appends text to string builder, might also add color and magic codes if they are different
      * from previous component in chain.
@@ -114,15 +164,4 @@ public class StructuredComponent extends TabComponent {
         builder.append(modifier.getMagicCodes());
         return builder.toString();
     }
-
-    @Override
-    @NotNull
-    public String toRawText() {
-        StringBuilder builder = new StringBuilder(text);
-        for (StructuredComponent extra : getExtra()) {
-            builder.append(extra.toRawText());
-        }
-        return builder.toString();
-    }
-
 }

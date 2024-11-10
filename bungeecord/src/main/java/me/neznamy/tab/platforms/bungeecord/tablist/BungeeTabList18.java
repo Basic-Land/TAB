@@ -32,7 +32,7 @@ public class BungeeTabList18 extends BungeeTabList {
     }
 
     @Override
-    public void updateDisplayName0(@NonNull UUID entry, @Nullable BaseComponent displayName) {
+    public void updateDisplayName(@NonNull UUID entry, @Nullable BaseComponent displayName) {
         Item item = item(entry);
         item.setDisplayName(displayName);
         sendPacket(PlayerListItem.Action.UPDATE_DISPLAY_NAME, item);
@@ -58,9 +58,20 @@ public class BungeeTabList18 extends BungeeTabList {
     }
 
     @Override
-    public void addEntry0(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable BaseComponent displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // Added in 1.21.2
+    }
+
+    @Override
+    public void updateHat(@NonNull UUID entry, boolean showHat) {
+        // Added in 1.21.4
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable BaseComponent displayName, int listOrder, boolean showHat) {
         addUuid(id);
-        sendPacket(PlayerListItem.Action.ADD_PLAYER, entryToItem(id, name, skin, listed, latency, gameMode, displayName));
+        sendPacket(PlayerListItem.Action.ADD_PLAYER, entryToItem(id, name, skin, listed, latency, gameMode, displayName, listOrder, showHat));
     }
 
     private void sendPacket(@NonNull PlayerListItem.Action action, @NonNull Item item) {

@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.NonNull;
@@ -26,26 +27,12 @@ public class Condition {
     private static Map<String, Condition> registeredConditions = new HashMap<>();
 
     /** All supported sub-condition types */
-    @Getter private static final Map<String, Function<String, Function<TabPlayer, Boolean>>> conditionTypes =
-            new LinkedHashMap<String, Function<String, Function<TabPlayer, Boolean>>>() {{
-
-        put(">=", line -> new NumericCondition(line.split(">="), (left, right) -> left >= right)::isMet);
-        put(">", line -> new NumericCondition(line.split(">"), (left, right) -> left > right)::isMet);
-        put("<=", line -> new NumericCondition(line.split("<="), (left, right) -> left <= right)::isMet);
-        put("<-", line -> new StringCondition(line.split("<-"), String::contains)::isMet);
-        put("<", line -> new NumericCondition(line.split("<"), (left, right) -> left < right)::isMet);
-        put("|-", line -> new StringCondition(line.split("\\|-"), String::startsWith)::isMet);
-        put("-|", line -> new StringCondition(line.split("-\\|"), String::endsWith)::isMet);
-        put("!=", line -> new StringCondition(line.split("!="), (left, right) -> !left.equals(right))::isMet);
-        put("=", line -> new StringCondition(line.split("="), String::equals)::isMet);
-        put("permission:", line -> {
-            String node = line.split(":")[1];
-            return p -> p.hasPermission(node);
-        });
-    }};
+    @Getter
+    private static final Map<String, Function<String, Function<TabPlayer, Boolean>>> conditionTypes = new LinkedHashMap<>();
 
     /** Name of this condition defined in configuration */
-    @Getter private final String name;
+    @Getter
+    private final String name;
 
     /** All defined sub-conditions inside this conditions */
     protected final List<Function<TabPlayer, Boolean>> subConditions = new ArrayList<>();
@@ -67,6 +54,27 @@ public class Condition {
 
     /** List of all placeholders used inside this condition */
     private final List<String> placeholdersInConditions = new ArrayList<>();
+
+    static {
+        conditionTypes.put(">=", line -> new NumericCondition(splitAndTrim(line, ">="), (left, right) -> left >= right)::isMet);
+        conditionTypes.put(">", line -> new NumericCondition(splitAndTrim(line, ">"), (left, right) -> left > right)::isMet);
+        conditionTypes.put("<=", line -> new NumericCondition(splitAndTrim(line, "<="), (left, right) -> left <= right)::isMet);
+        conditionTypes.put("<-", line -> new StringCondition(splitAndTrim(line, "<-"), String::contains)::isMet);
+        conditionTypes.put("<", line -> new NumericCondition(splitAndTrim(line, "<"), (left, right) -> left < right)::isMet);
+        conditionTypes.put("|-", line -> new StringCondition(splitAndTrim(line, "\\|-"), String::startsWith)::isMet);
+        conditionTypes.put("-|", line -> new StringCondition(splitAndTrim(line, "-\\|"), String::endsWith)::isMet);
+        conditionTypes.put("!=", line -> new StringCondition(splitAndTrim(line, "!="), (left, right) -> !left.equals(right))::isMet);
+        conditionTypes.put("=", line -> new StringCondition(splitAndTrim(line, "="), String::equals)::isMet);
+        conditionTypes.put("permission:", line -> {
+            String node = splitAndTrim(line, ":")[1];
+            return p -> p.hasPermission(node);
+        });
+    }
+    
+    @NotNull
+    private static String[] splitAndTrim(@NotNull String string, @NonNull String delimiter) {
+        return Arrays.stream(string.split(delimiter)).map(String::trim).toArray(String[]::new);
+    }
 
     /**
      * Constructs new instance with given parameters and registers
@@ -96,17 +104,16 @@ public class Condition {
                 TAB.getInstance().getConfigHelper().startup().invalidConditionPattern(name, line);
             }
         }
-        PlaceholderManagerImpl pm = TAB.getInstance().getPlaceholderManager();
         for (String subCondition : conditions) {
             if (subCondition.startsWith("permission:")) {
-                int permissionRefresh = TAB.getInstance().getConfiguration().getPermissionRefreshInterval();
+                int permissionRefresh = TAB.getInstance().getConfiguration().getConfig().getPermissionRefreshInterval();
                 if (refresh > permissionRefresh || refresh == -1) refresh = permissionRefresh;
             } else {
-                placeholdersInConditions.addAll(pm.detectPlaceholders(subCondition));
+                placeholdersInConditions.addAll(PlaceholderManagerImpl.detectPlaceholders(subCondition));
             }
         }
-        if (yes != null) placeholdersInConditions.addAll(pm.detectPlaceholders(yes));
-        if (no != null) placeholdersInConditions.addAll(pm.detectPlaceholders(no));
+        if (yes != null) placeholdersInConditions.addAll(PlaceholderManagerImpl.detectPlaceholders(yes));
+        if (no != null) placeholdersInConditions.addAll(PlaceholderManagerImpl.detectPlaceholders(no));
         registeredConditions.put(name, this);
     }
 
@@ -169,8 +176,11 @@ public class Condition {
         if (string == null || string.isEmpty()) return null;
         if (string.equals("true")) return TrueCondition.INSTANCE;
         if (string.equals("false")) return FalseCondition.INSTANCE;
+        String anonVersion = "AnonymousCondition[" + string + "]";
         if (registeredConditions.containsKey(string)) {
             return registeredConditions.get(string);
+        } else if (registeredConditions.containsKey(anonVersion)) {
+            return registeredConditions.get(anonVersion);
         } else {
             boolean type;
             List<String> conditions;
@@ -181,7 +191,8 @@ public class Condition {
                 type = false;
                 conditions = splitString(string);
             }
-            Condition c = new Condition(type, "AnonymousCondition[" + string + "]", conditions, "true", "false");
+            conditions = conditions.stream().map(String::trim).collect(Collectors.toList());
+            Condition c = new Condition(type, anonVersion, conditions, "true", "false");
             c.finishSetup();
             TAB.getInstance().getPlaceholderManager().registerPlayerPlaceholder(TabConstants.Placeholder.condition(c.name), c.refresh,
                     p -> c.getText((TabPlayer) p));
@@ -232,7 +243,9 @@ public class Condition {
      * before they are registered properly.
      */
     public static void finishSetups() {
-        registeredConditions.values().forEach(Condition::finishSetup);
+        for (Condition c : registeredConditions.values()) {
+            c.finishSetup();
+        }
     }
 
     /**

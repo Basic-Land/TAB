@@ -1,101 +1,66 @@
 package me.neznamy.tab.shared.features.layout;
 
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.function.Function;
-
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.api.tablist.layout.Layout;
 import me.neznamy.tab.api.tablist.layout.LayoutManager;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.config.file.ConfigurationFile;
-import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.features.PlayerList;
+import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition;
 import me.neznamy.tab.shared.features.layout.skin.SkinManager;
+import me.neznamy.tab.shared.features.pingspoof.PingSpoof;
+import me.neznamy.tab.shared.features.playerlist.PlayerList;
 import me.neznamy.tab.shared.features.types.*;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.*;
+import java.util.Map.Entry;
+
 @Getter
-public class LayoutManagerImpl extends TabFeature implements LayoutManager, JoinListener, QuitListener, VanishListener, Loadable,
-        UnLoadable, Refreshable, TabListClearListener {
+public class LayoutManagerImpl extends RefreshableFeature implements LayoutManager, JoinListener, QuitListener, VanishListener, Loadable,
+        UnLoadable, TabListClearListener {
 
-    /** Config options */
-    private final Direction direction = parseDirection(config().getString("layout.direction", "COLUMNS"));
-    private final String defaultSkin = config().getString("layout.default-skin", "mineskin:1753261242");
-    private final Map<Integer, String> defaultSkinHashMap = loadDefaultSkins();
-    private final boolean remainingPlayersTextEnabled = config().getBoolean("layout.enable-remaining-players-text", true);
-    private final String remainingPlayersText = EnumChatFormat.color(config().getString("layout.remaining-players-text", "... and %s more"));
-    private final int emptySlotPing = config().getInt("layout.empty-slot-ping-value", 1000);
-
-    private final SkinManager skinManager = new SkinManager(defaultSkin, defaultSkinHashMap);
-    private final Map<Integer, UUID> uuids = new HashMap<Integer, UUID>() {{
-        for (int slot=1; slot<=80; slot++) {
-            put(slot, new UUID(0, direction.translateSlot(slot)));
-        }
-    }};
-    private final Map<String, LayoutPattern> layouts = loadLayouts();
+    private final LayoutConfiguration configuration;
+    private final SkinManager skinManager;
+    private final Map<Integer, UUID> uuids = new HashMap<>();
+    private final Map<String, LayoutPattern> layouts = new LinkedHashMap<>();
     private final Map<TabPlayer, String> sortedPlayers = Collections.synchronizedMap(new TreeMap<>(Comparator.comparing(p -> p.layoutData.sortingString)));
     private PlayerList playerList;
+    private PingSpoof pingSpoof;
+    @Getter private static boolean teamsEnabled;
 
-    private static boolean teamsEnabled;
-
-    public String getDefaultSkin(int slot) {
-        return defaultSkinHashMap.getOrDefault(slot, defaultSkin);
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<Integer, String> loadDefaultSkins() {
-        Map<Integer, String> defaultSkins = new HashMap<>();
-        ConfigurationFile config = config();
-        Map<String, Map<String, Object>> section = config.getConfigurationSection("layout.default-skins");
-        for (Entry<String, Map<String, Object>> entry : section.entrySet()) {
-            Map<String, Object> skinData = entry.getValue();
-            String skin = (String) skinData.getOrDefault("skin", defaultSkin);
-            for (String line : (List<String>) skinData.get("slots")) {
-                String[] arr = line.split("-");
-                int from = Integer.parseInt(arr[0]);
-                int to = arr.length == 1 ? from : Integer.parseInt(arr[1]);
-                for (int i = from; i<= to; i++) {
-                    defaultSkins.put(i, skin);
-                }
-            }
+    /**
+     * Constructs new instance.
+     *
+     * @param   configuration
+     *          Feature configuration
+     */
+    public LayoutManagerImpl(@NotNull LayoutConfiguration configuration) {
+        this.configuration = configuration;
+        skinManager = new SkinManager(configuration.getDefaultSkin(), configuration.getDefaultSkinHashMap());
+        for (int slot=1; slot<=80; slot++) {
+            uuids.put(slot, new UUID(0, configuration.getDirection().translateSlot(slot)));
         }
-        return defaultSkins;
+        for (Entry<String, LayoutDefinition> entry : configuration.getLayouts().entrySet()) {
+            LayoutPattern pattern = new LayoutPattern(this, entry.getKey(), entry.getValue());
+            layouts.put(pattern.getName(), pattern);
+            TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.layout(entry.getKey()), pattern);
+        }
     }
 
     @Override
     public void load() {
         playerList = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PLAYER_LIST);
+        pingSpoof = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PING_SPOOF);
         teamsEnabled = TAB.getInstance().getNameTagManager() != null;
-        TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.LAYOUT_LATENCY, new LayoutLatencyRefresher(this));
+        if (pingSpoof == null) TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.LAYOUT_LATENCY, new LayoutLatencyRefresher());
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
             onJoin(p);
         }
-    }
-
-    private @NotNull Direction parseDirection(@NotNull String value) {
-        try {
-            return Direction.valueOf(value);
-        } catch (IllegalArgumentException e) {
-            TAB.getInstance().getConfigHelper().startup().invalidLayoutDirection(value);
-            return Direction.COLUMNS;
-        }
-    }
-
-    private @NotNull Map<String, LayoutPattern> loadLayouts() {
-        Map<String, LayoutPattern> layoutMap = new LinkedHashMap<>();
-        for (Entry<Object, Map<String, Object>> layout : config().<Object, Map<String, Object>>getConfigurationSection("layout.layouts").entrySet()) {
-            LayoutPattern pattern = new LayoutPattern(this, layout.getKey().toString(), layout.getValue());
-            layoutMap.put(pattern.getName(), pattern);
-            TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.layout(layout.getKey().toString()), pattern);
-        }
-        return layoutMap;
     }
 
     @Override
@@ -105,8 +70,8 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
         LayoutPattern highest = getHighestLayout(p);
         if (highest != null) {
             LayoutView view = new LayoutView(this, highest, p);
+            p.layoutData.currentLayout = new LayoutData(view);
             view.send();
-            p.layoutData.view = view;
         }
         tickAllLayouts();
 
@@ -122,38 +87,38 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
         sortedPlayers.remove(p);
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
             if (all == p) continue;
-            if (all.layoutData.view != null) all.layoutData.view.tick();
+            if (all.layoutData.currentLayout != null) all.layoutData.currentLayout.view.tick();
         }
+    }
+
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Switching layouts";
     }
 
     @Override
     public void refresh(@NotNull TabPlayer p, boolean force) {
         LayoutPattern highest = getHighestLayout(p);
-        String highestName = highest == null ? null : highest.getName();
-        LayoutView current = p.layoutData.view;
-        String currentName = current == null ? null : current.getPattern().getName();
-        if (!Objects.equals(highestName, currentName)) {
-            if (current != null) current.destroy();
-            p.layoutData.view = null;
+        LayoutPattern current = p.layoutData.currentLayout == null ? null : p.layoutData.currentLayout.view.getPattern();
+        if (highest != current) {
+            if (current != null) p.layoutData.currentLayout.view.destroy();
+            p.layoutData.currentLayout = null;
             if (highest != null) {
                 LayoutView view = new LayoutView(this, highest, p);
+                p.layoutData.currentLayout = new LayoutData(view);
                 view.send();
-                p.layoutData.view = view;
             }
         }
-    }
-
-    @Override
-    @NotNull
-    public String getRefreshDisplayName() {
-        return "Switching layouts";
     }
 
     @Override
     public void unload() {
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
             if (p.getVersion().getMinorVersion() < 8 || p.isBedrockPlayer()) continue;
-            p.getTabList().removeEntries(uuids.values());
+            for (UUID id : uuids.values()) {
+                p.getTabList().removeEntry(id);
+            }
         }
     }
 
@@ -182,14 +147,8 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
     }
 
     @Override
-    @NotNull
-    public String getFeatureName() {
-        return "Layout";
-    }
-
-    @Override
     public void onTabListClear(@NotNull TabPlayer player) {
-        if (player.layoutData.view != null) player.layoutData.view.send();
+        if (player.layoutData.currentLayout != null) player.layoutData.currentLayout.view.send();
     }
 
     /**
@@ -197,7 +156,7 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
      */
     public void tickAllLayouts() {
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
-            if (all.layoutData.view != null) all.layoutData.view.tick();
+            if (all.layoutData.currentLayout != null) all.layoutData.currentLayout.view.tick();
         }
     }
 
@@ -206,9 +165,16 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
     // ------------------
 
     @Override
-    public Layout createNewLayout(String name) {
+    @NotNull
+    public Layout createNewLayout(@NonNull String name) {
         ensureActive();
-        return new LayoutPattern(this, name, Collections.emptyMap());
+        return new LayoutPattern(this, name, new LayoutDefinition(null, Collections.emptyList(), new LinkedHashMap<>()));
+    }
+
+    @Override
+    @Nullable
+    public Layout getLayout(@NonNull String name) {
+        return layouts.get(name);
     }
 
     @Override
@@ -229,29 +195,10 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
         refresh(p, false);
     }
 
-    @RequiredArgsConstructor
-    public enum Direction {
-
-        COLUMNS(slot -> slot),
-        ROWS(slot -> (slot-1)%4*20+(slot-((slot-1)%4))/4+1);
-
-        @NotNull private final Function<Integer, Integer> slotTranslator;
-
-        public int translateSlot(int slot) {
-            return slotTranslator.apply(slot);
-        }
-
-        public String getEntryName(TabPlayer viewer, int slot) {
-            if (viewer.getVersion().getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId()) {
-                if (teamsEnabled) {
-                    return "|slot_" + (10+slotTranslator.apply(slot));
-                } else {
-                    return " slot_" + (10+slotTranslator.apply(slot));
-                }
-            } else {
-                return "";
-            }
-        }
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "Layout";
     }
 
     /**
@@ -264,10 +211,29 @@ public class LayoutManagerImpl extends TabFeature implements LayoutManager, Join
 
         /** Layout the player can currently see */
         @Nullable
-        public LayoutView view;
+        public LayoutData currentLayout;
 
         /** Layout forced via API */
         @Nullable
         public LayoutPattern forcedLayout;
+    }
+
+    /**
+     * Data about a displayed layout.
+     */
+    @RequiredArgsConstructor
+    public static class LayoutData {
+
+        /** Layout view this data belongs to */
+        @NotNull
+        public final LayoutView view;
+
+        /** Player's properties for fixed slot texts */
+        @NotNull
+        public final Map<FixedSlot, Property> fixedSlotTexts = new IdentityHashMap<>();
+
+        /** Player's properties for fixed slot skins */
+        @NotNull
+        public final Map<FixedSlot, Property> fixedSlotSkins = new IdentityHashMap<>();
     }
 }

@@ -107,7 +107,7 @@ public class ReflectionUtils {
      * Returns method with specified possible names and parameters. Throws exception if no such method was found
      *
      * @param   clazz
-     *          lass to get method from
+     *          class to get method from
      * @param   names
      *          possible method names
      * @param   parameterTypes
@@ -249,25 +249,6 @@ public class ReflectionUtils {
 
         }
         return list.get(0);
-    }
-
-    /**
-     * Returns the only field in the class. If it has more, exception is thrown.
-     *
-     * @param   clazz
-     *          Class to get field of
-     * @return  The one and only field of the class
-     * @throws  IllegalStateException
-     *          If class has more than 1 field or has none
-     */
-    @NotNull
-    public static Field getOnlyField(@NotNull Class<?> clazz) {
-        Field[] fields = Arrays.stream(clazz.getDeclaredFields()).filter(f -> !Modifier.isStatic(f.getModifiers())).toArray(Field[]::new);
-        if (fields.length != 1) {
-            throw new IllegalStateException("Class " + clazz.getName() + " is expected to have 1 field, but has " +
-                    fields.length + ": " + Arrays.stream(fields).map(Field::getName).collect(Collectors.toList()));
-        }
-        return setAccessible(fields[0]);
     }
 
     /**

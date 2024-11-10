@@ -3,19 +3,20 @@ package me.neznamy.tab.platforms.velocity;
 import com.velocitypowered.api.proxy.player.TabListEntry;
 import com.velocitypowered.api.util.GameProfile;
 import lombok.NonNull;
-import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * TabList implementation for Velocity using its API.
  */
-public class VelocityTabList extends TabList<VelocityTabPlayer, Component> {
+public class VelocityTabList extends TrackedTabList<VelocityTabPlayer, Component> {
 
     /**
      * Constructs new instance.
@@ -33,7 +34,7 @@ public class VelocityTabList extends TabList<VelocityTabPlayer, Component> {
     }
 
     @Override
-    public void updateDisplayName0(@NonNull UUID entry, @Nullable Component displayName) {
+    public void updateDisplayName(@NonNull UUID entry, @Nullable Component displayName) {
         player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> e.setDisplayName(displayName));
     }
 
@@ -53,20 +54,30 @@ public class VelocityTabList extends TabList<VelocityTabPlayer, Component> {
     }
 
     @Override
-    public void addEntry0(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable Component displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> e.setListOrder(listOrder));
+    }
+
+    @Override
+    public void updateHat(@NonNull UUID entry, boolean showHat) {
+        // TODO once velocity adds it
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable Component displayName, int listOrder, boolean showHat) {
+        GameProfile profile = new GameProfile(id, name, skin == null ? Collections.emptyList() : Collections.singletonList(
+                        new GameProfile.Property(TEXTURES_PROPERTY, skin.getValue(), Objects.requireNonNull(skin.getSignature()))));
         TabListEntry e = TabListEntry.builder()
                 .tabList(player.getPlayer().getTabList())
-                .profile(new GameProfile(
-                        id,
-                        name,
-                        skin == null ? Collections.emptyList() : Collections.singletonList(
-                                new GameProfile.Property(TEXTURES_PROPERTY, skin.getValue(), Objects.requireNonNull(skin.getSignature())))
-                ))
-                .listed(listed)
+                .profile(profile)
+                .displayName(displayName)
                 .latency(latency)
                 .gameMode(gameMode)
-                .displayName(displayName)
+                .listed(listed)
+                .listOrder(listOrder)
                 .build();
+        // TODO showHat once velocity adds it
 
         // Remove entry because:
         // #1 - If player is 1.8 - 1.19.2, KeyedVelocityTabList#addEntry will throw IllegalArgumentException
@@ -80,8 +91,8 @@ public class VelocityTabList extends TabList<VelocityTabPlayer, Component> {
     }
 
     @Override
-    public void setPlayerListHeaderFooter0(@NonNull Component header, @NonNull Component footer) {
-        player.getPlayer().sendPlayerListHeaderAndFooter(header, footer);
+    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+        player.getPlayer().sendPlayerListHeaderAndFooter(header.toAdventure(player.getVersion()), footer.toAdventure(player.getVersion()));
     }
 
     @Override
@@ -91,14 +102,11 @@ public class VelocityTabList extends TabList<VelocityTabPlayer, Component> {
 
     @Override
     public void checkDisplayNames() {
-        for (TabPlayer target : TAB.getInstance().getOnlinePlayers()) {
-            player.getPlayer().getTabList().getEntry(target.getUniqueId()).ifPresent(entry -> {
-                Component expectedComponent = getExpectedDisplayName(target);
-                if (expectedComponent != null && entry.getDisplayNameComponent().orElse(null) != expectedComponent) {
-                    displayNameWrong(entry.getProfile().getName(), player);
-                    entry.setDisplayName(expectedComponent);
-                }
-            });
+        for (TabListEntry entry : player.getPlayer().getTabList().getEntries()) {
+            Component expectedComponent = getExpectedDisplayNames().get(entry.getProfile().getId());
+            if (expectedComponent != null && entry.getDisplayNameComponent().orElse(null) != expectedComponent) {
+                entry.setDisplayName(expectedComponent);
+            }
         }
     }
 }

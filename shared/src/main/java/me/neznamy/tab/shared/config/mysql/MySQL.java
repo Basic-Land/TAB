@@ -22,21 +22,16 @@ import org.jetbrains.annotations.Nullable;
 public class MySQL {
 
     private Connection con;
-    @NotNull private final String host;
-    private final int port;
-    @NotNull private final String database;
-    @NotNull private final String username;
-    @NotNull private final String password;
-    private final boolean useSSL;
+    @NotNull private final MySQLConfiguration configuration;
 
     public void openConnection() throws SQLException {
         if (isConnected()) return;
         Properties properties = new Properties();
-        properties.setProperty("user", username);
-        properties.setProperty("password", password);
-        properties.setProperty("useSSL", String.valueOf(useSSL));
+        properties.setProperty("user", configuration.getUsername());
+        properties.setProperty("password", configuration.getPassword());
+        properties.setProperty("useSSL", String.valueOf(configuration.isUseSSL()));
         properties.setProperty("characterEncoding", "UTF-8");
-        con = DriverManager.getConnection(String.format("jdbc:mysql://%s:%d/%s", host, port, database), properties);
+        con = DriverManager.getConnection(String.format("jdbc:mysql://%s:%d/%s", configuration.getHost(), configuration.getPort(), configuration.getDatabase()), properties);
         TAB.getInstance().getPlatform().logInfo(TabComponent.fromColoredText(EnumChatFormat.GREEN + "Successfully connected to MySQL"));
     }
     

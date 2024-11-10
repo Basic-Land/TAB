@@ -1,12 +1,16 @@
 package me.neznamy.tab.shared.features.layout;
 
-import java.util.*;
-
 import lombok.Getter;
-import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition.GroupPattern;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ParentGroup {
 
@@ -19,7 +23,7 @@ public class ParentGroup {
 
     public ParentGroup(@NotNull LayoutView layout, @NotNull GroupPattern pattern, @NotNull TabPlayer viewer) {
         this.layout = layout;
-        condition = pattern.getCondition();
+        condition = Condition.getCondition(pattern.getCondition());
         slots = pattern.getSlots();
         this.viewer = viewer;
         for (int slot : slots) {
@@ -36,8 +40,8 @@ public class ParentGroup {
         remainingPlayers.removeAll(meetingCondition);
         for (int index = 0; index < slots.length; index++) {
             int slot = slots[index];
-            if (layout.getManager().isRemainingPlayersTextEnabled() && index == slots.length - 1 && playerSlots.size() < meetingCondition.size()) {
-                playerSlots.get(slot).setText(String.format(layout.getManager().getRemainingPlayersText(), meetingCondition.size() - playerSlots.size() + 1));
+            if (layout.getManager().getConfiguration().isRemainingPlayersTextEnabled() && index == slots.length - 1 && playerSlots.size() < meetingCondition.size()) {
+                playerSlots.get(slot).setText(String.format(layout.getManager().getConfiguration().getRemainingPlayersText(), meetingCondition.size() - playerSlots.size() + 1));
                 break;
             }
             if (meetingCondition.size() > index) {
@@ -51,6 +55,8 @@ public class ParentGroup {
     }
     
     public void sendSlots() {
-        playerSlots.values().forEach(s -> viewer.getTabList().addEntry(s.getSlot(viewer)));
+        for (PlayerSlot s : playerSlots.values()) {
+            viewer.getTabList().addEntry(s.getSlot(viewer));
+        }
     }
 }

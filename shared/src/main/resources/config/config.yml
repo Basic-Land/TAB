@@ -50,18 +50,6 @@ scoreboard-teams:
   case-sensitive-sorting: true
   can-see-friendly-invisibles: false
   disable-condition: '%world%=disabledworld'
-  # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Unlimited-nametag-mode
-  unlimited-nametag-mode:
-    enabled: false
-    disable-on-boats: true
-    disable-condition: '%world%=disabledworld'
-    dynamic-lines:
-      - abovename
-      - nametag #the original one, combination of tagprefix + customtagname + tagsuffix
-      - belowname
-      - another
-    static-lines:
-      myCustomLine: 0.66
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Playerlist-Objective
 playerlist-objective:
@@ -73,10 +61,10 @@ playerlist-objective:
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Belowname
 belowname-objective:
   enabled: false
-  number: "%health%"
-  text: "&cHealth"
-  fancy-display-players: "&c%health%"
-  fancy-display-default: "NPC"
+  value: "%health%"
+  title: "&cHealth"
+  fancy-value: "&c%health%"
+  fancy-value-default: "NPC"
   disable-condition: '%world%=disabledworld'
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Spectator-fix
@@ -105,7 +93,6 @@ scoreboard:
   use-numbers: true
   static-number: 0
   delay-on-join-milliseconds: 0
-  respect-other-plugins: true
   scoreboards:
     scoreboard-1.20.3+:
       title: "<#E0B11E>MyServer</#FF0000>"
@@ -143,7 +130,7 @@ scoreboard:
 layout:
   enabled: false
   direction: COLUMNS
-  default-skin: mineskin:1753261242
+  default-skin: mineskin:383747683
   enable-remaining-players-text: true
   remaining-players-text: '... and %s more'
   empty-slot-ping-value: 1000
@@ -273,6 +260,7 @@ global-playerlist:
   display-others-as-spectators: false
   display-vanished-players-as-spectators: true
   isolate-unlisted-servers: false
+  update-latency: false
   spy-servers:
     - spyserver1
     - spyserver2
@@ -291,3 +279,6 @@ use-bukkit-permissions-manager: false
 # If you experience tablist formatting not working, toggle this option (set it to opposite value)
 # Only affects proxies with online mode enabled
 use-online-uuid-in-tablist: true
+
+# If enabled and RedisBungee plugin is found, hook is enabled to work with players on all proxies
+enable-redisbungee-support: true

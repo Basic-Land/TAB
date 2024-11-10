@@ -1,9 +1,10 @@
 package me.neznamy.tab.platforms.fabric;
 
+import eu.pb4.placeholders.api.PlaceholderContext;
+import eu.pb4.placeholders.api.Placeholders;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import me.lucko.fabric.api.permissions.v0.Permissions;
-import me.neznamy.tab.platforms.fabric.features.FabricNameTagX;
+import me.neznamy.tab.platforms.fabric.hook.FabricTabExpansion;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
@@ -11,14 +12,17 @@ import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.chat.StructuredComponent;
 import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
+import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
-import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
-import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import me.neznamy.tab.shared.platform.BossBar;
+import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.platform.TabList;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,6 +30,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Platform implementation for Fabric
@@ -37,22 +43,36 @@ public class FabricPlatform implements BackendPlatform {
     /** Minecraft server reference */
     private final MinecraftServer server;
 
-    /** Flag tracking presence of permission API */
-    private final boolean fabricPermissionsApi = FabricLoader.getInstance().isModLoaded("fabric-permissions-api-v0");
-
     /** Server version */
     private final ProtocolVersion serverVersion = ProtocolVersion.fromFriendlyName(FabricTAB.minecraftVersion);
 
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
-        registerDummyPlaceholder(identifier);
+        if (!FabricLoader.getInstance().isModLoaded("placeholder-api")) {
+            registerDummyPlaceholder(identifier);
+            return;
+        }
+
+        PlaceholderManagerImpl manager = TAB.getInstance().getPlaceholderManager();
+        int refresh = manager.getRefreshInterval(identifier);
+        manager.registerPlayerPlaceholder(identifier, refresh,
+                p -> Placeholders.parseText(
+                            FabricMultiVersion.newTextComponent(identifier),
+                            PlaceholderContext.of((ServerPlayer) p.getPlayer())
+                        ).getString()
+        );
     }
 
     @Override
     public void loadPlayers() {
-        for (ServerPlayer player : PlayerLookup.all(server)) {
+        for (ServerPlayer player : getOnlinePlayers()) {
             TAB.getInstance().addPlayer(new FabricTabPlayer(this, player));
         }
+    }
+
+    private Collection<ServerPlayer> getOnlinePlayers() {
+        // It's nullable on startup
+        return server.getPlayerList() == null ? Collections.emptyList() : server.getPlayerList().getPlayers();
     }
 
     @Override
@@ -63,19 +83,15 @@ public class FabricPlatform implements BackendPlatform {
 
     @Override
     @NotNull
-    public NameTag getUnlimitedNameTags() {
-        return new FabricNameTagX();
-    }
-
-    @Override
-    @NotNull
     public TabExpansion createTabExpansion() {
+        if (FabricLoader.getInstance().isModLoaded("placeholder-api"))
+            return new FabricTabExpansion();
         return new EmptyTabExpansion();
     }
 
     @Override
     @Nullable
-    public TabFeature getPerWorldPlayerList() {
+    public TabFeature getPerWorldPlayerList(@NotNull PerWorldPlayerListConfiguration configuration) {
         return null;
     }
 
@@ -117,6 +133,7 @@ public class FabricPlatform implements BackendPlatform {
     }
 
     @Override
+    @NotNull
     public Component convertComponent(@NotNull TabComponent component, boolean modern) {
         if (component instanceof SimpleComponent) return FabricMultiVersion.newTextComponent(((SimpleComponent) component).getText());
 
@@ -131,6 +148,34 @@ public class FabricPlatform implements BackendPlatform {
     }
 
     @Override
+    @NotNull
+    public Scoreboard createScoreboard(@NotNull TabPlayer player) {
+        return new FabricScoreboard((FabricTabPlayer) player);
+    }
+
+    @Override
+    @NotNull
+    public BossBar createBossBar(@NotNull TabPlayer player) {
+        return new FabricBossBar((FabricTabPlayer) player);
+    }
+
+    @Override
+    @NotNull
+    public TabList createTabList(@NotNull TabPlayer player) {
+        return new FabricTabList((FabricTabPlayer) player);
+    }
+
+    @Override
+    public boolean supportsNumberFormat() {
+        return serverVersion.getNetworkId() >= ProtocolVersion.V1_20_3.getNetworkId();
+    }
+
+    @Override
+    public boolean supportsListOrder() {
+        return serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId();
+    }
+
+    @Override
     public double getTPS() {
         return -1; // Not available
     }
@@ -138,19 +183,5 @@ public class FabricPlatform implements BackendPlatform {
     @Override
     public double getMSPT() {
         return FabricMultiVersion.getMSPT(server);
-    }
-
-    /**
-     * Checks for permission and returns the result.
-     *
-     * @param   source
-     *          Source to check permission of
-     * @param   permission
-     *          Permission node to check
-     * @return  {@code true} if has permission, {@code false} if not
-     */
-    public boolean hasPermission(@NotNull CommandSourceStack source, @NotNull String permission) {
-        if (source.hasPermission(4)) return true;
-        return fabricPermissionsApi && Permissions.check(source, permission);
     }
 }

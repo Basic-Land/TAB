@@ -5,7 +5,6 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -18,20 +17,15 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Abstract class representing a subcommand of "/tab" command
  */
+@Getter
 @RequiredArgsConstructor
 public abstract class SubCommand {
 
-    //all properties assignable with a command
-    @Getter @Setter private static List<String> allProperties = Arrays.asList(TabConstants.Property.TABPREFIX, TabConstants.Property.TABSUFFIX, TabConstants.Property.TAGPREFIX, TabConstants.Property.TAGSUFFIX, TabConstants.Property.CUSTOMTABNAME, TabConstants.Property.ABOVENAME, TabConstants.Property.BELOWNAME, TabConstants.Property.CUSTOMTAGNAME);
-
-    //properties that require unlimited NameTag mode
-    protected final List<String> extraProperties = Arrays.asList(TabConstants.Property.ABOVENAME, TabConstants.Property.BELOWNAME, TabConstants.Property.CUSTOMTAGNAME);
-
     //subcommands of this command
-    @Getter private final Map<String, SubCommand> subcommands = new HashMap<>();
+    private final Map<String, SubCommand> subcommands = new HashMap<>();
 
     //name of this subcommand
-    @Getter private final String name;
+    private final String name;
 
     //permission required to run this command
     private final String permission;
@@ -82,7 +76,9 @@ public abstract class SubCommand {
      *          messages to send
      */
     public void sendMessages(@Nullable TabPlayer sender, @NotNull List<String> messages) {
-        messages.forEach(m -> sendMessage(sender, m));
+        for (String message : messages) {
+            sendMessage(sender, message);
+        }
     }
 
     /**

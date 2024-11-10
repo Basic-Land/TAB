@@ -4,18 +4,22 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.Limitations;
+import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
+import me.neznamy.tab.shared.platform.decorators.SafeScoreboard.Team;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.Scoreboard.TeamAction;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.BiConsumerWithException;
 import me.neznamy.tab.shared.util.ReflectionUtils;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -24,11 +28,11 @@ import java.util.List;
 @SuppressWarnings("unchecked")
 public class TeamPacketData {
 
-    /** First version with modern team data using components */
-    private final int MODERN_TEAM_DATA_VERSION = 13;
+    /** Flag tracking if server uses modern team data using components */
+    private final boolean MODERN_TEAM_DATA_VERSION = BukkitReflection.getMinorVersion() >= 13;
 
-    /** First version with static constructor-like methods */
-    private final int STATIC_CONSTRUCTOR_VERSION = 17;
+    /** Flag tracking if server uses static constructor-like methods */
+    private final boolean STATIC_CONSTRUCTOR_VERSION = BukkitReflection.getMinorVersion() >= 17;
 
     private final Object emptyScoreboard;
     @Getter private final Class<?> TeamPacketClass;
@@ -39,7 +43,6 @@ public class TeamPacketData {
     private final Field TeamPacket_NAME;
     private final Field TeamPacket_ACTION;
     private final Field TeamPacket_PLAYERS;
-    private final Method ScoreboardTeam_getPlayerNameSet;
     private final Method ScoreboardTeam_setPrefix;
     private final Method ScoreboardTeam_setSuffix;
     private Method ScoreboardTeam_setColor;
@@ -61,7 +64,7 @@ public class TeamPacketData {
         int minorVersion = BukkitReflection.getMinorVersion();
         Class<?> Scoreboard = BukkitReflection.getClass("world.scores.Scoreboard", "Scoreboard");
         Class<?> scoreboardTeam = BukkitReflection.getClass("world.scores.PlayerTeam", "world.scores.ScoreboardTeam", "ScoreboardTeam");
-        Class<?> enumChatFormatClass = BukkitReflection.getClass("ChatFormatting", "EnumChatFormat", "EnumChatFormat");
+        Class<?> enumChatFormatClass = BukkitReflection.getClass("ChatFormatting", "EnumChatFormat");
         TeamPacketClass = BukkitReflection.getClass(
                 "network.protocol.game.ClientboundSetPlayerTeamPacket", // Mojang mapped
                 "network.protocol.game.PacketPlayOutScoreboardTeam", // Bukkit 1.17+
@@ -78,7 +81,6 @@ public class TeamPacketData {
             TeamPacket_ACTION = intFields.get(0);
         }
         TeamPacket_PLAYERS = ReflectionUtils.getOnlyField(TeamPacketClass, Collection.class);
-        ScoreboardTeam_getPlayerNameSet = ReflectionUtils.getOnlyMethod(scoreboardTeam, Collection.class);
         chatFormats = (Enum<?>[]) enumChatFormatClass.getMethod("values").invoke(null);
         ScoreboardTeam_setAllowFriendlyFire = ReflectionUtils.getMethod(
                 scoreboardTeam,
@@ -92,7 +94,7 @@ public class TeamPacketData {
         );
         if (minorVersion >= 8) loadVisibility(scoreboardTeam);
         if (minorVersion >= 9) loadCollision(scoreboardTeam);
-        if (minorVersion >= MODERN_TEAM_DATA_VERSION) {
+        if (MODERN_TEAM_DATA_VERSION) {
             Class<?> Component = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent", "IChatBaseComponent");
             ScoreboardTeam_setColor = ReflectionUtils.getOnlyMethod(scoreboardTeam, void.class, enumChatFormatClass);
             ScoreboardTeam_setPrefix = ReflectionUtils.getMethod(
@@ -117,7 +119,7 @@ public class TeamPacketData {
                     String.class
             );
         }
-        if (minorVersion >= STATIC_CONSTRUCTOR_VERSION) {
+        if (STATIC_CONSTRUCTOR_VERSION) {
             TeamPacketConstructor_of = ReflectionUtils.getOnlyMethod(TeamPacketClass, TeamPacketClass, scoreboardTeam);
             TeamPacketConstructor_ofBoolean = ReflectionUtils.getOnlyMethod(TeamPacketClass, TeamPacketClass, scoreboardTeam, boolean.class);
         } else {
@@ -156,38 +158,21 @@ public class TeamPacketData {
      *
      * @param   team
      *          Team to register
-     * @param   prefix
-     *          Team prefix for 1.12-
-     * @param   prefixComponent
-     *          Team prefix component for 1.13+
-     * @param   suffix
-     *          Team suffix for 1.12-
-     * @param   suffixComponent
-     *          Team suffix component for 1.13+
-     * @param   visibility
-     *          Nametag visibility rule
-     * @param   collision
-     *          Player collision rule
-     * @param   players
-     *          Team members
-     * @param   options
-     *          Team flags
-     * @param   color
-     *          Team color for 1.13+
+     * @param   clientVersion
+     *          Version to create the values for
      * @return  Register team packet with specified parameters
      */
     @SneakyThrows
-    public Object registerTeam(@NonNull Object team, @NonNull String prefix, @Nullable Object prefixComponent,
-                               @NonNull String suffix, @Nullable Object suffixComponent,
-                               @NonNull Scoreboard.NameVisibility visibility, @NonNull Scoreboard.CollisionRule collision,
-                               @NonNull Collection<String> players, int options, @NonNull EnumChatFormat color) {
-        updateTeamData(team, prefix, prefixComponent, suffix, suffixComponent, visibility, collision, options, color);
-        ((Collection<String>) ScoreboardTeam_getPlayerNameSet.invoke(team)).addAll(players);
-        if (BukkitReflection.getMinorVersion() >= STATIC_CONSTRUCTOR_VERSION) {
-            return TeamPacketConstructor_ofBoolean.invoke(null, team, true);
+    public Object registerTeam(@NonNull Team team, @NotNull ProtocolVersion clientVersion) {
+        updateTeamData(team, clientVersion);
+        Object packet;
+        if (STATIC_CONSTRUCTOR_VERSION) {
+            packet = TeamPacketConstructor_ofBoolean.invoke(null, team.getPlatformTeam(), true);
         } else {
-            return newTeamPacket.newInstance(team, TeamAction.CREATE);
+            packet = newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.CREATE);
         }
+        TeamPacket_PLAYERS.set(packet, team.getPlayers());
+        return packet;
     }
 
     /**
@@ -198,11 +183,11 @@ public class TeamPacketData {
      * @return  Packet for unregistering team
      */
     @SneakyThrows
-    public Object unregisterTeam(@NonNull Object team) {
-        if (BukkitReflection.getMinorVersion() >= STATIC_CONSTRUCTOR_VERSION) {
-            return TeamPacketConstructor_of.invoke(null, team);
+    public Object unregisterTeam(@NonNull Team team) {
+        if (STATIC_CONSTRUCTOR_VERSION) {
+            return TeamPacketConstructor_of.invoke(null, team.getPlatformTeam());
         } else {
-            return newTeamPacket.newInstance(team, TeamAction.REMOVE);
+            return newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.REMOVE);
         }
     }
 
@@ -211,34 +196,17 @@ public class TeamPacketData {
      *
      * @param   team
      *          Team to update
-     * @param   prefix
-     *          Team prefix for 1.12-
-     * @param   prefixComponent
-     *          Team prefix component for 1.13+
-     * @param   suffix
-     *          Team suffix for 1.12-
-     * @param   suffixComponent
-     *          Team suffix component for 1.13+
-     * @param   visibility
-     *          Nametag visibility rule
-     * @param   collision
-     *          Player collision rule
-     * @param   options
-     *          Team flags
-     * @param   color
-     *          Team color for 1.13+
+     * @param   clientVersion
+     *          Version to create the values for
      * @return  Update team packet with specified parameters
      */
     @SneakyThrows
-    public Object updateTeam(@NonNull Object team, @NonNull String prefix, @Nullable Object prefixComponent,
-                             @NonNull String suffix, @Nullable Object suffixComponent,
-                             @NonNull Scoreboard.NameVisibility visibility, @NonNull Scoreboard.CollisionRule collision,
-                             int options, @NonNull EnumChatFormat color) {
-        updateTeamData(team, prefix, prefixComponent, suffix, suffixComponent, visibility, collision, options, color);
-        if (BukkitReflection.getMinorVersion() >= STATIC_CONSTRUCTOR_VERSION) {
-            return TeamPacketConstructor_ofBoolean.invoke(null, team, false);
+    public Object updateTeam(@NonNull Team team, @NotNull ProtocolVersion clientVersion) {
+        updateTeamData(team, clientVersion);
+        if (STATIC_CONSTRUCTOR_VERSION) {
+            return TeamPacketConstructor_ofBoolean.invoke(null, team.getPlatformTeam(), false);
         } else {
-            return newTeamPacket.newInstance(team, TeamAction.UPDATE);
+            return newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.UPDATE);
         }
     }
 
@@ -247,40 +215,30 @@ public class TeamPacketData {
      *
      * @param   team
      *          Team to update
-     * @param   prefix
-     *          Team prefix for 1.12-
-     * @param   prefixComponent
-     *          Team prefix component for 1.13+
-     * @param   suffix
-     *          Team suffix for 1.12-
-     * @param   suffixComponent
-     *          Team suffix component for 1.13+
-     * @param   visibility
-     *          Nametag visibility rule
-     * @param   collision
-     *          Player collision rule
-     * @param   options
-     *          Team flags
-     * @param   color
-     *          Team color for 1.13+
+     * @param   clientVersion
+     *          Version to create the values for
      */
     @SneakyThrows
-    private void updateTeamData(@NonNull Object team, @NonNull String prefix, @Nullable Object prefixComponent,
-                                  @NonNull String suffix, @Nullable Object suffixComponent,
-                                  @NonNull Scoreboard.NameVisibility visibility, @NonNull Scoreboard.CollisionRule collision,
-                                  int options, @NonNull EnumChatFormat color) {
-        ScoreboardTeam_setAllowFriendlyFire.invoke(team, (options & 0x1) > 0);
-        ScoreboardTeam_setCanSeeFriendlyInvisibles.invoke(team, (options & 0x2) > 0);
-        if (BukkitReflection.getMinorVersion() >= MODERN_TEAM_DATA_VERSION) {
-            ScoreboardTeam_setPrefix.invoke(team, prefixComponent);
-            ScoreboardTeam_setSuffix.invoke(team, suffixComponent);
-            ScoreboardTeam_setColor.invoke(team, chatFormats[color.ordinal()]);
+    private void updateTeamData(@NonNull Team team, @NotNull ProtocolVersion clientVersion) {
+        Object nmsTeam = team.getPlatformTeam();
+        ScoreboardTeam_setAllowFriendlyFire.invoke(nmsTeam, (team.getOptions() & 0x1) > 0);
+        ScoreboardTeam_setCanSeeFriendlyInvisibles.invoke(nmsTeam, (team.getOptions() & 0x2) > 0);
+        if (MODERN_TEAM_DATA_VERSION) {
+            ScoreboardTeam_setPrefix.invoke(nmsTeam, (Object) team.getPrefix().convert(clientVersion));
+            ScoreboardTeam_setSuffix.invoke(nmsTeam, (Object) team.getSuffix().convert(clientVersion));
+            ScoreboardTeam_setColor.invoke(nmsTeam, chatFormats[team.getColor().ordinal()]);
         } else {
-            ScoreboardTeam_setPrefix.invoke(team, prefix);
-            ScoreboardTeam_setSuffix.invoke(team, suffix);
+            String prefix = team.getPrefix().toLegacyText();
+            String suffix = team.getSuffix().toLegacyText();
+            if (clientVersion.getMinorVersion() < 13) {
+                prefix = SafeScoreboard.cutTo(prefix, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
+                suffix = SafeScoreboard.cutTo(suffix, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
+            }
+            ScoreboardTeam_setPrefix.invoke(nmsTeam, prefix);
+            ScoreboardTeam_setSuffix.invoke(nmsTeam, suffix);
         }
-        setVisibility.accept(team, visibility);
-        setCollision.accept(team, collision);
+        setVisibility.accept(nmsTeam, team.getVisibility());
+        setCollision.accept(nmsTeam, team.getCollision());
     }
 
     /**
@@ -291,6 +249,7 @@ public class TeamPacketData {
      * @return  Team with specified name
      */
     @SneakyThrows
+    @NotNull
     public Object createTeam(@NonNull String name) {
         return newScoreboardTeam.newInstance(emptyScoreboard, name);
     }
@@ -309,7 +268,9 @@ public class TeamPacketData {
         if (!TeamPacketClass.isInstance(packet)) return;
         int action = TeamPacket_ACTION.getInt(packet);
         if (action == TeamAction.UPDATE) return;
-        TeamPacket_PLAYERS.set(packet, player.getScoreboard().onTeamPacket(
-                action, (String) TeamPacket_NAME.get(packet), (Collection<String>) TeamPacket_PLAYERS.get(packet)));
+        Collection<String> players = (Collection<String>) TeamPacket_PLAYERS.get(packet);
+        if (players == null) players = Collections.emptyList();
+        TeamPacket_PLAYERS.set(packet, ((SafeScoreboard<?>)player.getScoreboard()).onTeamPacket(
+                action, (String) TeamPacket_NAME.get(packet), players));
     }
 }

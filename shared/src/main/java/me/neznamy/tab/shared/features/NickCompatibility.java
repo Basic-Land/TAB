@@ -1,23 +1,25 @@
 package me.neznamy.tab.shared.features;
 
-import java.util.Collections;
-import java.util.UUID;
-
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.TabConstants.CpuUsageCategory;
+import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.cpu.CpuManager;
+import me.neznamy.tab.shared.cpu.TimedCaughtTask;
+import me.neznamy.tab.shared.features.belowname.BelowName;
 import me.neznamy.tab.shared.features.nametags.NameTag;
+import me.neznamy.tab.shared.features.playerlistobjective.YellowNumber;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
-import me.neznamy.tab.shared.features.redis.feature.RedisBelowName;
-import me.neznamy.tab.shared.features.redis.feature.RedisTeams;
-import me.neznamy.tab.shared.features.redis.feature.RedisYellowNumber;
 import me.neznamy.tab.shared.features.types.EntryAddListener;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Collections;
+import java.util.UUID;
 
 /**
  * This feature attempts to provide compatibility with nick/disguise plugins by
@@ -30,9 +32,6 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
     @Nullable private final BelowName belowname = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.BELOW_NAME);
     @Nullable private final YellowNumber yellownumber = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.YELLOW_NUMBER);
     @Nullable private final RedisSupport redis = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.REDIS_BUNGEE);
-    @Nullable private final RedisTeams redisTeams = redis == null ? null : redis.getRedisTeams();
-    @Nullable private final RedisYellowNumber redisYellowNumber = redis == null ? null : redis.getRedisYellowNumber();
-    @Nullable private final RedisBelowName redisBelowName = redis == null ? null : redis.getRedisBelowName();
 
     public synchronized void onEntryAdd(TabPlayer packetReceiver, UUID id, String name) {
         TabPlayer packetPlayer = TAB.getInstance().getPlayerByTabListUUID(id);
@@ -66,56 +65,50 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
      *          Player to update in all features
      */
     public void processNameChange(@NotNull TabPlayer player) {
-        TAB.getInstance().getCPUManager().runMeasuredTask(getFeatureName(), TabConstants.CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY, () -> {
-            if (nameTags != null && !nameTags.hasTeamHandlingPaused(player))
-                for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
-                    String prefix = player.getProperty(TabConstants.Property.TAGPREFIX).getFormat(viewer);
+        CpuManager cpu = TAB.getInstance().getCpu();
+        cpu.getProcessingThread().execute(new TimedCaughtTask(cpu, () -> {
+            if (nameTags != null && !player.teamData.isDisabled())
+                for (TabPlayer viewer : nameTags.getOnlinePlayers().getPlayers()) {
+                    TabComponent prefix = nameTags.getCache().get(player.teamData.prefix.getFormat(viewer));
                     viewer.getScoreboard().unregisterTeam(player.sortingData.getShortTeamName());
                     viewer.getScoreboard().registerTeam(
                             player.sortingData.getShortTeamName(),
                             prefix,
-                            player.getProperty(TabConstants.Property.TAGSUFFIX).getFormat(viewer),
+                            nameTags.getCache().get(player.teamData.suffix.getFormat(viewer)),
                             nameTags.getTeamVisibility(player, viewer) ? Scoreboard.NameVisibility.ALWAYS : Scoreboard.NameVisibility.NEVER,
                             player.teamData.getCollisionRule() ? Scoreboard.CollisionRule.ALWAYS : Scoreboard.CollisionRule.NEVER,
                             Collections.singletonList(player.getNickname()),
                             nameTags.getTeamOptions(),
-                            EnumChatFormat.lastColorsOf(prefix)
+                            prefix.getLastColor().getLegacyColor()
                     );
                 }
-            if (belowname != null) {
-                int value = belowname.getValue(player);
-                for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
-                    belowname.setScore(viewer, player, value, player.getProperty(belowname.getFANCY_FORMAT_PROPERTY()).get());
-                }
-            }
-            if (yellownumber != null) {
-                int value = yellownumber.getValueNumber(player);
-                for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers())
-                    yellownumber.setScore(viewer, player, value, player.getProperty(yellownumber.getPROPERTY_VALUE_FANCY()).get());
-            }
-        });
+            if (belowname != null) belowname.processNicknameChange(player);
+            if (yellownumber != null) yellownumber.processNicknameChange(player);
+        }, getFeatureName(), CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY));
     }
 
     private void processNameChange(RedisPlayer player) {
-        TAB.getInstance().getCPUManager().runMeasuredTask(getFeatureName(), TabConstants.CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY, () -> {
-            if (redisTeams != null) {
+        CpuManager cpu = TAB.getInstance().getCpu();
+        cpu.getProcessingThread().execute(new TimedCaughtTask(cpu, () -> {
+            if (nameTags != null) {
                 String teamName = player.getTeamName();
-                for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
+                for (TabPlayer viewer : nameTags.getOnlinePlayers().getPlayers()) {
                     viewer.getScoreboard().unregisterTeam(teamName);
+                    TabComponent prefix = nameTags.getCache().get(player.getTagPrefix());
                     viewer.getScoreboard().registerTeam(
                             teamName,
-                            player.getTagPrefix(),
-                            player.getTagSuffix(),
+                            prefix,
+                            nameTags.getCache().get(player.getTagSuffix()),
                             player.getNameVisibility(),
                             Scoreboard.CollisionRule.ALWAYS,
                             Collections.singletonList(player.getNickname()),
-                            redisTeams.getNameTags().getTeamOptions(),
-                            EnumChatFormat.lastColorsOf(player.getTagPrefix())
+                            nameTags.getTeamOptions(),
+                            prefix.getLastColor().getLegacyColor()
                     );
                 }
             }
-            if (redisBelowName != null) {
-                for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            if (belowname != null) {
+                for (TabPlayer all : belowname.getOnlinePlayers().getPlayers()) {
                     all.getScoreboard().setScore(
                             BelowName.OBJECTIVE_NAME,
                             player.getNickname(),
@@ -125,8 +118,8 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
                     );
                 }
             }
-            if (redisYellowNumber != null) {
-                for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            if (yellownumber != null) {
+                for (TabPlayer all : yellownumber.getOnlinePlayers().getPlayers()) {
                     all.getScoreboard().setScore(
                             YellowNumber.OBJECTIVE_NAME,
                             player.getNickname(),
@@ -136,11 +129,11 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
                     );
                 }
             }
-        });
+        }, getFeatureName(), CpuUsageCategory.NICK_PLUGIN_COMPATIBILITY));
     }
 
-    @Override
     @NotNull
+    @Override
     public String getFeatureName() {
         return "Nick compatibility";
     }

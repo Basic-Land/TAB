@@ -1,19 +1,9 @@
 accessWidener v1 named
 
-# Entity packets
-accessible field net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket id I
-accessible field net/minecraft/network/protocol/game/ClientboundMoveEntityPacket entityId I
-accessible field net/minecraft/network/protocol/game/ClientboundMoveEntityPacket xa S
-accessible field net/minecraft/network/protocol/game/ClientboundMoveEntityPacket ya S
-accessible field net/minecraft/network/protocol/game/ClientboundMoveEntityPacket za S
-
 # Scoreboard packets
 accessible field net/minecraft/network/protocol/game/ClientboundSetObjectivePacket objectiveName Ljava/lang/String;
 accessible field net/minecraft/network/protocol/game/ClientboundSetObjectivePacket method I
 accessible field net/minecraft/network/protocol/game/ClientboundSetDisplayObjectivePacket objectiveName Ljava/lang/String;
-
-# Style constructor (1.16+)
-accessible method net/minecraft/network/chat/Style <init> (Lnet/minecraft/network/chat/TextColor;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Boolean;Lnet/minecraft/network/chat/ClickEvent;Lnet/minecraft/network/chat/HoverEvent;Ljava/lang/String;Lnet/minecraft/resources/ResourceLocation;)V
 
 # Team packet (1.17+)
 accessible field net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket method I

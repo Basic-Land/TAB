@@ -11,19 +11,63 @@ import org.jetbrains.annotations.Nullable;
 
 import me.neznamy.tab.shared.config.PropertyConfiguration;
 import me.neznamy.tab.shared.TAB;
+import org.yaml.snakeyaml.error.YAMLException;
 
+/**
+ * This class represents a configuration file for properties (groups.yml or users.yml).
+ */
 public class YamlPropertyConfigurationFile extends YamlConfigurationFile implements PropertyConfiguration {
 
     private final String PER_SERVER = "per-server";
     private final String PER_WORLD = "per-world";
     
     private final String category;
-    private final List<Object> worldGroups = new ArrayList<>(getConfigurationSection(PER_WORLD).keySet());
-    private final List<Object> serverGroups = new ArrayList<>(getConfigurationSection(PER_SERVER).keySet());
-    
+    private final Collection<String> worldGroups = new ArrayList<>(this.<String, Object>getMap(PER_WORLD).keySet());
+    private final Collection<String> serverGroups = new ArrayList<>(this.<String, Object>getMap(PER_SERVER).keySet());
+
+    /**
+     * Constructs new instance and attempts to load specified configuration file.
+     * If file does not exist, default file is copied from {@code source}.
+     *
+     * @param   source
+     *          Source to copy file from if it does not exist
+     * @param   destination
+     *          File destination to use
+     * @throws  IllegalArgumentException
+     *          if {@code destination} is null
+     * @throws  IllegalStateException
+     *          if file does not exist and source is null
+     * @throws  YAMLException
+     *          if file has invalid YAML syntax
+     * @throws  IOException
+     *          if I/O operation with the file unexpectedly fails
+     */
     public YamlPropertyConfigurationFile(@Nullable InputStream source, @NotNull File destination) throws IOException {
         super(source, destination);
         category = destination.getName().contains("groups") ? "group" : "user";
+        for (Map.Entry<String, Object> entry : getValues().entrySet()) {
+            if (entry.getKey().equals(PER_SERVER)) {
+                for (String server : serverGroups) {
+                    for (String name : this.<String, Object>getMap(PER_SERVER + "." + server).keySet()) {
+                        for (String property : this.<String, Object>getMap(PER_SERVER + "." + server + "." + name).keySet()) {
+                            checkProperty(destination.getName(), category, name, property, server, null, true);
+                        }
+                    }
+                }
+            } else if (entry.getKey().equals(PER_WORLD)) {
+                for (String world : worldGroups) {
+                    for (String name : this.<String, Object>getMap(PER_WORLD + "." + world).keySet()) {
+                        for (String property : this.<String, Object>getMap(PER_WORLD + "." + world + "." + name).keySet()) {
+                            checkProperty(destination.getName(), category, name, property, null, world, true);
+                        }
+                    }
+                }
+            } else {
+                for (String property : this.<String, Object>getMap(entry.getKey()).keySet()) {
+                    checkProperty(destination.getName(), category, entry.getKey(), property, null, null, true);
+                }
+            }
+        }
     }
 
     @Override
@@ -64,32 +108,32 @@ public class YamlPropertyConfigurationFile extends YamlConfigurationFile impleme
     @Override
     public void remove(@NotNull String name) {
         set(name, null);
-        getConfigurationSection(PER_WORLD).keySet().forEach(world -> set(PER_WORLD + "." + world + "." + name, null));
-        getConfigurationSection(PER_SERVER).keySet().forEach(server -> set(PER_SERVER + "." + server + "." + name, null));
+        getMap(PER_WORLD).keySet().forEach(world -> set(PER_WORLD + "." + world + "." + name, null));
+        getMap(PER_SERVER).keySet().forEach(server -> set(PER_SERVER + "." + server + "." + name, null));
     }
 
     @Override
     public @NotNull Map<String, Object> getGlobalSettings(@NotNull String name) {
-        return getConfigurationSection(name);
+        return getMap(name);
     }
 
     @Override
     public @NotNull Map<String, Map<String, Object>> getPerWorldSettings(@NotNull String name) {
-        return convertMap(getConfigurationSection(PER_WORLD), name);
+        return convertMap(getMap(PER_WORLD), name);
     }
 
     @Override
     public @NotNull Map<String, Map<String, Object>> getPerServerSettings(@NotNull String name) {
-        return convertMap(getConfigurationSection(PER_SERVER), name);
+        return convertMap(getMap(PER_SERVER), name);
     }
     @Override
     public @NotNull Set<String> getAllEntries() {
         Set<String> set = new HashSet<>(values.keySet());
         set.remove(PER_WORLD);
         set.remove(PER_SERVER);
-        Map<String, Map<String, Map<String, String>>> perWorld = getConfigurationSection(PER_WORLD);
+        Map<String, Map<String, Map<String, String>>> perWorld = getMap(PER_WORLD);
         perWorld.values().forEach(m -> set.addAll(m.keySet()));
-        Map<String, Map<String, Map<String, String>>> perServer = getConfigurationSection(PER_SERVER);
+        Map<String, Map<String, Map<String, String>>> perServer = getMap(PER_SERVER);
         perServer.values().forEach(m -> set.addAll(m.keySet()));
         return set;
     }

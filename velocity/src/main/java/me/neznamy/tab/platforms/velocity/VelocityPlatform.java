@@ -2,22 +2,31 @@ package me.neznamy.tab.platforms.velocity;
 
 import com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI;
 import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.event.scoreboard.ObjectiveEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import com.velocitypowered.api.scoreboard.ScoreboardManager;
 import lombok.Getter;
 import me.neznamy.tab.platforms.velocity.features.VelocityRedisSupport;
 import me.neznamy.tab.platforms.velocity.hook.VelocityPremiumVanishHook;
+import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.hook.AdventureHook;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
+import me.neznamy.tab.shared.platform.BossBar;
+import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.platform.TabList;
+import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
+import me.neznamy.tab.shared.platform.impl.DummyScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bstats.charts.SimplePie;
 import org.jetbrains.annotations.NotNull;
@@ -28,17 +37,20 @@ import java.io.File;
 /**
  * Velocity implementation of Platform
  */
+@Getter
 public class VelocityPlatform extends ProxyPlatform {
 
     @NotNull
     private final VelocityTAB plugin;
 
-    /** Logger for components */
-    private static final ComponentLogger logger = ComponentLogger.logger("TAB");
+    /** Flag tracking presence of Velocity Scoreboard API */
+    private boolean scoreboardAPI;
 
     /** Plugin message channel */
-    @Getter
     private final MinecraftChannelIdentifier MCI = MinecraftChannelIdentifier.from(TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME);
+
+    /** Logger for components */
+    private static final ComponentLogger logger = ComponentLogger.logger("TAB");
 
     /**
      * Constructs new instance with given plugin reference.
@@ -46,8 +58,37 @@ public class VelocityPlatform extends ProxyPlatform {
      * @param   plugin
      *          Plugin instance
      */
-    public VelocityPlatform(VelocityTAB plugin) {
+    public VelocityPlatform(@NotNull VelocityTAB plugin) {
         this.plugin = plugin;
+        if (plugin.getServer().getPluginManager().isLoaded("velocity-scoreboard-api")) {
+            try {
+                ScoreboardManager.getInstance();
+                scoreboardAPI = true;
+                plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Display.class, e -> {
+                    TAB tab = TAB.getInstance();
+                    if (tab.isPluginDisabled()) return;
+                    tab.getCPUManager().runTask(() -> {
+                        TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
+                        if (player != null) tab.getFeatureManager().onDisplayObjective(player, e.getNewSlot().ordinal(), e.getObjective().getName());
+                    });
+                });
+                plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Unregister.class, e -> {
+                    TAB tab = TAB.getInstance();
+                    if (tab.isPluginDisabled()) return;
+                    tab.getCPUManager().runTask(() -> {
+                        TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
+                        if (player != null) tab.getFeatureManager().onObjective(player, Scoreboard.ObjectiveAction.UNREGISTER, e.getObjective().getName());
+                    });
+                });
+            } catch (IllegalStateException ignored) {
+                // Scoreboard API failed to enable due to an error
+            }
+        } else {
+            logInfo(TabComponent.fromColoredText(EnumChatFormat.RED + "As of version 5.0.0, TAB no longer uses TAB-Bridge to encode scoreboard packets on Velocity. " +
+                    "Instead, it uses a custom made plugin that adds scoreboard API directly to Velocity, which offers better performance and reliability. " +
+                    "You can download the plugin from https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/. " +
+                    "Until then, the following features will not work: scoreboard-teams, belowname-objective, playerlist-objective, scoreboard"));
+        }
         if (plugin.getServer().getPluginManager().isLoaded("premiumvanish")) {
             PremiumVanishHook.setInstance(new VelocityPremiumVanishHook());
         }
@@ -72,12 +113,12 @@ public class VelocityPlatform extends ProxyPlatform {
 
     @Override
     public void logInfo(@NotNull TabComponent message) {
-        logger.info(AdventureHook.toAdventureComponent(message, true));
+        logger.info(message.toAdventure(ProtocolVersion.LATEST_KNOWN_VERSION));
     }
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        logger.warn(Component.text("").color(NamedTextColor.RED).append(AdventureHook.toAdventureComponent(message, true)));
+        logger.warn(message.toAdventure(ProtocolVersion.LATEST_KNOWN_VERSION));
     }
 
     @Override
@@ -111,8 +152,41 @@ public class VelocityPlatform extends ProxyPlatform {
     }
 
     @Override
+    @NotNull
     public Component convertComponent(@NotNull TabComponent component, boolean modern) {
         return AdventureHook.toAdventureComponent(component, modern);
+    }
+
+    @Override
+    @NotNull
+    public Scoreboard createScoreboard(@NotNull TabPlayer player) {
+        if (scoreboardAPI) {
+            return new VelocityScoreboard((VelocityTabPlayer) player);
+        } else {
+            return new DummyScoreboard(player);
+        }
+    }
+
+    @Override
+    @NotNull
+    public BossBar createBossBar(@NotNull TabPlayer player) {
+        return new AdventureBossBar(player);
+    }
+
+    @Override
+    @NotNull
+    public TabList createTabList(@NotNull TabPlayer player) {
+        return new VelocityTabList((VelocityTabPlayer) player);
+    }
+
+    @Override
+    public boolean supportsNumberFormat() {
+        return true;
+    }
+
+    @Override
+    public boolean supportsListOrder() {
+        return true;
     }
 
     @Override

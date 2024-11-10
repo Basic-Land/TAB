@@ -2,16 +2,16 @@ package me.neznamy.tab.shared.placeholders.types;
 
 import lombok.Getter;
 import lombok.NonNull;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.placeholders.PlaceholderReplacementPattern;
-import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.api.placeholder.Placeholder;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
+import me.neznamy.tab.shared.placeholders.PlaceholderReplacementPattern;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -59,8 +59,8 @@ public abstract class TabPlaceholder implements Placeholder {
             throw new IllegalArgumentException("Identifier must start and end with % (attempted to use \"" + identifier + "\")");
         this.identifier = identifier;
         this.refresh = refresh;
-        Map<String, Map<Object, Object>> map = TAB.getInstance().getConfiguration().getConfig().getConfigurationSection("placeholder-output-replacements");
-        replacements = PlaceholderReplacementPattern.create(identifier, map.getOrDefault(identifier, Collections.emptyMap()));
+        Map<Object, Object> map = TAB.getInstance().getConfiguration().getConfig().getReplacements().getValues().get(identifier);
+        replacements = map == null ? PlaceholderReplacementPattern.EMPTY : PlaceholderReplacementPattern.create(identifier, map);
         for (String nested : getNestedPlaceholders("")) {
             TAB.getInstance().getPlaceholderManager().getPlaceholder(nested).addParent(identifier);
         }
@@ -94,7 +94,7 @@ public abstract class TabPlaceholder implements Placeholder {
      * @return  List of nested placeholders in provided output
      */
     public List<String> getNestedPlaceholders(@NonNull String output) {
-        return TAB.getInstance().getPlaceholderManager().detectPlaceholders(output);
+        return PlaceholderManagerImpl.detectPlaceholders(output);
     }
 
     /**
@@ -131,7 +131,9 @@ public abstract class TabPlaceholder implements Placeholder {
         String replaced = text;
         for (String s : getNestedPlaceholders(text)) {
             if (s.equals(identifier) || (identifier.startsWith("%sync:") && ("%" + identifier.substring(6)).equals(s)) || s.startsWith("%rel_")) continue;
-            replaced = TAB.getInstance().getPlaceholderManager().getPlaceholder(s).set(replaced, p);
+            TabPlaceholder nested = TAB.getInstance().getPlaceholderManager().getPlaceholder(s);
+            nested.addParent(identifier);
+            replaced = nested.set(replaced, p);
         }
         return replaced;
     }
@@ -156,7 +158,7 @@ public abstract class TabPlaceholder implements Placeholder {
      */
     public void updateParents(@NonNull TabPlayer player) {
         if (parents.isEmpty()) return;
-        for (String id : parents) {
+        for (String id : new ArrayList<>(parents)) {
             TabPlaceholder pl = TAB.getInstance().getPlaceholderManager().getPlaceholder(id);
             pl.updateFromNested(player);
             pl.updateParents(player);

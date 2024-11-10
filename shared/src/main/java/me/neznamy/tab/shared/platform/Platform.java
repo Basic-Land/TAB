@@ -3,9 +3,8 @@ package me.neznamy.tab.shared.platform;
 import me.neznamy.tab.shared.GroupManager;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
+import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
-import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
@@ -14,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.util.ConcurrentModificationException;
 
 /**
  * An interface with methods that are called in universal code,
@@ -27,15 +27,6 @@ public interface Platform {
      * @return  the interface representing the permission hook
      */
     @NotNull GroupManager detectPermissionPlugin();
-
-    /**
-     * Returns bossbar feature.
-     *
-     * @return  bossbar feature
-     */
-    default @NotNull BossBarManagerImpl getBossBar() {
-        return new BossBarManagerImpl();
-    }
 
     /**
      * Creates an instance of {@link me.neznamy.tab.api.placeholder.Placeholder}
@@ -64,14 +55,6 @@ public interface Platform {
     @Nullable PipelineInjector createPipelineInjector();
 
     /**
-     * Returns nametag handler when unlimited nametag mode is enabled
-     * in config file.
-     *
-     * @return  Nametag feature handler for unlimited name tags
-     */
-    @NotNull NameTag getUnlimitedNameTags();
-
-    /**
      * Creates tab expansion instance and returns it
      *
      * @return  Created expansion
@@ -88,9 +71,11 @@ public interface Platform {
     /**
      * Returns per world player list feature handler.
      *
+     * @param   configuration
+     *          Feature configuration
      * @return  Created feature or null if not available on platform
      */
-    @Nullable TabFeature getPerWorldPlayerList();
+    @Nullable TabFeature getPerWorldPlayerList(@NotNull PerWorldPlayerListConfiguration configuration);
 
     /**
      * Sends a console message with TAB's prefix using logger if available,
@@ -155,7 +140,54 @@ public interface Platform {
      *          Whether clients supports RGB or not
      * @return  Converted component
      */
+    @NotNull
     Object convertComponent(@NotNull TabComponent component, boolean modern);
+
+    /**
+     * Creates new scoreboard instance for given player.
+     *
+     * @param   player
+     *          Player to create scoreboard for
+     * @return  Scoreboard implementation for given player
+     */
+    @NotNull
+    Scoreboard createScoreboard(@NotNull TabPlayer player);
+
+    /**
+     * Creates new bossbar instance for given player.
+     *
+     * @param   player
+     *          Player to create bossbar for
+     * @return  Bossbar implementation for given player
+     */
+    @NotNull
+    BossBar createBossBar(@NotNull TabPlayer player);
+
+    /**
+     * Creates new tablist instance for given player.
+     *
+     * @param   player
+     *          Player to create tablist for
+     * @return  TabList implementation for given player
+     */
+    @NotNull
+    TabList createTabList(@NotNull TabPlayer player);
+
+    /**
+     * Returns {@code true} if server is able to use {@code NumberFormat} scoreboard feature (1.20.3+). Returns {@code false}
+     * if server is running below this version (backend) or server API does not support it yet.
+     *
+     * @return  {@code true} if server is able to use {@code NumberFormat} scoreboard feature, {@code false} if not
+     */
+    boolean supportsNumberFormat();
+
+    /**
+     * Returns {@code true} if server is able to use {@code listOrder} field in tablist (1.21.2+). Returns {@code false}
+     * if server is running below this version (backend) or server API does not support it yet.
+     *
+     * @return  {@code true} if server is able to use {@code listOrder} tablist field, {@code false} if not
+     */
+    boolean supportsListOrder();
 
     /**
      * Returns {@code true} if the viewer can see the target, {@code false} otherwise.
@@ -168,7 +200,12 @@ public interface Platform {
      * @return  {@code true} if can see, {@code false} if not.
      */
     default boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
-        if (PremiumVanishHook.getInstance() != null && PremiumVanishHook.getInstance().canSee(viewer, target)) return true;
+        try {
+            if (PremiumVanishHook.getInstance() != null && PremiumVanishHook.getInstance().canSee(viewer, target)) return true;
+        } catch (ConcurrentModificationException e) {
+            // PV error, try again
+            return canSee(viewer, target);
+        }
         return !target.isVanished() || viewer.hasPermission(TabConstants.Permission.SEE_VANISHED);
     }
 }

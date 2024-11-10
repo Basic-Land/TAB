@@ -4,8 +4,6 @@ import com.mojang.authlib.properties.Property;
 import io.netty.channel.Channel;
 import me.neznamy.tab.platforms.fabric.FabricScoreboard;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
-import me.neznamy.tab.shared.backend.EntityData;
-import me.neznamy.tab.shared.backend.Location;
 import me.neznamy.tab.shared.chat.ChatModifier;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
@@ -14,7 +12,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundSetDisplayObjectivePacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,8 +22,6 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.UUID;
 
 /**
  * Interface for executing methods that have changed over the versions.
@@ -47,7 +42,9 @@ public interface Loader {
      * @return  Name of the world
      */
     @NotNull
-    String getLevelName(@NotNull Level level);
+    default String getLevelName(@NotNull Level level) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Converts minecraft property class into TAB skin class.
@@ -57,7 +54,9 @@ public interface Loader {
      * @return  Converted skin
      */
     @NotNull
-    TabList.Skin propertyToSkin(@NotNull Property property);
+    default TabList.Skin propertyToSkin(@NotNull Property property) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates new text component using given text.
@@ -67,7 +66,9 @@ public interface Loader {
      * @return  Text component with given text
      */
     @NotNull
-    Component newTextComponent(@NotNull String text);
+    default Component newTextComponent(@NotNull String text) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Converts TAB's ChatModifier class to Minecraft Style class.
@@ -79,7 +80,9 @@ public interface Loader {
      * @return  Converted style
      */
     @NotNull
-    Style convertModifier(@NotNull ChatModifier modifier, boolean modern);
+    default Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Adds sibling to a component.
@@ -89,7 +92,9 @@ public interface Loader {
      * @param   child
      *          Sibling to add
      */
-    void addSibling(@NotNull Component parent, @NotNull Component child);
+    default void addSibling(@NotNull Component parent, @NotNull Component child) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates team register packet using given team.
@@ -99,7 +104,9 @@ public interface Loader {
      * @return  Team register packet using given team
      */
     @NotNull
-    Packet<?> registerTeam(@NotNull PlayerTeam team);
+    default Packet<?> registerTeam(@NotNull PlayerTeam team) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates team unregister packet using given team.
@@ -109,7 +116,9 @@ public interface Loader {
      * @return  Team unregister packet using given team
      */
     @NotNull
-    Packet<?> unregisterTeam(@NotNull PlayerTeam team);
+    default Packet<?> unregisterTeam(@NotNull PlayerTeam team) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates team update packet using given team.
@@ -119,16 +128,9 @@ public interface Loader {
      * @return  Team update packet using given team
      */
     @NotNull
-    Packet<?> updateTeam(@NotNull PlayerTeam team);
-
-    /**
-     * Returns {@code true} if player is sneaking, {@code false} if not.
-     *
-     * @param   player
-     *          Player to check sneak status of
-     * @return  {@code true} if player is sneaking, {@code false} if not
-     */
-    boolean isSneaking(@NotNull ServerPlayer player);
+    default Packet<?> updateTeam(@NotNull PlayerTeam team) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Sends message to player.
@@ -138,7 +140,9 @@ public interface Loader {
      * @param   message
      *          Message to send
      */
-    void sendMessage(@NotNull ServerPlayer player, @NotNull Component message);
+    default void sendMessage(@NotNull ServerPlayer player, @NotNull Component message) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Sends message to command source.
@@ -148,7 +152,9 @@ public interface Loader {
      * @param   message
      *          Message to send
      */
-    void sendMessage(@NotNull CommandSourceStack source, @NotNull Component message);
+    default void sendMessage(@NotNull CommandSourceStack source, @NotNull Component message) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates new Header/Footer packet with given parameters.
@@ -160,7 +166,9 @@ public interface Loader {
      * @return  Packet with given parameters
      */
     @NotNull
-    Packet<?> newHeaderFooter(@NotNull Component header, @NotNull Component footer);
+    default Packet<?> newHeaderFooter(@NotNull Component header, @NotNull Component footer) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Checks outgoing team packet in pipeline to potentially remove players from it.
@@ -170,55 +178,9 @@ public interface Loader {
      * @param   scoreboard
      *          Scoreboard of player who received the packet
      */
-    void checkTeamPacket(@NotNull Packet<?> packet, @NotNull FabricScoreboard scoreboard);
-
-    /**
-     * Creates spawn entity packet with given parameters.
-     *
-     * @param   level
-     *          World to fill for dummy entity
-     * @param   id
-     *          Entity ID
-     * @param   uuid
-     *          Entity UUID
-     * @param   type
-     *          Entity type
-     * @param   location
-     *          Spawn location
-     * @return  Spawn entity packet with given parameters
-     */
-    @NotNull
-    Packet<ClientGamePacketListener> spawnEntity(@NotNull Level level, int id, @NotNull UUID uuid, @NotNull Object type, @NotNull Location location);
-
-    /**
-     * Creates entity metadata packet with given metadata.
-     *
-     * @param   entityId
-     *          Entity ID to change metadata of
-     * @param   data
-     *          Metadata to change
-     * @return  Entity metadata packet with given parameters
-     */
-    @NotNull
-    Packet<ClientGamePacketListener> newEntityMetadata(int entityId, @NotNull EntityData data);
-
-    /**
-     * Creates entity data with given parameters.
-     *
-     * @param   viewer
-     *          Viewer of custom name
-     * @param   flags
-     *          Entity flags
-     * @param   displayName
-     *          Custom name
-     * @param   nameVisible
-     *          Custom name visibility
-     * @param   markerPosition
-     *          Armor stand marker flag position
-     * @return  Entity data with given parameters
-     */
-    @NotNull
-    EntityData createDataWatcher(@NotNull TabPlayer viewer, byte flags, @NotNull String displayName, boolean nameVisible, int markerPosition);
+    default void checkTeamPacket(@NotNull Packet<?> packet, @NotNull FabricScoreboard scoreboard) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Returns {@code true} if packet is player info packet, {@code false} if not.
@@ -227,7 +189,9 @@ public interface Loader {
      *          Packet to check
      * @return  {@code true} if packet is player info packet, {@code false} if not
      */
-    boolean isPlayerInfo(@NotNull Packet<?> packet);
+    default boolean isPlayerInfo(@NotNull Packet<?> packet) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Processed player info packet for anti-override and similar.
@@ -237,7 +201,9 @@ public interface Loader {
      * @param   packet
      *          Received packet
      */
-    void onPlayerInfo(@NotNull TabPlayer receiver, @NotNull Object packet);
+    default void onPlayerInfo(@NotNull TabPlayer receiver, @NotNull Object packet) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates tablist entry packet using given parameters.
@@ -249,36 +215,9 @@ public interface Loader {
      * @return  Tablist entry packet with given parameters
      */
     @NotNull
-    Packet<?> buildTabListPacket(@NotNull TabList.Action action, @NotNull FabricTabList.Builder builder);
-
-    /**
-     * Returns {@code true} if packet is bundle packet, {@code false} if not.
-     *
-     * @param   packet
-     *          Packet to check
-     * @return  {@code true} if packet is bundle packet, {@code false} if not
-     */
-    boolean isBundlePacket(@NotNull Packet<?> packet);
-
-    /**
-     * Returns packets bundled in given bundle packet.
-     *
-     * @param   bundlePacket
-     *          Bundle packet
-     * @return  Bundled packets
-     */
-    @NotNull
-    Iterable<Object> getBundledPackets(@NotNull Packet<?> bundlePacket);
-
-    /**
-     * Sends packets to player as a bundle.
-     *
-     * @param   player
-     *          Player to send packets to
-     * @param   packets
-     *          Packets to send
-     */
-    void sendPackets(@NotNull ServerPlayer player, @NotNull Iterable<Packet<ClientGamePacketListener>> packets);
+    default Packet<?> buildTabListPacket(@NotNull TabList.Action action, @NotNull FabricTabList.Builder builder) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Returns player's world
@@ -288,25 +227,9 @@ public interface Loader {
      * @return  Player's world
      */
     @NotNull
-    Level getLevel(@NotNull ServerPlayer player);
-
-    /**
-     * Returns {@code true} if packet is player spawn packet, {@code false} if not.
-     *
-     * @param   packet
-     *          Packet to check
-     * @return  {@code true} if packet is player spawn packet, {@code false} if not
-     */
-    boolean isSpawnPlayerPacket(@NotNull Packet<?> packet);
-
-    /**
-     * Returns player ID of given player spawn packet.
-     *
-     * @param   packet
-     *          Player spawn packet
-     * @return  Player ID
-     */
-    int getSpawnedPlayerId(@NotNull Packet<?> packet);
+    default Level getLevel(@NotNull ServerPlayer player) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Returns player's ping.
@@ -315,7 +238,9 @@ public interface Loader {
      *          Player to get ping of
      * @return  Player's ping
      */
-    int getPing(@NotNull ServerPlayer player);
+    default int getPing(@NotNull ServerPlayer player) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Returns display slot of given display objective packet.
@@ -324,7 +249,9 @@ public interface Loader {
      *          Display objective packet
      * @return  Display slot of packet
      */
-    int getDisplaySlot(@NotNull ClientboundSetDisplayObjectivePacket packet);
+    default int getDisplaySlot(@NotNull ClientboundSetDisplayObjectivePacket packet) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates display objective packet with given parameters.
@@ -336,7 +263,9 @@ public interface Loader {
      * @return  Display objective packet with given parameters
      */
     @NotNull
-    Packet<?> setDisplaySlot(int slot, @NotNull Objective objective);
+    default Packet<?> setDisplaySlot(int slot, @NotNull Objective objective) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Returns player's network channel.
@@ -346,7 +275,9 @@ public interface Loader {
      * @return  Player's channel
      */
     @NotNull
-    Channel getChannel(@NotNull ServerPlayer player);
+    default Channel getChannel(@NotNull ServerPlayer player) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Returns server's current milliseconds per tick.
@@ -355,7 +286,9 @@ public interface Loader {
      *          Server to get MSPT value from
      * @return  Server's milliseconds per tick
      */
-    float getMSPT(@NotNull MinecraftServer server);
+    default float getMSPT(@NotNull MinecraftServer server) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates new remove score packet with given parameters.
@@ -367,16 +300,9 @@ public interface Loader {
      * @return  Remove score packet with given parameters
      */
     @NotNull
-    Packet<?> removeScore(@NotNull String objective, @NotNull String holder);
-
-    /**
-     * Returns destroyed entities from destroy entity packet.
-     *
-     * @param   destroyPacket
-     *          Entity destroy packet
-     * @return  Destroyed entities
-     */
-    int[] getDestroyedEntities(@NotNull Packet<?> destroyPacket);
+    default Packet<?> removeScore(@NotNull String objective, @NotNull String holder) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates new objective with given parameters.
@@ -392,7 +318,9 @@ public interface Loader {
      * @return  New objective with given parameters
      */
     @NotNull
-    Objective newObjective(@NotNull String name, @NotNull Component displayName, @NotNull RenderType renderType, @Nullable Component numberFormat);
+    default Objective newObjective(@NotNull String name, @NotNull Component displayName, @NotNull RenderType renderType, @Nullable TabComponent numberFormat) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Creates a new set score packet with given parameters.
@@ -410,7 +338,9 @@ public interface Loader {
      * @return  New set score packet with given parameters
      */
     @NotNull
-    Packet<?> setScore(@NotNull String objective, @NotNull String holder, int score, @Nullable Component displayName, @Nullable Component numberFormat);
+    default Packet<?> setScore(@NotNull String objective, @NotNull String holder, int score, @Nullable Component displayName, @Nullable TabComponent numberFormat) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Sets style in a component to specified style.
@@ -420,7 +350,9 @@ public interface Loader {
      * @param   style
      *          Style to use
      */
-    void setStyle(@NotNull Component component, @NotNull Style style);
+    default void setStyle(@NotNull Component component, @NotNull Style style) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Logs console message as info.
@@ -428,7 +360,9 @@ public interface Loader {
      * @param   message
      *          Message to log
      */
-    void logInfo(@NotNull TabComponent message);
+    default void logInfo(@NotNull TabComponent message) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
     /**
      * Logs console message as warn.
@@ -436,5 +370,19 @@ public interface Loader {
      * @param   message
      *          Message to log
      */
-    void logWarn(@NotNull TabComponent message);
+    default void logWarn(@NotNull TabComponent message) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    /**
+     * Creates command source stack from ServerPlayer.
+     *
+     * @param   player
+     *          Player to create command source stack from
+     * @return  command source stack from player
+     */
+    @NotNull
+    default CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 }

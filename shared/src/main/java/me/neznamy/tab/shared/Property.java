@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lombok.Getter;
-import me.neznamy.tab.shared.features.types.Refreshable;
+import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
+import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
@@ -20,16 +21,16 @@ import org.jetbrains.annotations.Nullable;
  */
 public class Property {
 
-    private static long counter;
-
     /** Internal identifier for this text for PlaceholderAPI expansion, null if it should not be exposed */
-    @Nullable private final String name;
+    @Getter
+    @Nullable
+    private final String name;
 
     /**
      * Feature defining this text, which will receive refresh function
      * if any of placeholders used in it change value.
      */
-    @Nullable private final Refreshable listener;
+    @Nullable private final RefreshableFeature listener;
     
     /** Player this text belongs to */
     @NotNull private final TabPlayer owner;
@@ -49,6 +50,9 @@ public class Property {
 
     /** Last known value after parsing non-relational placeholders */
     private String lastReplacedValue;
+
+    /** Flag tracking whether last replaced value may contain relational placeholders or not */
+    private boolean mayContainRelPlaceholders;
     
     /** Source defining value of the text, displayed in debug command */
     @Nullable private String source;
@@ -68,6 +72,22 @@ public class Property {
      * Constructs new instance with given parameters and prepares
      * the formatter for use by detecting placeholders and reformatting the text.
      *
+     * @param   listener
+     *          Feature which should receive refresh method if placeholder changes value
+     * @param   owner
+     *          Player this text belongs to
+     * @param   rawValue
+     *          Raw value using raw placeholder identifiers
+     */
+    public Property(@Nullable RefreshableFeature listener, @NotNull TabPlayer owner,
+                    @NotNull String rawValue) {
+        this(null, listener, owner, rawValue, null);
+    }
+
+    /**
+     * Constructs new instance with given parameters and prepares
+     * the formatter for use by detecting placeholders and reformatting the text.
+     *
      * @param   name
      *          Property name to use in expansion (nullable if not use)
      * @param   listener
@@ -79,7 +99,7 @@ public class Property {
      * @param   source
      *          Source of the text used in debug command
      */
-    public Property(@Nullable String name, @Nullable Refreshable listener, @NotNull TabPlayer owner,
+    public Property(@Nullable String name, @Nullable RefreshableFeature listener, @NotNull TabPlayer owner,
                     @NotNull String rawValue, @Nullable String source) {
         this.name = name;
         this.listener = listener;
@@ -100,7 +120,7 @@ public class Property {
         // Identify placeholders used directly
         List<String> placeholders0 = new ArrayList<>();
         List<String> relPlaceholders0 = new ArrayList<>();
-        for (String identifier : TAB.getInstance().getPlaceholderManager().detectPlaceholders(value)) {
+        for (String identifier : PlaceholderManagerImpl.detectPlaceholders(value)) {
             placeholders0.add(identifier);
             if (identifier.startsWith("%rel_")) {
                 relPlaceholders0.add(identifier);
@@ -160,20 +180,34 @@ public class Property {
 
     /**
      * Changes raw value to new provided value and performs all
+     * operations related to it.
+     *
+     * @param   newValue
+     *          new raw value to use
+     * @return  Whether raw value changed or not
+     */
+    public boolean changeRawValue(@NotNull String newValue) {
+        return changeRawValue(newValue, null);
+    }
+
+    /**
+     * Changes raw value to new provided value and performs all
      * operations related to it. Changes source as well.
      *
      * @param   newValue
      *          new raw value to use
      * @param   newSource
      *          new source of the text
+     * @return  Whether raw value changed or not
      */
-    public void changeRawValue(@NotNull String newValue, @Nullable String newSource) {
-        if (originalRawValue.equals(newValue)) return;
+    public boolean changeRawValue(@NotNull String newValue, @Nullable String newSource) {
+        if (originalRawValue.equals(newValue)) return false;
         originalRawValue = newValue;
         source = newSource;
         if (temporaryValue == null) {
             analyze(originalRawValue);
         }
+        return true;
     }
 
     /**
@@ -241,6 +275,7 @@ public class Property {
         string = EnumChatFormat.color(string);
         if (!lastReplacedValue.equals(string)) {
             lastReplacedValue = string;
+            mayContainRelPlaceholders = lastReplacedValue.indexOf('%') != -1;
             if (name != null) {
                 TAB.getInstance().getPlaceholderManager().getTabExpansion().setPropertyValue(owner, name, lastReplacedValue);
             }
@@ -266,29 +301,21 @@ public class Property {
      * @return  format for the viewer
      */
     public @NotNull String getFormat(@NotNull TabPlayer viewer) {
+        if (!mayContainRelPlaceholders) return lastReplacedValue;
         String format = lastReplacedValue;
         // Direct placeholders
         for (String identifier : relPlaceholders) {
             RelationalPlaceholderImpl pl = (RelationalPlaceholderImpl) TAB.getInstance().getPlaceholderManager().getPlaceholder(identifier);
-            format = format.replace(pl.getIdentifier(), pl.getLastValue(viewer, owner));
+            format = format.replace(pl.getIdentifier(), EnumChatFormat.color(pl.getLastValue(viewer, owner)));
         }
 
         // Nested placeholders
-        for (String identifier : TAB.getInstance().getPlaceholderManager().detectPlaceholders(format)) {
+        for (String identifier : PlaceholderManagerImpl.detectPlaceholders(format)) {
             if (!identifier.startsWith("%rel_")) continue;
             RelationalPlaceholderImpl pl = (RelationalPlaceholderImpl) TAB.getInstance().getPlaceholderManager().getPlaceholder(identifier);
-            format = format.replace(pl.getIdentifier(), pl.getLastValue(viewer, owner));
+            format = format.replace(pl.getIdentifier(), EnumChatFormat.color(pl.getLastValue(viewer, owner)));
             if (listener != null) listener.addUsedPlaceholder(identifier);
         }
-        return EnumChatFormat.color(format);
-    }
-
-    /**
-     * Returns a new unique property name.
-     *
-     * @return  A new unique property name.
-     */
-    public static String randomName() {
-        return String.valueOf(counter++);
+        return format;
     }
 }

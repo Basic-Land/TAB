@@ -2,12 +2,8 @@ package me.neznamy.tab.platforms.velocity;
 
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.util.GameProfile;
-import lombok.Getter;
 import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
-import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.TabList;
-import me.neznamy.tab.shared.platform.impl.BridgeScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,22 +11,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * TabPlayer implementation for Velocity
+ * TabPlayer implementation for Velocity.
  */
-@Getter
 public class VelocityTabPlayer extends ProxyTabPlayer {
-
-    /** Player's scoreboard */
-    @NotNull
-    private final BridgeScoreboard scoreboard = new BridgeScoreboard(this);
-
-    /** Player's tab list */
-    @NotNull
-    private final VelocityTabList tabList = new VelocityTabList(this);
-
-    /** Player's boss bar view */
-    @NotNull
-    private final BossBar bossBar = new AdventureBossBar(this);
 
     /**
      * Constructs new instance for given player
@@ -57,7 +40,7 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
 
     @Override
     public void sendMessage(@NotNull TabComponent message) {
-        getPlayer().sendMessage(message.convert(getVersion()));
+        getPlayer().sendMessage(message.toAdventure(getVersion()));
     }
 
     @Override

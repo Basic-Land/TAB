@@ -2,15 +2,22 @@ package me.neznamy.tab.platforms.bukkit.tablist;
 
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.BukkitUtils;
+import me.neznamy.tab.platforms.bukkit.header.HeaderFooter;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
-import me.neznamy.tab.shared.platform.TabList;
+import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
+import me.neznamy.tab.shared.util.FunctionWithException;
+import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Constructor;
+import java.util.EnumSet;
 import java.util.UUID;
-import java.util.function.Function;
 
 /**
  * Base TabList class for all implementations.
@@ -18,17 +25,21 @@ import java.util.function.Function;
  * @param   <C>
  *          Component class
  */
-public abstract class TabListBase<C> extends TabList<BukkitTabPlayer, C> {
+public abstract class TabListBase<C> extends TrackedTabList<BukkitTabPlayer, C> {
+
+    /** Versions supported by paper module that uses direct mojang-mapped NMS for latest MC version */
+    private static final EnumSet<ProtocolVersion> paperNativeVersions = EnumSet.of(
+            ProtocolVersion.V1_21_2,
+            ProtocolVersion.V1_21_3
+    );
 
     /** Instance function */
     @Getter
-    private static Function<BukkitTabPlayer, TabListBase<?>> instance;
+    @Setter
+    private static FunctionWithException<BukkitTabPlayer, TabListBase<?>> instance;
 
     @Nullable
     protected static SkinData skinData;
-
-    @Nullable
-    private static PacketHeaderFooter headerFooter;
 
     /**
      * Constructs new instance.
@@ -42,10 +53,16 @@ public abstract class TabListBase<C> extends TabList<BukkitTabPlayer, C> {
 
     /**
      * Finds the best available instance for current server software.
+     *
+     * @param   serverVersion
+     *          Server version
      */
-    public static void findInstance() {
+    public static void findInstance(@NotNull ProtocolVersion serverVersion) {
         try {
-            if (BukkitReflection.is1_19_3Plus()) {
+            if (ReflectionUtils.classExists("org.bukkit.craftbukkit.CraftServer") && paperNativeVersions.contains(serverVersion)) {
+                Constructor<?> constructor = Class.forName("me.neznamy.tab.platforms.paper.PaperPacketTabList").getConstructor(BukkitTabPlayer.class);
+                instance = player -> (TabListBase<?>) constructor.newInstance(player);
+            } else if (ReflectionUtils.classExists("net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket")) {
                 PacketTabList1193.loadNew();
                 instance = PacketTabList1193::new;
             } else if (BukkitReflection.getMinorVersion() >= 8) {
@@ -64,20 +81,11 @@ public abstract class TabListBase<C> extends TabList<BukkitTabPlayer, C> {
                     "Tablist formatting not supporting relational placeholders");
             instance = BukkitTabList::new;
         }
-
-        try {
-            if (BukkitReflection.getMinorVersion() >= 8) {
-                headerFooter = new PacketHeaderFooter();
-            }
-        } catch (Exception e) {
-            BukkitUtils.compatibilityError(e, "sending header/footer", null,
-                    "Header/footer will not work");
-        }
     }
 
     @Override
-    public void setPlayerListHeaderFooter0(@NonNull Object header, @NonNull Object footer) {
-        if (headerFooter != null) headerFooter.set(player, header, footer);
+    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+        if (HeaderFooter.getInstance() != null) HeaderFooter.getInstance().set(player, header, footer);
     }
 
     @Override
@@ -94,6 +102,6 @@ public abstract class TabListBase<C> extends TabList<BukkitTabPlayer, C> {
     @Nullable
     public Skin getSkin() {
         if (skinData == null) return null;
-        return skinData.getSkin(player.getPlayer());
+        return skinData.getSkin(player);
     }
 }

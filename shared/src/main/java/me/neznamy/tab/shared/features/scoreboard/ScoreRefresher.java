@@ -1,12 +1,15 @@
 package me.neznamy.tab.shared.features.scoreboard;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.features.scoreboard.lines.ScoreboardLine;
-import me.neznamy.tab.shared.features.types.Refreshable;
-import me.neznamy.tab.shared.features.types.TabFeature;
+import me.neznamy.tab.shared.features.types.CustomThreaded;
+import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.util.cache.StringToComponentCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,20 +17,26 @@ import org.jetbrains.annotations.Nullable;
  * Feature refreshing NumberFormat in scoreboard for players.
  */
 @RequiredArgsConstructor
-public class ScoreRefresher extends TabFeature implements Refreshable {
+public class ScoreRefresher extends RefreshableFeature implements CustomThreaded {
 
-    private final String NUMBER_FORMAT_PROPERTY = Property.randomName();
+    private static final StringToComponentCache cache = new StringToComponentCache("Scoreboard NumberFormat", 1000);
 
     /** Line this score belongs to */
-    private final ScoreboardLine line;
+    @NonNull private final ScoreboardLine line;
 
     /** Configured number format */
-    private final String numberFormat;
+    @NonNull private final String numberFormat;
+
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Updating NumberFormat";
+    }
 
     @Override
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
-        if (!line.getParent().getPlayers().contains(refreshed)) return;
-        if (refreshed.getProperty(NUMBER_FORMAT_PROPERTY) == null) return; // Shrug
+        if (refreshed.scoreboardData.activeScoreboard != line.getParent()) return; //player has different scoreboard displayed
+        if (refreshed.scoreboardData.numberFormatProperties.get(line) == null) return; // Shrug
         refreshed.getScoreboard().setScore(
                 ScoreboardManagerImpl.OBJECTIVE_NAME,
                 line.getPlayerName(refreshed),
@@ -37,12 +46,6 @@ public class ScoreRefresher extends TabFeature implements Refreshable {
         );
     }
 
-    @Override
-    @NotNull
-    public String getRefreshDisplayName() {
-        return "Updating NumberFormat";
-    }
-
     /**
      * Registers properties for player.
      *
@@ -50,7 +53,7 @@ public class ScoreRefresher extends TabFeature implements Refreshable {
      *          Player to register properties for
      */
     public void registerProperties(@NotNull TabPlayer player) {
-        player.setProperty(this, NUMBER_FORMAT_PROPERTY, numberFormat);
+        player.scoreboardData.numberFormatProperties.put(line, new Property(this, player, numberFormat));
     }
 
     /**
@@ -62,11 +65,17 @@ public class ScoreRefresher extends TabFeature implements Refreshable {
      */
     @Nullable
     public TabComponent getNumberFormat(@NotNull TabPlayer player) {
-        return TabComponent.optimized(player.getProperty(NUMBER_FORMAT_PROPERTY).updateAndGet());
+        return cache.get(player.scoreboardData.numberFormatProperties.get(line).updateAndGet());
     }
 
     @Override
     @NotNull
+    public ThreadExecutor getCustomThread() {
+        return line.getCustomThread();
+    }
+
+    @NotNull
+    @Override
     public String getFeatureName() {
         return line.getFeatureName();
     }

@@ -71,6 +71,7 @@ public abstract class ConfigurationFile {
      * @return  value from configuration file
      */
     public Object getObject(@NonNull String path, @Nullable Object defaultValue) {
+        if (path.isEmpty()) return values;
         Object value = values;
         for (String section : path.contains(".") ? path.split("\\.") : new String[] {path}) {
             if (!(value instanceof Map)) {
@@ -95,10 +96,19 @@ public abstract class ConfigurationFile {
      *          Path to the option with sections separated with "{@code .}"
      * @return  value from configuration file or null if not present
      */
+    @Nullable
     public Object getObject(@NonNull String path) {
         return getObject(path, null);
     }
 
+    /**
+     * Returns element with specified path. If nothing is found, {@code null} is returned.
+     *
+     * @param   path
+     *          Path as an array of map keys
+     * @return  Value at specified path
+     */
+    @Nullable
     public Object getObject(String[] path) {
         Object value = values;
         for (String section : path) {
@@ -169,6 +179,7 @@ public abstract class ConfigurationFile {
      *          Path to the option with sections separated with "{@code .}"
      * @return  value from file or null if not present
      */
+    @Nullable
     public List<String> getStringList(@NonNull String path) {
         return getStringList(path, null);
     }
@@ -275,8 +286,12 @@ public abstract class ConfigurationFile {
      * @param   path
      *          Path to the option with sections separated with "{@code .}"
      * @return  value from configuration file as {@code Map<K, V>}
+     * @param   <K>
+     *          Map key type
+     * @param   <V>
+     *          Map value type
      */
-    public @NotNull <K, V> Map<K, V> getConfigurationSection(@NonNull String path) {
+    public @NotNull <K, V> Map<K, V> getMap(@NonNull String path) {
         if (path.isEmpty()) return (Map<K, V>) values;
         Object value = getObject(path, null);
         if (value instanceof Map) {
@@ -418,5 +433,36 @@ public abstract class ConfigurationFile {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Renames an option from old path to new path. Returns {@code true} if option was renamed,
+     * {@code false} if the option was renamed previously already.
+     *
+     * @param   oldPath
+     *          Old path to the option
+     * @param   newPath
+     *          New path to the option
+     * @return  {@code true} if option was renamed successfully, {@code false} if not.
+     */
+    public boolean rename(@NotNull String oldPath, @NotNull String newPath) {
+        if (hasConfigOption(oldPath)) {
+            set(newPath, getObject(oldPath));
+            set(oldPath, null);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns configuration section with given path.
+     *
+     * @param   path
+     *          Path to get configuration section from
+     * @return  Configuration section from given path
+     */
+    @NotNull
+    public ConfigurationSection getConfigurationSection(@NotNull String path) {
+        return new ConfigurationSection(file.getName(), path, getMap(path));
     }
 }
