@@ -3,7 +3,7 @@ package me.neznamy.tab.platforms.bukkit.nms;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import me.neznamy.tab.shared.util.FunctionWithException;
+import me.neznamy.tab.shared.util.function.FunctionWithException;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
@@ -32,6 +32,11 @@ public class BukkitReflection {
     /** Flag determining whether the server version is at least 1.20.3 or not */
     @Getter
     private static final boolean is1_20_3Plus = ReflectionUtils.classExists("net.minecraft.network.protocol.game.ClientboundResetScorePacket");
+
+    /** Flag determining whether the server version is at least 1.21.4 or not */
+    @Getter
+    private static final boolean is1_21_4Plus = serverVersion.minorVersion >= 21 &&
+            ReflectionUtils.getFields(getClass("network.chat.Style", "network.chat.ChatModifier"), Integer.class).size() == 1;
 
     @NotNull
     @SneakyThrows
@@ -78,7 +83,7 @@ public class BukkitReflection {
      *          if class does not exist
      */
     @SneakyThrows
-    public static Class<?> getClass(@NotNull String... names) throws ClassNotFoundException {
+    public static Class<?> getClass(@NotNull String... names) {
         for (String name : names) {
             try {
                 return serverVersion.getClass.apply(name);

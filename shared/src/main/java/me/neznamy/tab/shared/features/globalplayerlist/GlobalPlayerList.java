@@ -4,7 +4,7 @@ import java.util.*;
 
 import lombok.Getter;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.playerlist.PlayerList;
@@ -87,7 +87,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
      */
     public boolean shouldSee(@NotNull TabPlayer viewer, @NotNull TabPlayer displayed) {
         if (displayed == viewer) return true;
-        if (!TAB.getInstance().getPlatform().canSee(viewer, displayed)) return false;
+        if (!viewer.canSee(displayed)) return false;
         if (viewer.globalPlayerListData.onSpyServer) return true;
         return viewer.globalPlayerListData.serverGroup == displayed.globalPlayerListData.serverGroup;
     }

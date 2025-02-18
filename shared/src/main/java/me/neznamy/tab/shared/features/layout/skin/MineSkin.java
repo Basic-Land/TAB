@@ -24,6 +24,7 @@ public class MineSkin extends SkinSource {
     @Nullable
     public Skin download(@NotNull String input) {
         try {
+            long time = System.currentTimeMillis();
             String type;
             try {
                 Integer.parseInt(input);
@@ -36,6 +37,7 @@ public class MineSkin extends SkinSource {
             JSONObject texture = (JSONObject) data.get("texture");
             String value = (String) texture.get("value");
             String signature = (String) texture.get("signature");
+            TAB.getInstance().debug("Downloaded MINESKIN skin " + input + " in " + (System.currentTimeMillis()-time) + "ms");
             return new Skin(value, signature);
         } catch (FileNotFoundException e) {
             TAB.getInstance().getConfigHelper().runtime().unknownMineSkin(input);

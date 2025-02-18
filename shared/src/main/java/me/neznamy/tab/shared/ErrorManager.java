@@ -2,8 +2,7 @@ package me.neznamy.tab.shared;
 
 import lombok.Getter;
 import me.neznamy.tab.api.event.TabEvent;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.SimpleTextComponent;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -116,15 +115,15 @@ public class ErrorManager {
             try (BufferedWriter buf = new BufferedWriter(new FileWriter(file, true))) {
                 if (message != null) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
-                        buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + EnumChatFormat.decolor(message) + System.lineSeparator());
+                        buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + message + System.lineSeparator());
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().getConfig().isDebugMode())
-                        TAB.getInstance().getPlatform().logWarn(TabComponent.fromColoredText(message));
+                        TAB.getInstance().getPlatform().logWarn(new SimpleTextComponent(message));
                 }
                 for (String line : error) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + line + System.lineSeparator());
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().getConfig().isDebugMode())
-                        TAB.getInstance().getPlatform().logWarn(TabComponent.fromColoredText(line));
+                        TAB.getInstance().getPlatform().logWarn(new SimpleTextComponent(line));
                 }
             }
         } catch (IOException ex) {
@@ -134,7 +133,7 @@ public class ErrorManager {
             lines.add("Original error: " + message);
             lines.addAll(error);
             for (String line : lines) {
-                TAB.getInstance().getPlatform().logWarn(TabComponent.fromColoredText(line));
+                TAB.getInstance().getPlatform().logWarn(new SimpleTextComponent(line));
             }
         }
     }
@@ -249,7 +248,7 @@ public class ErrorManager {
      */
     public void mineSkinDownloadError(@NotNull String id, @NotNull Throwable t) {
         printError("Failed to download skin \"" + id + "\" from MineSkin: " + t.getMessage(),
-                t, true, errorLog);
+                Collections.emptyList(), true, errorLog);
     }
 
     /**
@@ -262,7 +261,7 @@ public class ErrorManager {
      */
     public void playerSkinDownloadError(@NotNull String name, @NotNull Throwable t) {
         printError("Failed to download skin of player \"" + name + "\": " + t.getMessage(),
-                t, true, errorLog);
+                Collections.emptyList(), true, errorLog);
     }
 
     /**
@@ -275,7 +274,7 @@ public class ErrorManager {
      */
     public void textureSkinDownloadError(@NotNull String texture, @NotNull Throwable t) {
         printError("Failed to download skin from texture \"" + texture + "\": " + t.getMessage(),
-                t, true, errorLog);
+                Collections.emptyList(), true, errorLog);
     }
 
     /**

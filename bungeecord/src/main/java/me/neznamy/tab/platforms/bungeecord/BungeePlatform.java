@@ -1,6 +1,11 @@
 package me.neznamy.tab.platforms.bungeecord;
 
 import com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI;
+import me.neznamy.chat.ChatModifier;
+import me.neznamy.chat.component.KeybindComponent;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.component.TextComponent;
+import me.neznamy.chat.component.TranslatableComponent;
 import me.neznamy.tab.platforms.bungeecord.features.BungeeRedisSupport;
 import me.neznamy.tab.platforms.bungeecord.hook.BungeePremiumVanishHook;
 import me.neznamy.tab.platforms.bungeecord.injection.BungeePipelineInjector;
@@ -10,10 +15,8 @@ import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList18;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.*;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
-import me.neznamy.tab.shared.hook.PremiumVanishHook;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
@@ -21,20 +24,18 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.impl.DummyBossBar;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
 import me.neznamy.tab.shared.util.ReflectionUtils;
+import me.neznamy.tab.shared.util.cache.Cache;
 import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.ProxyConfig;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import org.bstats.bungeecord.Metrics;
 import org.bstats.charts.SimplePie;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.awt.*;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * BungeeCord implementation of Platform
@@ -43,6 +44,9 @@ public class BungeePlatform extends ProxyPlatform {
 
     @NotNull
     private final BungeeTAB plugin;
+
+    /** Cache for legacy components for <1.16 players, as we need 2 different components for each tab component */
+    private final Cache<TabComponent, BaseComponent> legacyComponentCache = new Cache<>("Bungee legacy component cache", 1000, tab -> createComponent(tab, false));
 
     /**
      * Constructs new instance with given plugin instance.
@@ -53,22 +57,12 @@ public class BungeePlatform extends ProxyPlatform {
     public BungeePlatform(@NotNull BungeeTAB plugin) {
         this.plugin = plugin;
         if (ProxyServer.getInstance().getPluginManager().getPlugin("PremiumVanish") != null) {
-            PremiumVanishHook.setInstance(new BungeePremiumVanishHook(this));
+            new BungeePremiumVanishHook(this).register();
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void loadPlayers() {
-        try {
-            ProxyConfig config = ProxyServer.getInstance().getConfig();
-            if ((boolean) config.getClass().getMethod("isDisableTabListRewrite").invoke(config)) {
-                logWarn(TabComponent.fromColoredText("Waterfall's \"disable_tab_list_rewrite: true\" option may cause " +
-                        "the plugin to not work correctly. Disable it to avoid issues."));
-            }
-        } catch (Exception e) {
-            // Not waterfall
-        }
         for (ProxiedPlayer p : ProxyServer.getInstance().getPlayers()) {
             TAB.getInstance().addPlayer(new BungeeTabPlayer(this, p));
         }
@@ -91,7 +85,7 @@ public class BungeePlatform extends ProxyPlatform {
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        plugin.getLogger().warning(EnumChatFormat.RED + message.toLegacyText());
+        plugin.getLogger().warning("§c" + message.toLegacyText());
     }
 
     @Override
@@ -107,7 +101,7 @@ public class BungeePlatform extends ProxyPlatform {
 
     @Override
     public void registerCommand() {
-        ProxyServer.getInstance().getPluginManager().registerCommand(plugin, new BungeeTabCommand());
+        ProxyServer.getInstance().getPluginManager().registerCommand(plugin, new BungeeTabCommand(getCommand()));
     }
 
     @Override
@@ -135,36 +129,80 @@ public class BungeePlatform extends ProxyPlatform {
 
     @Override
     @NotNull
-    public BaseComponent convertComponent(@NotNull TabComponent component, boolean modern) {
-        if (component instanceof SimpleComponent) return new TextComponent(component.toLegacyText());
-        StructuredComponent iComponent = (StructuredComponent) component;
-        TextComponent textComponent = new TextComponent(iComponent.getText());
-        ChatModifier modifier = iComponent.getModifier();
+    public BaseComponent convertComponent(@NotNull TabComponent component) {
+        return createComponent(component, true);
+    }
+
+    /**
+     * Transforms the TAB component into a bungee component depending on player's version.
+     *
+     * @param   component
+     *          Component to transform
+     * @param   version
+     *          Version to transform the component to
+     * @return  Bungee component for the specified client version
+     */
+    @NotNull
+    public BaseComponent transformComponent(@NotNull TabComponent component, @NotNull ProtocolVersion version) {
+        if (version.getMinorVersion() >= 16) {
+            return component.convert();
+        } else {
+            // Convert color to legacy for <1.16 players
+            return legacyComponentCache.get(component);
+        }
+    }
+
+    /**
+     * Creates a bungee component using the given TAB component and modern flag for an RGB/legacy color decision.
+     *
+     * @param   component
+     *          Component to convert
+     * @param   modern
+     *          {@code true} if colors should be as RGB, {@code false} if legacy
+     * @return  Converted component
+     */
+    @NotNull
+    private BaseComponent createComponent(@NotNull TabComponent component, boolean modern) {
+        // Component type
+        BaseComponent bComponent;
+        if (component instanceof TextComponent) {
+            bComponent = new net.md_5.bungee.api.chat.TextComponent(((TextComponent) component).getText());
+        } else if (component instanceof TranslatableComponent) {
+            bComponent = new net.md_5.bungee.api.chat.TranslatableComponent(((TranslatableComponent) component).getKey());
+        } else if (component instanceof KeybindComponent) {
+            bComponent = new net.md_5.bungee.api.chat.KeybindComponent(((KeybindComponent) component).getKeybind());
+        } else {
+            throw new IllegalStateException("Unexpected component type: " + component.getClass().getName());
+        }
+
+        // Component style
+        ChatModifier modifier = component.getModifier();
         if (modifier.getColor() != null) {
             if (modern) {
-                textComponent.setColor(ChatColor.of("#" + modifier.getColor().getHexCode()));
+                bComponent.setColor(ChatColor.of("#" + modifier.getColor().getHexCode()));
             } else {
-                textComponent.setColor(ChatColor.of(modifier.getColor().getLegacyColor().name()));
+                bComponent.setColor(ChatColor.of(modifier.getColor().getLegacyColor().name()));
             }
         }
+        bComponent.setShadowColor(modifier.getShadowColor() == null ? null : new Color(
+                (modifier.getShadowColor() >> 16) & 0xFF,
+                (modifier.getShadowColor() >> 8) & 0xFF,
+                (modifier.getShadowColor()) & 0xFF,
+                (modifier.getShadowColor() >> 24) & 0xFF
+        ));
+        bComponent.setBold(modifier.getBold());
+        bComponent.setItalic(modifier.getItalic());
+        bComponent.setObfuscated(modifier.getObfuscated());
+        bComponent.setStrikethrough(modifier.getStrikethrough());
+        bComponent.setUnderlined(modifier.getUnderlined());
+        bComponent.setFont(modifier.getFont());
 
-        if (modifier.isBold()) textComponent.setBold(true);
-        if (modifier.isItalic()) textComponent.setItalic(true);
-        if (modifier.isObfuscated()) textComponent.setObfuscated(true);
-        if (modifier.isStrikethrough()) textComponent.setStrikethrough(true);
-        if (modifier.isUnderlined()) textComponent.setUnderlined(true);
-
-        textComponent.setFont(modifier.getFont());
-
-        if (!iComponent.getExtra().isEmpty()) {
-            List<BaseComponent> list = new ArrayList<>();
-            for (StructuredComponent extra : iComponent.getExtra()) {
-                list.add(convertComponent(extra, modern));
-            }
-            textComponent.setExtra(list);
+        // Extra
+        for (TabComponent extra : component.getExtra()) {
+            bComponent.addExtra(createComponent(extra, modern));
         }
 
-        return textComponent;
+        return bComponent;
     }
 
     @Override
@@ -203,5 +241,16 @@ public class BungeePlatform extends ProxyPlatform {
     @Override
     public boolean supportsListOrder() {
         return true;
+    }
+
+    @Override
+    public boolean supportsScoreboards() {
+        return true;
+    }
+
+    @Override
+    @NotNull
+    public String getCommand() {
+        return "btab";
     }
 }

@@ -2,7 +2,7 @@ package me.neznamy.tab.platforms.velocity;
 
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.util.GameProfile;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -40,7 +40,7 @@ public class VelocityTabPlayer extends ProxyTabPlayer {
 
     @Override
     public void sendMessage(@NotNull TabComponent message) {
-        getPlayer().sendMessage(message.toAdventure(getVersion()));
+        getPlayer().sendMessage(message.toAdventure());
     }
 
     @Override

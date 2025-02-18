@@ -6,11 +6,10 @@ import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.types.TabFeature;
-import me.neznamy.tab.shared.hook.AdventureHook;
 import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import me.neznamy.tab.shared.platform.BossBar;
@@ -74,12 +73,12 @@ public class SpongePlatform implements BackendPlatform {
 
     @Override
     public void logInfo(@NotNull TabComponent message) {
-        Sponge.systemSubject().sendMessage(Component.text("[TAB] ").append(message.toAdventure(serverVersion)));
+        Sponge.systemSubject().sendMessage(Component.text("[TAB] ").append(message.toAdventure()));
     }
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        Sponge.systemSubject().sendMessage(Component.text("[TAB] [WARN] ").append(message.toAdventure(serverVersion))); // Sponge console does not support colors
+        Sponge.systemSubject().sendMessage(Component.text("[TAB] [WARN] ").append(message.toAdventure()));
     }
 
     @Override
@@ -113,8 +112,8 @@ public class SpongePlatform implements BackendPlatform {
 
     @Override
     @NotNull
-    public Component convertComponent(@NotNull TabComponent component, boolean modern) {
-        return AdventureHook.toAdventureComponent(component, modern);
+    public Component convertComponent(@NotNull TabComponent component) {
+        return component.toAdventure();
     }
 
     @Override
@@ -143,6 +142,11 @@ public class SpongePlatform implements BackendPlatform {
     @Override
     public boolean supportsListOrder() {
         return false; // TODO when they add API
+    }
+
+    @Override
+    public boolean supportsScoreboards() {
+        return true;
     }
 
     @Override

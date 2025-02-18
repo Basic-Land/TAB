@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
 import me.neznamy.tab.shared.util.ReflectionUtils;
@@ -30,12 +30,7 @@ public class AdventureBossBar extends SafeBossBar<BossBar> {
     @Override
     @NotNull
     public BossBar constructBossBar(@NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
-        return BossBar.bossBar(
-                title.toAdventure(player.getVersion()),
-                progress,
-                Color.valueOf(color.name()),
-                Overlay.valueOf(style.name())
-        );
+        return BossBar.bossBar(title.toAdventure(), progress, Color.valueOf(color.name()), Overlay.valueOf(style.name()));
     }
 
     @Override
@@ -45,7 +40,7 @@ public class AdventureBossBar extends SafeBossBar<BossBar> {
 
     @Override
     public void updateTitle(@NotNull BossBarInfo bar) {
-        bar.getBossBar().name(bar.getTitle().toAdventure(player.getVersion()));
+        bar.getBossBar().name(bar.getTitle().toAdventure());
     }
 
     @Override

@@ -4,10 +4,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.types.TabFeature;
@@ -78,7 +76,7 @@ public class SpongePlatform implements BackendPlatform {
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        plugin.getLogger().warn(EnumChatFormat.RED + message.toLegacyText());
+        plugin.getLogger().warn("§c" + message.toLegacyText());
     }
 
     @Override
@@ -98,7 +96,7 @@ public class SpongePlatform implements BackendPlatform {
         Sponge.getGame().getCommandManager().register(plugin, CommandSpec.builder()
                 .arguments(cmd, GenericArguments.remainingJoinedStrings(Text.of("arguments"))) // GenericArguments.none() doesn't work, so rip no-arg
                 .executor(cmd)
-                .build(), TabConstants.COMMAND_BACKEND);
+                .build(), getCommand());
     }
 
     @Override
@@ -114,7 +112,7 @@ public class SpongePlatform implements BackendPlatform {
 
     @Override
     @NotNull
-    public Text convertComponent(@NotNull TabComponent component, boolean modern) {
+    public Text convertComponent(@NotNull TabComponent component) {
         return Text.of(component.toLegacyText());
     }
 
@@ -144,6 +142,11 @@ public class SpongePlatform implements BackendPlatform {
     @Override
     public boolean supportsListOrder() {
         return false; // Sponge 7 only goes up to 1.12.2
+    }
+
+    @Override
+    public boolean supportsScoreboards() {
+        return true;
     }
 
     @Override

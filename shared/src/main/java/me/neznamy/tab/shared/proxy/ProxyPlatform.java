@@ -18,18 +18,12 @@ import me.neznamy.tab.shared.util.PerformanceUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * Abstract class containing common variables and methods
  * shared between proxies.
  */
 @Getter
 public abstract class ProxyPlatform implements Platform {
-
-    /** Placeholders which are refreshed on backend server */
-    private final Map<String, Integer> bridgePlaceholders = new ConcurrentHashMap<>();
 
     @Override
     public @NotNull GroupManager detectPermissionPlugin() {
@@ -58,11 +52,10 @@ public abstract class ProxyPlatform implements Platform {
         Placeholder placeholder;
         int refresh = pl.getRefreshInterval(identifier);
         if (identifier.startsWith("%rel_")) {
-            placeholder = pl.registerRelationalPlaceholder(identifier, -1, (viewer, target) -> null);
+            placeholder = pl.registerRelationalBridgePlaceholder(identifier, refresh);
         } else {
-            placeholder = pl.registerPlayerPlaceholder(identifier, -1, player -> null);
+            placeholder = pl.registerBridgePlaceholder(identifier, refresh);
         }
-        bridgePlaceholders.put(placeholder.getIdentifier(), refresh);
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
             ((ProxyTabPlayer)all).sendPluginMessage(new RegisterPlaceholder(placeholder.getIdentifier(), refresh));
         }

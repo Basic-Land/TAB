@@ -1,19 +1,16 @@
 package me.neznamy.tab.shared.platform;
 
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.GroupManager;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.features.types.TabFeature;
-import me.neznamy.tab.shared.hook.PremiumVanishHook;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.ConcurrentModificationException;
 
 /**
  * An interface with methods that are called in universal code,
@@ -132,16 +129,14 @@ public interface Platform {
     boolean isProxy();
 
     /**
-     * Converts TAB component into platform's component.
+     * Converts thhe TAB component into platform's component.
      *
      * @param   component
      *          Component to convert
-     * @param   modern
-     *          Whether clients supports RGB or not
      * @return  Converted component
      */
     @NotNull
-    Object convertComponent(@NotNull TabComponent component, boolean modern);
+    Object convertComponent(@NotNull TabComponent component);
 
     /**
      * Creates new scoreboard instance for given player.
@@ -190,22 +185,27 @@ public interface Platform {
     boolean supportsListOrder();
 
     /**
-     * Returns {@code true} if the viewer can see the target, {@code false} otherwise.
-     * This includes all vanish, permission & plugin API checks.
+     * Returns {@code true} if server has a scoreboard implementation, {@code false} if not.
      *
-     * @param   viewer
-     *          Player who is viewing
-     * @param   target
-     *          Player who is being viewed
-     * @return  {@code true} if can see, {@code false} if not.
+     * @return   {@code true} if server has a scoreboard implementation, {@code false} if not
      */
-    default boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
-        try {
-            if (PremiumVanishHook.getInstance() != null && PremiumVanishHook.getInstance().canSee(viewer, target)) return true;
-        } catch (ConcurrentModificationException e) {
-            // PV error, try again
-            return canSee(viewer, target);
-        }
-        return !target.isVanished() || viewer.hasPermission(TabConstants.Permission.SEE_VANISHED);
+    boolean supportsScoreboards();
+
+    /**
+     * Returns {@code true} if the server is safe from being affected by the packetevents bug with limitations, {@code false} if not.
+     *
+     * @return  {@code true} if server is safe, {@code false} if not
+     */
+    default boolean isSafeFromPacketEventsBug() {
+        return true;
     }
+
+    /**
+     * Returns the command string used by this platform without "/"
+     * prefix, such as "tab" on backend and "btab" on BungeeCord.
+     *
+     * @return  command string on this platform without "/" prefix
+     */
+    @NotNull
+    String getCommand();
 }

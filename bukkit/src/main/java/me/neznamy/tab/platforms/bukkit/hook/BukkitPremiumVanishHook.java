@@ -1,9 +1,9 @@
 package me.neznamy.tab.platforms.bukkit.hook;
 
 import de.myzelyam.api.vanish.VanishAPI;
+import me.neznamy.tab.api.TabPlayer;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
-import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 public class BukkitPremiumVanishHook extends PremiumVanishHook {
 
     @Override
-    public synchronized boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
+    public boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
         return VanishAPI.canSee(((BukkitTabPlayer)viewer).getPlayer(), ((BukkitTabPlayer)target).getPlayer());
     }
 

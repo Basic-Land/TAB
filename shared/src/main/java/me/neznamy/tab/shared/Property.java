@@ -6,8 +6,8 @@ import java.util.List;
 import lombok.Getter;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.rgb.RGBUtils;
+import me.neznamy.chat.EnumChatFormat;
+import me.neznamy.chat.rgb.RGBUtils;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import me.neznamy.tab.shared.placeholders.types.RelationalPlaceholderImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -142,9 +142,6 @@ public class Property {
                 rawFormattedValue0 = sb.toString();
             }
         }
-
-        // Apply gradients that do not include placeholders to avoid applying them on every refresh
-        rawFormattedValue0 = RGBUtils.getInstance().applyCleanGradients(rawFormattedValue0);
 
         // Make \n work even if used in '', which snakeyaml does not convert to newline
         if (rawFormattedValue0.contains("\\n")) {

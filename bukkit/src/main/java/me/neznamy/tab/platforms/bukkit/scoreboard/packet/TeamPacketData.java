@@ -6,12 +6,13 @@ import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard.Team;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.Scoreboard.TeamAction;
 import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.util.BiConsumerWithException;
+import me.neznamy.tab.shared.util.function.BiConsumerWithException;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -224,13 +225,13 @@ public class TeamPacketData {
         ScoreboardTeam_setAllowFriendlyFire.invoke(nmsTeam, (team.getOptions() & 0x1) > 0);
         ScoreboardTeam_setCanSeeFriendlyInvisibles.invoke(nmsTeam, (team.getOptions() & 0x2) > 0);
         if (MODERN_TEAM_DATA_VERSION) {
-            ScoreboardTeam_setPrefix.invoke(nmsTeam, (Object) team.getPrefix().convert(clientVersion));
-            ScoreboardTeam_setSuffix.invoke(nmsTeam, (Object) team.getSuffix().convert(clientVersion));
-            ScoreboardTeam_setColor.invoke(nmsTeam, chatFormats[team.getColor().ordinal()]);
+            ScoreboardTeam_setPrefix.invoke(nmsTeam, (Object) team.getPrefix().convert());
+            ScoreboardTeam_setSuffix.invoke(nmsTeam, (Object) team.getSuffix().convert());
+            ScoreboardTeam_setColor.invoke(nmsTeam, chatFormats[team.getColor().getLegacyColor().ordinal()]);
         } else {
             String prefix = team.getPrefix().toLegacyText();
             String suffix = team.getSuffix().toLegacyText();
-            if (clientVersion.getMinorVersion() < 13) {
+            if (clientVersion.getMinorVersion() < 13 || TAB.getInstance().getConfiguration().getConfig().isPacketEventsCompensation()) {
                 prefix = SafeScoreboard.cutTo(prefix, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
                 suffix = SafeScoreboard.cutTo(suffix, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
             }

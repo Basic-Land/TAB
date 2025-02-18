@@ -29,12 +29,14 @@ public class Texture extends SkinSource {
     @Nullable
     public Skin download(@NotNull String texture) {
         try {
+            long time = System.currentTimeMillis();
             InputStreamReader reader = getInputStreamReader(texture);
             JSONObject json = (JSONObject) new JSONParser().parse(reader);
             JSONObject data = (JSONObject) json.get("data");
             JSONObject texture2 = (JSONObject) data.get("texture");
             String value = (String) texture2.get("value");
             String signature = (String) texture2.get("signature");
+            TAB.getInstance().debug("Downloaded TEXTURE skin " + texture + " in " + (System.currentTimeMillis()-time) + "ms");
             return new Skin(value, signature);
         } catch (IOException | ParseException e) {
             TAB.getInstance().getErrorManager().textureSkinDownloadError(texture, e);

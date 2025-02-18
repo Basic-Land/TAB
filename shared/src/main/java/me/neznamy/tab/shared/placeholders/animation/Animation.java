@@ -4,8 +4,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.rgb.RGBUtils;
+import me.neznamy.chat.EnumChatFormat;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.placeholders.animation.AnimationConfiguration.AnimationDefinition;
 import org.jetbrains.annotations.NotNull;
@@ -57,7 +56,6 @@ public class Animation {
         int refresh = interval;
         List<String> nestedPlaceholders = new ArrayList<>();
         for (int i=0; i<messages.length; i++) {
-            messages[i] = RGBUtils.getInstance().applyCleanGradients(messages[i]);
             messages[i] = EnumChatFormat.color(messages[i]);
             nestedPlaceholders.addAll(PlaceholderManagerImpl.detectPlaceholders(messages[i]));
         }

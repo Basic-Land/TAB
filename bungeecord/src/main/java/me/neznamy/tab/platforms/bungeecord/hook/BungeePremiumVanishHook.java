@@ -1,11 +1,11 @@
 package me.neznamy.tab.platforms.bungeecord.hook;
 
 import de.myzelyam.api.vanish.BungeeVanishAPI;
+import me.neznamy.tab.api.TabPlayer;
 import me.neznamy.tab.platforms.bungeecord.BungeeTabPlayer;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.SimpleTextComponent;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
 import me.neznamy.tab.shared.platform.Platform;
-import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -29,14 +29,14 @@ public class BungeePremiumVanishHook extends PremiumVanishHook {
             canSeeEnabled = true;
         } else {
             canSeeEnabled = false;
-            platform.logWarn(TabComponent.fromColoredText("Detected an outdated version of " +
+            platform.logWarn(new SimpleTextComponent("Detected an outdated version of " +
                     "PremiumVanish with limited API. Vanish compatibility " +
                     "may not work as expected. Update PremiumVanish to version 2.7.11+ for optimal experience."));
         }
     }
 
     @Override
-    public synchronized boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
+    public boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
         //noinspection ConstantValue
         return canSeeEnabled && BungeeVanishAPI.canSee(((BungeeTabPlayer)viewer).getPlayer(), ((BungeeTabPlayer)target).getPlayer());
     }

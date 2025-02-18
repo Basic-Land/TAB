@@ -7,7 +7,7 @@ import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.ProtocolVersion;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.bukkit.Bukkit;
@@ -160,7 +160,7 @@ public class BukkitScoreboard extends SafeScoreboard<BukkitTabPlayer> {
         if (serverMinorVersion >= 9)
             t.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE, OptionStatus.values()[team.getCollision().ordinal()]);
         if (serverMinorVersion >= TEAM_COLOR_VERSION)
-            t.setColor(ChatColor.valueOf(team.getColor().name()));
+            t.setColor(ChatColor.valueOf(team.getColor().getLegacyColor().name()));
         if (serverMinorVersion >= 7 && player.getPlatform().getServerVersion().getNetworkId() >= ProtocolVersion.V1_7_8.getNetworkId()) {
             for (String player : team.getPlayers()) {
                 t.addEntry(player);
@@ -192,7 +192,7 @@ public class BukkitScoreboard extends SafeScoreboard<BukkitTabPlayer> {
         if (serverMinorVersion >= 9)
             t.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE, OptionStatus.values()[team.getCollision().ordinal()]);
         if (serverMinorVersion >= TEAM_COLOR_VERSION)
-            t.setColor(ChatColor.valueOf(team.getColor().name()));
+            t.setColor(ChatColor.valueOf(team.getColor().getLegacyColor().name()));
         t.setAllowFriendlyFire((team.getOptions() & 0x01) != 0);
         t.setCanSeeFriendlyInvisibles((team.getOptions() & 0x02) != 0);
     }
@@ -274,7 +274,7 @@ public class BukkitScoreboard extends SafeScoreboard<BukkitTabPlayer> {
      */
     @NotNull
     private String transform(@NonNull TabComponent text, int maxLengthModern, int maxLengthLegacy) {
-        String transformed = player.getPlatform().toBukkitFormat(text, player.getVersion().supportsRGB());
+        String transformed = player.getPlatform().toBukkitFormat(text);
         if (player.getPlatform().getServerVersion().supportsRGB() && maxLengthModern < TITLE_LIMIT_MODERN) { // Scoreboard title is not stripping colors
             while (ChatColor.stripColor(transformed).length() > maxLengthModern)
                 transformed = transformed.substring(0, transformed.length()-1);

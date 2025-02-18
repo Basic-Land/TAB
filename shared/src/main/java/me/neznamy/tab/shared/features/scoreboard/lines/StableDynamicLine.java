@@ -3,7 +3,8 @@ package me.neznamy.tab.shared.features.scoreboard.lines;
 import lombok.NonNull;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.Property;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.TAB;
+import me.neznamy.chat.EnumChatFormat;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -107,16 +108,16 @@ public class StableDynamicLine extends ScoreboardLine {
      * @return  array of 2 elements for prefix and suffix
      */
     private String[] split(@NonNull TabPlayer p, @NonNull String text) {
-        if (p.getVersion().getMinorVersion() >= 13) return new String[] {text, ""};
+        if (p.getVersion().getMinorVersion() >= 13 && !TAB.getInstance().getConfiguration().getConfig().isPacketEventsCompensation()) return new String[] {text, ""};
         int charLimit = Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13;
         if (text.length() > charLimit) {
             StringBuilder prefix = new StringBuilder(text);
             StringBuilder suffix = new StringBuilder(text);
             prefix.setLength(charLimit);
             suffix.delete(0, charLimit);
-            if (prefix.charAt(charLimit-1) == EnumChatFormat.COLOR_CHAR) {
+            if (prefix.charAt(charLimit-1) == '§') {
                 prefix.setLength(prefix.length()-1);
-                suffix.insert(0, EnumChatFormat.COLOR_CHAR);
+                suffix.insert(0, '§');
             }
             String prefixString = prefix.toString();
             suffix.insert(0, EnumChatFormat.getLastColors(parent.getManager().getCache().get(prefixString).toLegacyText()));
@@ -132,7 +133,15 @@ public class StableDynamicLine extends ScoreboardLine {
         initializeText(text);
         for (TabPlayer p : parent.getPlayers()) {
             p.scoreboardData.lineProperties.get(this).changeRawValue(text);
-            refresh(p, true);
+            String[] prefixSuffix = replaceText(p, true, true);
+            if (prefixSuffix.length == 0) {
+                if (text.isEmpty()) {
+                    prefixSuffix = new String[]{"", ""};
+                } else {
+                    continue;
+                }
+            }
+            updateTeam(p, prefixSuffix[0], prefixSuffix[1]);
         }
     }
 }

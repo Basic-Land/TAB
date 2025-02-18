@@ -16,9 +16,9 @@ Minecraft feature **introduced in 1.8** showing text above and below playerlist.
 ![](https://images-ext-2.discordapp.net/external/Jm9G7_fX8Rq4KU-Syj57W2a_leel380bZ4lmd6c0vBs/https/image.prntscr.com/image/qvuAdtgZTDeZ4IeABi8I3g.png)
 
 # Configuration
-| Option name | Default value | Description |
-| ------------- | ------------- | ------------- |
-| enabled | true | Enables / Disables the feature |
+| Option name       | Default value         | Description                                                                                                                                                                                         |
+|-------------------|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| enabled           | true                  | Enables / Disables the feature                                                                                                                                                                      |
 | disable-condition | %world%=disabledworld | A [condition](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders) that must be met for disabling the feature for players. Set to empty for not disabling the feature ever. |
 
 ## Global settings
@@ -65,7 +65,9 @@ header-footer:
         - "Header in all worlds starting with lobby-"
 ```
 
-**Note**: To make per-world work on BungeeCord, install the [TAB-Bridge](https://www.mc-market.org/resources/21641) plugin on your backend servers.
+> [!NOTE]
+> To make per-world work on proxy installation,
+> install the [TAB-Bridge](https://www.mc-market.org/resources/21641) plugin on your backend servers.
 
 ## Per-group / per-player
 **groups.yml**
@@ -87,7 +89,7 @@ Same for users, which can be configured in **users.yml**.
 ## Additional note 1 - Not resetting on server switch
 When under a BungeeCord network and having TAB installed on backend server and switching to another server, the header/footer will not reset. This is because BungeeCord makes it look like a world switch to the client. To avoid this, you have 2 options:
 * Install TAB on BungeeCord and disable header/footer on the server.
-* Install a(nother) plugin that sends some, or even empty header/footer on join.
+* Install a plugin that sends some, or even empty header/footer on join.
 
 # Tips & Tricks
 ## Tip 1 - Dynamic line count

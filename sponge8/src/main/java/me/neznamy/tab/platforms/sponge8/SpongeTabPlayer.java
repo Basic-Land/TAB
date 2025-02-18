@@ -2,7 +2,7 @@ package me.neznamy.tab.platforms.sponge8;
 
 import lombok.SneakyThrows;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
@@ -47,7 +47,7 @@ public class SpongeTabPlayer extends BackendTabPlayer {
 
     @Override
     public void sendMessage(@NotNull TabComponent message) {
-        getPlayer().sendMessage(message.toAdventure(getVersion()));
+        getPlayer().sendMessage(message.toAdventure());
     }
 
     @Override

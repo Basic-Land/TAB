@@ -9,7 +9,7 @@ import me.neznamy.tab.platforms.bukkit.nms.converter.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.nms.PacketSender;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
@@ -141,7 +141,7 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
     @Override
     public void setScore(@NonNull Score score) {
         packetSender.sendPacket(player, scorePacketData.setScore(score.getObjective().getName(), score.getHolder(), score.getValue(),
-                score.getDisplayName() == null ? null : score.getDisplayName().convert(player.getVersion()),
+                score.getDisplayName() == null ? null : score.getDisplayName().convert(),
                 score.getNumberFormat() == null ? null : toFixedFormat(score.getNumberFormat())));
     }
 
@@ -202,7 +202,7 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
                     emptyScoreboard,
                     objective.getName(),
                     null, // Criteria
-                    objective.getTitle().convert(player.getVersion()),
+                    objective.getTitle().convert(),
                     healthDisplays[objective.getHealthDisplay().ordinal()],
                     false, // Auto update
                     objective.getNumberFormat() == null ? null : toFixedFormat(objective.getNumberFormat())
@@ -214,14 +214,17 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
                     emptyScoreboard,
                     objective.getName(),
                     null, // Criteria
-                    objective.getTitle().convert(player.getVersion()),
+                    objective.getTitle().convert(),
                     healthDisplays[objective.getHealthDisplay().ordinal()]
             );
         }
         // 1.5 - 1.12.2
         Object nmsObjective = newScoreboardObjective.newInstance(emptyScoreboard, objective.getName(), IScoreboardCriteria_dummy);
-        String cutTitle = player.getVersion().getMinorVersion() >= 13 ? objective.getTitle().toLegacyText() : cutTo(objective.getTitle().toLegacyText(), Limitations.SCOREBOARD_TITLE_PRE_1_13);
-        ScoreboardObjective_setDisplayName.invoke(nmsObjective, cutTitle);
+        String title = objective.getTitle().toLegacyText();
+        if (player.getVersion().getMinorVersion() < 13 || TAB.getInstance().getConfiguration().getConfig().isPacketEventsCompensation()) {
+            title = cutTo(title, Limitations.SCOREBOARD_TITLE_PRE_1_13);
+        }
+        ScoreboardObjective_setDisplayName.invoke(nmsObjective, title);
         return nmsObjective;
     }
 
@@ -229,6 +232,12 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
     @SneakyThrows
     private static Object toFixedFormat(@NonNull TabComponent component) {
         if (newFixedFormat == null) return null;
-        return component.toFixedFormat(nmsComponent -> newFixedFormat.newInstance(nmsComponent));
+        return component.toFixedFormat(PacketScoreboard::convertFixedFormat);
+    }
+
+    @NotNull
+    @SneakyThrows
+    private static Object convertFixedFormat(@NotNull Object nmsComponent) {
+        return newFixedFormat.newInstance(nmsComponent);
     }
 }

@@ -24,7 +24,7 @@ public abstract class ConfigurationFile {
     protected List<String> header;
 
     /** Configuration file content */
-    @Getter @Setter protected Map<String, Object> values;
+    @Getter @Setter protected Map<Object, Object> values;
 
     /** File to use */
     @Getter protected final File file;
@@ -51,7 +51,6 @@ public abstract class ConfigurationFile {
             if (source == null) throw new IllegalStateException("File does not exist and source is null");
             Files.copy(source, file.toPath());
         }
-        detectHeader();
     }
 
     /**
@@ -338,14 +337,14 @@ public abstract class ConfigurationFile {
      *          Value to save
      * @return  the first argument to allow chaining
      */
-    private Map<String, Object> set(@NonNull Map<String, Object> map, @NonNull String path, @Nullable Object value) {
+    private Map<Object, Object> set(@NonNull Map<Object, Object> map, @NonNull String path, @Nullable Object value) {
         if (path.contains(".")) {
             String keyWord = getRealKey(map, path.split("\\.")[0]);
             Object subMap = map.get(keyWord);
             if (!(subMap instanceof Map)) {
                 subMap = new LinkedHashMap<>();
             }
-            map.put(keyWord, set((Map<String, Object>) subMap, path.substring(keyWord.length()+1), value));
+            map.put(keyWord, set((Map<Object, Object>) subMap, path.substring(keyWord.length()+1), value));
         } else {
             if (value == null) {
                 map.remove(getRealKey(map, path));
@@ -371,40 +370,6 @@ public abstract class ConfigurationFile {
             if (mapKey.toString().equalsIgnoreCase(key)) return mapKey.toString();
         }
         return key;
-    }
-
-    /**
-     * Detects header of a file (first lines of file starting with #).
-     *
-     * @throws  IOException
-     *          if I/O operation fails
-     */
-    private void detectHeader() throws IOException {
-        header = new ArrayList<>();
-        for (String line : Files.readAllLines(file.toPath())) {
-            if (line.startsWith("#")) {
-                header.add(line);
-            } else {
-                break;
-            }
-        }
-    }
-
-    /**
-     * Inserts header back into file. This is required after calling {@link #save()}, because
-     * it destroys the header.
-     *
-     * @throws  IOException
-     *          if I/O operation fails
-     */
-    public void fixHeader() throws IOException {
-        if (header == null) return;
-        List<String> content = new ArrayList<>(header);
-        content.addAll(Files.readAllLines(file.toPath()));
-        Files.delete(file.toPath());
-        if (file.createNewFile()) {
-            Files.write(file.toPath(), content);
-        }
     }
 
     /**

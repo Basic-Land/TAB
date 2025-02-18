@@ -10,7 +10,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import me.neznamy.tab.platforms.fabric.hook.PermissionsAPIHook;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -31,7 +31,7 @@ public class FabricTabCommand {
      *          Dispatcher to register command to
      */
     public void onRegisterCommands(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralCommandNode<CommandSourceStack> command = Commands.literal(TabConstants.COMMAND_BACKEND)
+        LiteralCommandNode<CommandSourceStack> command = Commands.literal("tab") // TODO extract it from Platform somehow
                 .executes(context -> executeCommand(context.getSource(), new String[0]))
                 .build();
         ArgumentCommandNode<CommandSourceStack, String> args = Commands.argument("args", StringArgumentType.greedyString())
@@ -62,7 +62,7 @@ public class FabricTabCommand {
             boolean hasReloadPermission = PermissionsAPIHook.hasPermission(source, TabConstants.Permission.COMMAND_RELOAD);
             boolean hasAdminPermission = PermissionsAPIHook.hasPermission(source, TabConstants.Permission.COMMAND_ALL);
             for (String message : TAB.getInstance().getDisabledCommand().execute(args, hasReloadPermission, hasAdminPermission)) {
-                FabricMultiVersion.sendMessage(source, TabComponent.fromColoredText(message).convert(((FabricPlatform) TAB.getInstance().getPlatform()).getServerVersion()));
+                FabricMultiVersion.sendMessage(source, TabComponent.fromColoredText(message).convert());
             }
         } else {
             if (source.getEntity() == null) {

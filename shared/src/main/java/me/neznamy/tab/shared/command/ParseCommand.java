@@ -1,19 +1,20 @@
 package me.neznamy.tab.shared.command;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.api.placeholder.Placeholder;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.chat.TextColor;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.component.TextComponent;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Handler for "/tab parse &lt;player&gt; &lt;placeholder&gt;" subcommand
@@ -50,28 +51,37 @@ public class ParseCommand extends SubCommand {
                 return;
             }
         }
-        String replaced = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
-        if (!replaced.contains("%")) {
-            sendMessage(sender, "&cThe provided input (" + replaced + ") does not contain any placeholders, therefore there's nothing to test.");
+        String textToParse = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        if (!textToParse.contains("%")) {
+            sendMessage(sender, "&cThe provided input (" + textToParse + ") does not contain any placeholders, therefore there's nothing to test.");
             return;
         }
-        String message = EnumChatFormat.color("&6Replacing placeholder &e%placeholder% &6for player &e" + target.getName()).replace("%placeholder%", replaced);
-        sendRawMessage(sender, message);
+        // Do it this way to avoid sending the "§" symbol to the console to try to color the text (does not work on Velocity)
+        sendMessage(sender, new TextComponent("", Arrays.asList(
+                new TextComponent("Replacing placeholder ", TextColor.GOLD),
+                new TextComponent(textToParse, TextColor.YELLOW),
+                new TextComponent(" for player ", TextColor.GOLD),
+                new TextComponent(target.getName(), TextColor.YELLOW)
+        )));
         try {
-            replaced = new Property(null, null, target, replaced, null).get();
+            String replaced = new Property(null, null, target, textToParse, null).get();
+            TabComponent colored = TabComponent.fromColoredText("&3Colored output: &e\"&r" + replaced + "&e\"");
+            if (sender != null) {
+                sender.sendMessage(colored);
+            } else {
+                TAB.getInstance().getPlatform().logInfo(colored);
+            }
+            sendMessage(sender, new TextComponent("", Arrays.asList(
+                    new TextComponent("Raw colors: ", TextColor.DARK_AQUA),
+                    new TextComponent("\"", TextColor.YELLOW),
+                    new TextComponent(replaced.replace('§', '&'), TextColor.WHITE),
+                    new TextComponent("\"", TextColor.YELLOW)
+            )));
+            sendMessage(sender, "&3Output length: &e" + replaced.length() + " &3characters");
         } catch (Exception e) {
             sendMessage(sender, "&cThe placeholder threw an exception when parsing. Check console for more info.");
-            TAB.getInstance().getErrorManager().parseCommandError(replaced, target, e);
-            return;
+            TAB.getInstance().getErrorManager().parseCommandError(textToParse, target, e);
         }
-        TabComponent colored = TabComponent.fromColoredText(EnumChatFormat.color("&3Colored output: &e\"&r" + replaced + "&e\""));
-        if (sender != null) {
-            sender.sendMessage(colored);
-        } else {
-            TAB.getInstance().getPlatform().logInfo(colored);
-        }
-        sendRawMessage(sender, EnumChatFormat.color("&3Raw colors: &e\"&r") + EnumChatFormat.decolor(replaced) + EnumChatFormat.color("&e\""));
-        sendMessage(sender, "&3Output length: &e" + replaced.length() + " &3characters");
     }
 
     @Override

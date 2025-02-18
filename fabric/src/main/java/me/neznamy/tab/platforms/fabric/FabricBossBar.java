@@ -3,7 +3,7 @@ package me.neznamy.tab.platforms.fabric;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.world.BossEvent.BossBarColor;
@@ -24,7 +24,7 @@ public class FabricBossBar extends SafeBossBar<ServerBossEvent> {
     @NotNull
     public ServerBossEvent constructBossBar(@NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
         ServerBossEvent bar = new ServerBossEvent(
-                title.convert(player.getVersion()),
+                title.convert(),
                 BossBarColor.valueOf(color.name()),
                 BossBarOverlay.valueOf(style.name())
         );
@@ -39,7 +39,7 @@ public class FabricBossBar extends SafeBossBar<ServerBossEvent> {
 
     @Override
     public void updateTitle(@NotNull BossBarInfo bar) {
-        bar.getBossBar().setName(bar.getTitle().convert(player.getVersion()));
+        bar.getBossBar().setName(bar.getTitle().convert());
     }
 
     @Override

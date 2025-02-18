@@ -10,9 +10,14 @@
 * [Examples](#examples)
     * [Example 1 - Adding brackets to placeholder output if it returns non-empty value](#example-1---adding-brackets-to-placeholder-output-if-it-returns-non-empty-value)
     * [Example 2 - Replicating PlaceholderAPI's %player_colored_ping%](#example-2---replicating-placeholderapis-player_colored_ping)
+    * [Example 3 - Using both original and replaced output](#example-3---using-both-original-and-replaced-output)
 
 # About
-Most placeholders don't have fully configurable output, making you unable to customize it as you'd like. This is especially a problem with placeholders such as vanish or afk ones that return "yes" or "no" instead of some fancy text. It is job of the plugins providing placeholders to allow control over outputs, but for plugins that don't we have a solution - now you're able to configure output of any placeholder in many ways.
+Most placeholders don't have fully configurable output, making you unable to customize it as you'd like.
+This is especially a problem with placeholders such as vanish or afk ones that return "yes"
+or "no" instead of some fancy text.
+It is a job of the plugins providing placeholders to allow control over outputs,
+but for plugins that don't we have a solution - now you're able to configure output of any placeholder in many ways.
 
 # Configuration
 Open **config.yml** and find this section:
@@ -25,7 +30,7 @@ placeholder-output-replacements:
 ## Supported replacement patterns
 
 ### Pattern 1: Exact text
-If placeholder's output is exact to the text on left side, it will return text on the right side.
+If the placeholder's output is exact to the text on the left side, it will return text on the right side.
 <details>
   <summary>Example</summary>
 
@@ -40,11 +45,17 @@ placeholder-output-replacements:
 
 </details>
 
-**Note 1:** If you want to replace empty output, use `""` or `''` on the left side.  
-**Note 2:** The text must match exactly, including color codes. To check color codes a placeholder returns use [`/tab parse <player> <placeholder>`](https://github.com/NEZNAMY/TAB/wiki/Commands-&-Permissions#tab-parse-text) and check "Without colors" part.
+> [!NOTE]
+> If you want to replace empty output, use `""` or `''` on the left side.
+
+> [!NOTE]
+> The text must match exactly, including color codes.
+> To check the color codes a placeholder returns use
+> [`/tab parse <player> <placeholder>`](https://github.com/NEZNAMY/TAB/wiki/Commands-&-Permissions#tab-parse-text)
+> and check "Without colors" part.
 
 ### Pattern 2: Number intervals
-Output will be replaced if it's numeric and belongs in configured interval.
+Output will be replaced if it's numeric and belongs in a configured interval.
 <details>
   <summary>Example</summary>
 
@@ -57,9 +68,12 @@ placeholder-output-replacements:
 ```
 </details>
 
-**Note:** If a number is included in more than 1 interval (just like 5 and 15 from the example above), the one higher is used. In this case, 15 would give `Solid` and 5 would give `Bad`.
+> [!NOTE]
+> If a number is included in more than 1 interval (just like 5 and 15 from the example above), the one higher is used.
+> In this case, 15 would give `Solid` and 5 would give `Bad`.
 
-Intervals can be defined using both `-` and `~`. If you need support for negative values, use `~` for interval instead of `-`.
+Intervals can be defined using both `-` and `~`.
+If you need support for negative values, use `~` for an interval instead of `-`.
 <details>
   <summary>Example</summary>
 
@@ -88,7 +102,8 @@ placeholder-output-replacements:
 </details>
 
 ## Supported content in values
-You can use placeholders inside outputs, including the original placeholder you are altering. It will return original output of the placeholder.
+You can use placeholders inside outputs, including the original placeholder you are altering.
+It will return the original output of the placeholder.
 <details>
   <summary>Example</summary>
 
@@ -101,18 +116,23 @@ placeholder-output-replacements:
     "else": "%tps% (Terrible)"
 ```
 
-With this example, if TPS reaches for example 17.5, the output would be `17.5 (Solid)`.
+With this example, if TPS reaches, for example 17.5, the output would be `17.5 (Solid)`.
 </details>
 
 # Using in other plugins
 These replacements are only supported inside TAB. They won't work in other plugins.  
-If you want to use these in other plugins, you'll need to [enable tab's PlaceholderAPI expansion](https://github.com/NEZNAMY/TAB/wiki/Placeholders#placeholderapi) and use `%tab_replace_<placeholder>%`. If you for example configure output for %player_health%, use `%tab_replace_player_health%`.
+If you want to use these in other plugins, you'll need to [enable tab's PlaceholderAPI expansion](https://github.com/NEZNAMY/TAB/wiki/Placeholders#placeholderapi) and use `%tab_replace_<placeholder>%`. If you, for example, configure output for %player_health%, use `%tab_replace_player_health%`.
 
 This only works for PlaceholderAPI placeholders, not TAB's internal ones. For TAB's internal ones use `%tab_placeholder_<placeholder>`, such as for %health% use `%tab_placeholder_health%`.
 
 # Examples
 ## Example 1 - Adding brackets to placeholder output if it returns non-empty value
-When displaying faction or clan of players, you may want to add brackets if player is in a faction/clan, but not show them if they are not in one. To achieve this, we are going to use [Pattern 1: Exact text](#pattern-1-exact-text) and [Pattern 3: else](#pattern-3-else). If placeholder returned nothing, show nothing. Otherwise, show the output with added brackets:
+When displaying faction or clan of players, you may want to add brackets if a player is in a faction/clan,
+but not show them if they are not in one.
+To achieve this,
+we are going to use [Pattern 1: Exact text](#pattern-1-exact-text) and [Pattern 3: else](#pattern-3-else).
+If the placeholder returned nothing, show nothing.
+Otherwise, show the output with added brackets:
 ```
 placeholder-output-replacements:
   "%my_placeholder%":
@@ -128,7 +148,9 @@ placeholder-output-replacements:
 ```
 **Don't forget that parse command applies replacements, so when trying to see what placeholder returns, you should disable any previously configured replacements for that placeholder to see the correct raw output**.
 ## Example 2 - Replicating PlaceholderAPI's %player_colored_ping%
-*Please note that this is just an example to demonstrate the plugin's functionality. It is not supposed to discourage anyone from using PlaceholderAPI or any of its placeholders.*
+> [!NOTE]
+> Please note that this is just an example to demonstrate the plugin's functionality.
+> It is not supposed to discourage anyone from using PlaceholderAPI or any of its placeholders.*
 
 The placeholder allows you to configure intervals in config.yml. Default values are <50 for good, <100 for medium and 100+ for high. We can achieve this using [Pattern 2: Number intervals](#pattern-2-number-intervals) and [Pattern 3: else](#pattern-3-else). When put together, it looks as following:
 ```
@@ -138,4 +160,37 @@ placeholder-output-replacements:
     "51-100": "&e%ping%"
     "else": "&c%ping%"
 ```
-Keep in mind that now the placeholder will no longer return just a number, which can break features like [Playerlist Objective](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Playerlist-Objective), which require a numeric input (for versions prior to 1.20.3). If you want that feature and ping to be displayed there, replacements won't work for you and you'll need to use [Conditional placeholders](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders) instead to achieve colored ping.
+Keep in mind that now the placeholder will no longer return just a number,
+which can break features like [Playerlist Objective](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Playerlist-Objective),
+which require a numeric input (for versions prior to 1.20.3).
+If you want that feature and ping to be displayed there, replacements won't work for you,
+and you'll need
+to use [Conditional placeholders](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders) instead
+to achieve colored ping.
+
+# Example 3 - Using both original and replaced output
+Once configured, replacements are applied as the placeholder output everywhere. It is not directly possible to use original output in one place and replaced in another.
+
+If you need this, you should consider [conditional placeholders](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders) instead.  
+If conditional placeholders are too complicated to use, there are alternate ways. The main point of the solution is to create different placeholder that eventually calls the same function and returns the same result. This can be done by "wrapping" the placeholder into another one. The easiest way using existing TAB's functions is using animations. Create an animation with a single frame that contains the placeholder and configure replacements for that placeholder instead.
+<details>
+  <summary>Example for %ping%</summary>
+
+**animations.yml**:
+```
+ping:
+  change-interval: 50 # Actual value doesn't matter
+  texts:
+    - "%ping%"
+```
+Then, configure replacements for the animation in **config.yml**:
+```
+placeholder-output-replacements:
+  "%animation:ping%":
+    "0-50": "&a%animation:ping%" # %ping% would work too
+    "51-100": "&e%animation:ping%"
+    "else": "&c%animation:ping%"
+```
+Now, you can use `%ping%` for original output and `%animation:ping%` for replaced.
+
+</details>

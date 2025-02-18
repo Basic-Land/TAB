@@ -60,16 +60,9 @@ public class FeatureManager {
     public void load() {
         for (TabFeature f : values) {
             if (!(f instanceof Loadable)) continue;
-            TimedCaughtTask task = new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
-                long time = System.currentTimeMillis();
-                ((Loadable) f).load();
-                TAB.getInstance().debug("Feature " + f.getClass().getSimpleName() + " processed load in " + (System.currentTimeMillis()-time) + "ms");
-            }, f.getFeatureName(), CpuUsageCategory.PLUGIN_LOAD);
-            if (f instanceof CustomThreaded) {
-                ((CustomThreaded) f).getCustomThread().execute(task);
-            } else {
-                task.run();
-            }
+            long time = System.currentTimeMillis();
+            ((Loadable) f).load();
+            TAB.getInstance().debug("Feature " + f.getClass().getSimpleName() + " processed load in " + (System.currentTimeMillis()-time) + "ms");
         }
         if (TAB.getInstance().getConfiguration().getUsers() instanceof MySQLUserConfiguration) {
             MySQLUserConfiguration users = (MySQLUserConfiguration) TAB.getInstance().getConfiguration().getUsers();
@@ -170,7 +163,7 @@ public class FeatureManager {
         }
         TAB.getInstance().removePlayer(disconnectedPlayer);
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
-            ((TrackedTabList<?, ?>)all.getTabList()).getExpectedDisplayNames().remove(disconnectedPlayer.getTablistId());
+            ((TrackedTabList<?>)all.getTabList()).getExpectedDisplayNames().remove(disconnectedPlayer.getTablistId());
         }
         TAB.getInstance().debug("Player quit of " + disconnectedPlayer.getName() + " processed in " + (System.currentTimeMillis()-millis) + "ms");
     }
@@ -479,7 +472,7 @@ public class FeatureManager {
             }
         }
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
-            ((TrackedTabList<?, ?>)all.getTabList()).getExpectedDisplayNames().remove(disconnectedPlayer.getUniqueId());
+            ((TrackedTabList<?>)all.getTabList()).getExpectedDisplayNames().remove(disconnectedPlayer.getUniqueId());
         }
     }
 

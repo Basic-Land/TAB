@@ -1,11 +1,12 @@
 package me.neznamy.tab.platforms.bungeecord;
 
+import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.md_5.bungee.api.CommandSender;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
@@ -19,17 +20,27 @@ import java.util.Collections;
 public class BungeeTabCommand extends Command implements TabExecutor {
 
     /**
-     * Constructs new instance
+     * Constructs new instance.
+     *
+     * @param   command
+     *          Command to register
      */
-    public BungeeTabCommand() {
-        super(TabConstants.COMMAND_PROXY, null);
+    public BungeeTabCommand(@NotNull String command) {
+        super(command, null);
     }
 
     @Override
     public void execute(@NotNull CommandSender sender, @NotNull String[] args) {
         if (TAB.getInstance().isPluginDisabled()) {
             for (String message : TAB.getInstance().getDisabledCommand().execute(args, sender.hasPermission(TabConstants.Permission.COMMAND_RELOAD), sender.hasPermission(TabConstants.Permission.COMMAND_ALL))) {
-                sender.sendMessage(new TextComponent(EnumChatFormat.color(message)));
+                if (sender instanceof ProxiedPlayer) {
+                    sender.sendMessage(((BungeePlatform)TAB.getInstance().getPlatform()).transformComponent(
+                            TabComponent.fromColoredText(message),
+                            ProtocolVersion.fromNetworkId(((ProxiedPlayer)sender).getPendingConnection().getVersion())
+                    ));
+                } else {
+                    sender.sendMessage((BaseComponent) TabComponent.fromColoredText(message).convert());
+                }
             }
         } else {
             TabPlayer p = null;

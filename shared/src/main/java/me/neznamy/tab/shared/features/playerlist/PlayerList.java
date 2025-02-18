@@ -11,8 +11,8 @@ import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.TabConstants.CpuUsageCategory;
-import me.neznamy.tab.shared.chat.SimpleComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.SimpleTextComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.layout.PlayerSlot;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
@@ -54,7 +54,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         if (configuration.isAntiOverride()) {
             TAB.getInstance().getCpu().getTablistEntryCheckThread().repeatTask(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
                         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
-                            ((TrackedTabList<?, ?>)p.getTabList()).checkDisplayNames();
+                            ((TrackedTabList<?>)p.getTabList()).checkDisplayNames();
                         }
                     }, getFeatureName(), CpuUsageCategory.ANTI_OVERRIDE_TABLIST_PERIODIC), 500
             );
@@ -128,7 +128,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
             //if (!viewer.getTabList().containsEntry(player.getTablistId())) continue;
             UUID tablistId = getTablistUUID(player, viewer);
             viewer.getTabList().updateDisplayName(tablistId, format ? getTabFormat(player, viewer) :
-                    tablistId.getMostSignificantBits() == 0 ? new SimpleComponent(player.getName()) : null);
+                    tablistId.getMostSignificantBits() == 0 ? new SimpleTextComponent(player.getName()) : null);
         }
         if (redis != null) redis.sendMessage(new UpdateRedisPlayer(player.getUniqueId(), player.tablistData.prefix.get() +
                 player.tablistData.name.get() + player.tablistData.suffix.get()));
@@ -157,7 +157,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
     @Override
     public void load() {
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
-            ((TrackedTabList<?, ?>)all.getTabList()).setAntiOverride(configuration.isAntiOverride());
+            ((TrackedTabList<?>)all.getTabList()).setAntiOverride(configuration.isAntiOverride());
             loadProperties(all);
             if (disableChecker.isDisableConditionMet(all)) {
                 all.tablistData.disabled.set(true);
@@ -255,14 +255,14 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
 
     @Override
     public void onGroupChange(@NotNull TabPlayer player) {
-        if (updateProperties(player)) {
+        if (updateProperties(player) && !player.tablistData.disabled.get()) {
             updatePlayer(player, true);
         }
     }
 
     @Override
     public void onJoin(@NotNull TabPlayer connectedPlayer) {
-        ((TrackedTabList<?, ?>)connectedPlayer.getTabList()).setAntiOverride(configuration.isAntiOverride());
+        ((TrackedTabList<?>)connectedPlayer.getTabList()).setAntiOverride(configuration.isAntiOverride());
         loadProperties(connectedPlayer);
         if (disableChecker.isDisableConditionMet(connectedPlayer)) {
             connectedPlayer.tablistData.disabled.set(true);
@@ -273,6 +273,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         Runnable r = () -> {
             for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
                 if (all == connectedPlayer) continue; // Already updated above
+                if (all.tablistData.disabled.get()) continue;
                 connectedPlayer.getTabList().updateDisplayName(getTablistUUID(all, connectedPlayer), getTabFormat(all, connectedPlayer));
             }
             if (redis != null) {
@@ -309,6 +310,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         ensureActive();
         ((TabPlayer)player).ensureLoaded();
         ((TabPlayer)player).tablistData.prefix.setTemporaryValue(prefix);
+        if (((TabPlayer)player).tablistData.disabled.get()) return;
         updatePlayer(((TabPlayer)player), true);
     }
 
@@ -317,6 +319,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         ensureActive();
         ((TabPlayer)player).ensureLoaded();
         ((TabPlayer)player).tablistData.name.setTemporaryValue(customName);
+        if (((TabPlayer)player).tablistData.disabled.get()) return;
         updatePlayer(((TabPlayer)player), true);
     }
 
@@ -325,6 +328,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         ensureActive();
         ((TabPlayer)player).ensureLoaded();
         ((TabPlayer)player).tablistData.suffix.setTemporaryValue(suffix);
+        if (((TabPlayer)player).tablistData.disabled.get()) return;
         updatePlayer(((TabPlayer)player), true);
     }
 

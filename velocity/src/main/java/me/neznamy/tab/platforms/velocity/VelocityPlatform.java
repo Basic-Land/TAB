@@ -9,15 +9,13 @@ import com.velocitypowered.api.scoreboard.ScoreboardManager;
 import lombok.Getter;
 import me.neznamy.tab.platforms.velocity.features.VelocityRedisSupport;
 import me.neznamy.tab.platforms.velocity.hook.VelocityPremiumVanishHook;
-import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.TextColor;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.component.TextComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
-import me.neznamy.tab.shared.hook.AdventureHook;
-import me.neznamy.tab.shared.hook.PremiumVanishHook;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
@@ -84,13 +82,13 @@ public class VelocityPlatform extends ProxyPlatform {
                 // Scoreboard API failed to enable due to an error
             }
         } else {
-            logInfo(TabComponent.fromColoredText(EnumChatFormat.RED + "As of version 5.0.0, TAB no longer uses TAB-Bridge to encode scoreboard packets on Velocity. " +
+            logInfo(new TextComponent("As of version 5.0.0, TAB no longer uses TAB-Bridge to encode scoreboard packets on Velocity. " +
                     "Instead, it uses a custom made plugin that adds scoreboard API directly to Velocity, which offers better performance and reliability. " +
                     "You can download the plugin from https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/. " +
-                    "Until then, the following features will not work: scoreboard-teams, belowname-objective, playerlist-objective, scoreboard"));
+                    "Until then, the following features will not work: scoreboard-teams, belowname-objective, playerlist-objective, scoreboard", TextColor.RED));
         }
         if (plugin.getServer().getPluginManager().isLoaded("premiumvanish")) {
-            PremiumVanishHook.setInstance(new VelocityPremiumVanishHook());
+            new VelocityPremiumVanishHook().register();
         }
     }
 
@@ -113,12 +111,12 @@ public class VelocityPlatform extends ProxyPlatform {
 
     @Override
     public void logInfo(@NotNull TabComponent message) {
-        logger.info(message.toAdventure(ProtocolVersion.LATEST_KNOWN_VERSION));
+        logger.info(message.toAdventure());
     }
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        logger.warn(message.toAdventure(ProtocolVersion.LATEST_KNOWN_VERSION));
+        logger.warn(message.toAdventure());
     }
 
     @Override
@@ -135,7 +133,7 @@ public class VelocityPlatform extends ProxyPlatform {
     @Override
     public void registerCommand() {
         CommandManager cmd = plugin.getServer().getCommandManager();
-        cmd.register(cmd.metaBuilder(TabConstants.COMMAND_PROXY).build(), new VelocityTabCommand());
+        cmd.register(cmd.metaBuilder(getCommand()).build(), new VelocityTabCommand());
     }
 
     @Override
@@ -153,8 +151,8 @@ public class VelocityPlatform extends ProxyPlatform {
 
     @Override
     @NotNull
-    public Component convertComponent(@NotNull TabComponent component, boolean modern) {
-        return AdventureHook.toAdventureComponent(component, modern);
+    public Component convertComponent(@NotNull TabComponent component) {
+        return component.toAdventure();
     }
 
     @Override
@@ -190,6 +188,11 @@ public class VelocityPlatform extends ProxyPlatform {
     }
 
     @Override
+    public boolean supportsScoreboards() {
+        return scoreboardAPI;
+    }
+
+    @Override
     @Nullable
     public PipelineInjector createPipelineInjector() {
         return null;
@@ -198,5 +201,11 @@ public class VelocityPlatform extends ProxyPlatform {
     @Override
     public void registerChannel() {
         plugin.getServer().getChannelRegistrar().register(MCI);
+    }
+
+    @Override
+    @NotNull
+    public String getCommand() {
+        return "btab"; // Maybe change it to vtab one day?
     }
 }

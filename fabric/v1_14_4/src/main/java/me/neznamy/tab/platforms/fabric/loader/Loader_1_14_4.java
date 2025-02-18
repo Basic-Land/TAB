@@ -9,18 +9,17 @@ import me.neznamy.tab.platforms.fabric.FabricScoreboard;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.ChatModifier;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.ChatModifier;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.Connection;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.*;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket.PlayerUpdate;
@@ -73,22 +72,29 @@ public class Loader_1_14_4 implements Loader {
 
     @Override
     @NotNull
-    public Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
+    public Component newTranslatableComponent(@NotNull String text) {
+        return new TranslatableComponent(text);
+    }
+
+    @Override
+    @NotNull
+    public Component newKeybindComponent(@NotNull String key) {
+        return new KeybindComponent(key);
+    }
+
+    @Override
+    @NotNull
+    public Style convertModifier(@NotNull ChatModifier modifier) {
         Style style = new Style();
         if (modifier.getColor() != null) {
             style.setColor(ChatFormatting.valueOf(modifier.getColor().getLegacyColor().name()));
         }
-        if (modifier.isBold()) style.setBold(true);
-        if (modifier.isItalic()) style.setItalic(true);
-        if (modifier.isStrikethrough()) style.setStrikethrough(true);
-        if (modifier.isUnderlined()) style.setUnderlined(true);
-        if (modifier.isObfuscated()) style.setObfuscated(true);
+        style.setBold(modifier.getBold());
+        style.setItalic(modifier.getItalic());
+        style.setStrikethrough(modifier.getStrikethrough());
+        style.setUnderlined(modifier.getUnderlined());
+        style.setObfuscated(modifier.getObfuscated());
         return style;
-    }
-
-    @Override
-    public void addSibling(@NotNull Component parent, @NotNull Component child) {
-        parent.append(child);
     }
 
     @Override
@@ -158,8 +164,8 @@ public class Loader_1_14_4 implements Loader {
             Field displayNameField = ReflectionUtils.getFields(PlayerUpdate.class, Component.class).get(0);
             Field latencyField = ReflectionUtils.getFields(PlayerUpdate.class, int.class).get(0);
             if (action.name().equals(TabList.Action.UPDATE_DISPLAY_NAME.name()) || action.name().equals(TabList.Action.ADD_PLAYER.name())) {
-                Object expectedName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(profile.getId());
-                if (expectedName != null) displayNameField.set(nmsData, expectedName);
+                TabComponent expectedName = ((TrackedTabList<?>)receiver.getTabList()).getExpectedDisplayNames().get(profile.getId());
+                if (expectedName != null) displayNameField.set(nmsData, expectedName.convert());
             }
             if (action.name().equals(TabList.Action.UPDATE_LATENCY.name()) || action.name().equals(TabList.Action.ADD_PLAYER.name())) {
                 latencyField.set(nmsData, TAB.getInstance().getFeatureManager().onLatencyChange(receiver, profile.getId(), latencyField.getInt(nmsData)));

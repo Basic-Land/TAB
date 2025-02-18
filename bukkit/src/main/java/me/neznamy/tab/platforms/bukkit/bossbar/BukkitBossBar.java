@@ -1,9 +1,9 @@
 package me.neznamy.tab.platforms.bukkit.bossbar;
 
 import lombok.RequiredArgsConstructor;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
-import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
 import org.bukkit.Bukkit;
@@ -28,7 +28,7 @@ public class BukkitBossBar extends SafeBossBar<BossBar> {
     @NotNull
     public BossBar constructBossBar(@NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
         BossBar bar = Bukkit.createBossBar(
-                player.getPlatform().toBukkitFormat(title, player.getVersion().supportsRGB()),
+                player.getPlatform().toBukkitFormat(title),
                 org.bukkit.boss.BarColor.valueOf(color.name()),
                 styles[style.ordinal()]
         );
@@ -43,7 +43,7 @@ public class BukkitBossBar extends SafeBossBar<BossBar> {
 
     @Override
     public void updateTitle(SafeBossBar<BossBar>.@NotNull BossBarInfo bar) {
-        bar.getBossBar().setTitle(player.getPlatform().toBukkitFormat(bar.getTitle(), player.getVersion().supportsRGB()));
+        bar.getBossBar().setTitle(player.getPlatform().toBukkitFormat(bar.getTitle()));
     }
 
     @Override

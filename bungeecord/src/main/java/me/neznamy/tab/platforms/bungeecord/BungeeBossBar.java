@@ -3,7 +3,7 @@ package me.neznamy.tab.platforms.bungeecord;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
 import net.md_5.bungee.protocol.packet.BossBar;
 import org.jetbrains.annotations.NotNull;
@@ -32,7 +32,7 @@ public class BungeeBossBar extends SafeBossBar<UUID> {
     public void create(@NotNull BossBarInfo bar) {
         BossBar packet = new BossBar(bar.getBossBar(), 0);
         packet.setHealth(bar.getProgress());
-        packet.setTitle(bar.getTitle().convert(player.getVersion()));
+        packet.setTitle(player.getPlatform().transformComponent(bar.getTitle(), player.getVersion()));
         packet.setColor(bar.getColor().ordinal());
         packet.setDivision(bar.getStyle().ordinal());
         player.sendPacket(packet);
@@ -41,7 +41,7 @@ public class BungeeBossBar extends SafeBossBar<UUID> {
     @Override
     public void updateTitle(@NotNull BossBarInfo bar) {
         BossBar packet = new BossBar(bar.getBossBar(), 3);
-        packet.setTitle(bar.getTitle().convert(player.getVersion()));
+        packet.setTitle(player.getPlatform().transformComponent(bar.getTitle(), player.getVersion()));
         player.sendPacket(packet);
     }
 

@@ -6,11 +6,12 @@ import io.netty.channel.Channel;
 import me.neznamy.tab.platforms.fabric.FabricScoreboard;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.ChatModifier;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.ChatModifier;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.chat.numbers.FixedFormat;
@@ -64,28 +65,32 @@ public class Loader_Latest implements Loader {
 
     @Override
     @NotNull
-    public Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
-        TextColor color = null;
-        if (modifier.getColor() != null) {
-            if (modern) {
-                color = TextColor.fromRgb(modifier.getColor().getRgb());
-            } else {
-                color = TextColor.fromRgb(modifier.getColor().getLegacyColor().getRgb());
-            }
-        }
-        return Style.EMPTY
-                .withColor(color)
-                .withBold(modifier.isBold())
-                .withItalic(modifier.isItalic())
-                .withUnderlined(modifier.isUnderlined())
-                .withStrikethrough(modifier.isStrikethrough())
-                .withObfuscated(modifier.isObfuscated())
-                .withFont(modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont()));
+    public Component newTranslatableComponent(@NotNull String text) {
+        return Component.translatable(text);
     }
 
     @Override
-    public void addSibling(@NotNull Component parent, @NotNull Component child) {
-        parent.getSiblings().add(child);
+    @NotNull
+    public Component newKeybindComponent(@NotNull String key) {
+        return Component.keybind(key);
+    }
+
+    @Override
+    @NotNull
+    public Style convertModifier(@NotNull ChatModifier modifier) {
+        return new Style(
+                modifier.getColor() == null ? null : TextColor.fromRgb(modifier.getColor().getRgb()),
+                modifier.getShadowColor(),
+                modifier.getBold(),
+                modifier.getItalic(),
+                modifier.getUnderlined(),
+                modifier.getStrikethrough(),
+                modifier.getObfuscated(),
+                null,
+                null,
+                null,
+                modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont())
+        );
     }
 
     @Override
@@ -145,8 +150,8 @@ public class Loader_Latest implements Loader {
             Component displayName = nmsData.displayName();
             int latency = nmsData.latency();
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                Component expectedDisplayName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
-                if (expectedDisplayName != null) displayName = expectedDisplayName;
+                TabComponent expectedDisplayName = ((TrackedTabList<?>)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
+                if (expectedDisplayName != null) displayName = expectedDisplayName.convert();
             }
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
                 latency = TAB.getInstance().getFeatureManager().onLatencyChange(receiver, nmsData.profileId(), latency);

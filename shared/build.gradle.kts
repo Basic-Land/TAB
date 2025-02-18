@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     api(projects.api)
+    api(projects.component)
     api("org.yaml:snakeyaml:2.0")
     api("com.github.NEZNAMY:yamlassist:1.0.8")
     api("com.googlecode.json-simple:json-simple:1.1.1") {
@@ -18,10 +19,8 @@ dependencies {
     compileOnlyApi("net.luckperms:api:5.4")
     compileOnlyApi("com.google.guava:guava:31.1-jre")
     compileOnlyApi("org.geysermc.floodgate:api:2.2.0-SNAPSHOT")
-    compileOnlyApi("net.kyori:adventure-api:4.13.0")
-    compileOnlyApi("net.kyori:adventure-text-serializer-legacy:4.13.0")
-    compileOnlyApi("net.kyori:adventure-text-serializer-gson:4.13.0")
-    compileOnlyApi("net.kyori:adventure-text-minimessage:4.13.0")
+    compileOnlyApi("net.kyori:adventure-api:4.18.0")
+    compileOnlyApi("net.kyori:adventure-text-minimessage:4.18.0")
 }
 
 blossom {

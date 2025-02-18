@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.minecraft.network.chat.Component;
@@ -41,8 +41,8 @@ public class Loader_1_20_3 implements Loader {
             Component displayName = nmsData.displayName();
             int latency = nmsData.latency();
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                Component expectedDisplayName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
-                if (expectedDisplayName != null) displayName = expectedDisplayName;
+                TabComponent expectedDisplayName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
+                if (expectedDisplayName != null) displayName = expectedDisplayName.convert();
             }
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
                 latency = TAB.getInstance().getFeatureManager().onLatencyChange(receiver, nmsData.profileId(), latency);

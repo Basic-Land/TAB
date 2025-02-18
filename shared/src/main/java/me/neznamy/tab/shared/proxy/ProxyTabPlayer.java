@@ -2,6 +2,7 @@ package me.neznamy.tab.shared.proxy;
 
 import lombok.Getter;
 import lombok.Setter;
+import me.neznamy.tab.api.integration.VanishIntegration;
 import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.cpu.CpuManager;
@@ -79,7 +80,7 @@ public abstract class ProxyTabPlayer extends TabPlayer {
                 getVersion().getNetworkId(),
                 TAB.getInstance().getGroupManager().getPermissionPlugin().contains("Vault") &&
                     !TAB.getInstance().getConfiguration().getConfig().isGroupsByPermissions(),
-                ((ProxyPlatform) getPlatform()).getBridgePlaceholders(),
+                TAB.getInstance().getPlaceholderManager().getBridgePlaceholders(),
                 TAB.getInstance().getConfiguration().getConfig().getReplacements().getValues()
         ));
         TabExpansion expansion = TAB.getInstance().getPlaceholderManager().getTabExpansion();
@@ -111,6 +112,7 @@ public abstract class ProxyTabPlayer extends TabPlayer {
         if (this.gamemode == gamemode) return; // Player join with player in survival mode
         this.gamemode = gamemode;
         ((PlayerPlaceholder) TAB.getInstance().getPlaceholderManager().getPlaceholder(TabConstants.Placeholder.GAMEMODE)).update(this);
+        TAB.getInstance().getFeatureManager().onGameModeChange(this);
     }
 
     /**
@@ -164,5 +166,16 @@ public abstract class ProxyTabPlayer extends TabPlayer {
      */
     public void sendPluginMessage(@NotNull OutgoingMessage message) {
         CpuManager.getPluginMessageEncodeThread().execute(new PluginMessageEncodeTask(this, message));
+    }
+
+    @Override
+    public boolean isVanished() {
+        if (!VanishIntegration.getHandlers().isEmpty()) {
+            for (VanishIntegration integration : VanishIntegration.getHandlers()) {
+                if (integration.isVanished(this)) return true;
+            }
+            return false;
+        }
+        return vanished;
     }
 }

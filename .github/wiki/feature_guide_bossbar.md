@@ -21,7 +21,11 @@
 
 # About
 ![](https://images-ext-2.discordapp.net/external/0H5v5gcK12jm-O_kljlx-iYdJ1Q3wBsY_Dch7Jr_aAk/https/image.prntscr.com/image/x4VewIuiRwO-XLGTvDxfWw.png)  
-Bars with text on top of the screen originally designed to display health of ender dragon & wither, but plugins found another use for it. In 1.9 mojang added a packet dedicated to displaying text without requiring an entity and allowing customizable color and style as well. TAB only supports this new functionality and the feature does not support 1.8 and lower.
+Bars with text on top of the screen originally designed to display the health of ender dragon & wither,
+but plugins found another use for it.
+In 1.9, mojang added a packet
+dedicated to displaying text without requiring an entity and allowing customizable color and style as well.
+TAB only supports this new functionality, and the feature does not support 1.8 and lower.
 
 This feature can be configured in **config.yml** under **bossbar** section.
 
@@ -57,8 +61,9 @@ A number from 0 to 100. Accepts decimals.
 ![image](https://user-images.githubusercontent.com/6338394/196031770-2208848c-8e38-44cc-aa49-c86427160cab.png)  
 If you want to show the progress of a placeholder's value relative to a maximum one, you can use the [Math Expansion](https://github.com/PlaceholderAPI/PlaceholderAPI/wiki/Placeholders#math) from PlaceholderAPI and use a placeholder like this one: `%math_{placeholder_current_value}/{placeholder_max_value}*100%` or `%math_{placeholder_current_value}/<max_value>*100%` if your max value is fixed.
 
-Notes:  
-Replace the text in between the `{}` with the actual placeholder you want to use and `<max_value>` with a valid number (i.e. 20).  
+> [!NOTE]
+> Replace the text in between the `{}` with the actual placeholder you want to use and `<max_value>` with a valid number
+(i.e., 20).  
 You cannot use the `%placeholder%` format inside the math placeholder.
 
 Example for showing a player's health: `%math_{player_health}/20*100%` or `%math_{player_health}/{player_max_health}*100%`
@@ -96,15 +101,18 @@ bossbar:
 `/tab bossbar announce <name> <time>`  
 `name` is name of bossbar defined in config.yml under **bossbar** section, `time` is length of display time in seconds.
 
-When using a bossbar announcement, you have a new placeholder available: `%countdown%` that shows remaining time of the announce in seconds. You can further use this placeholder in progress for example, using Math expansion from PlaceholderAPI, such as `%math_{tab_placeholder_countdown}/<total time>*100%`.
+When using a bossbar announcement, you have a new placeholder available:
+`%countdown%` that shows remaining time of the announcement in seconds.
+You can further use this placeholder in progress, for example,
+using Math expansion from PlaceholderAPI, such as `%math_{tab_placeholder_countdown}/<total time>*100%`.
 
 ## Additional settings
-| Option name | Default value | Description |
-| ------------- | ------------- | ------------- |
-| enabled | false | Enables / Disables the feature |
-| toggle-command | /bossbar | A command to toggle bossbar visibility for player running the command. This command requires `tab.bossbar.toggle` permission. <br />**Note:** This command will not appear in command auto-complete, because it's not a real registered command. Registered commands must be defined in plugin jar directly and cannot be dynamic. If you want to solve this, you can try getting a dummy private plugin made which registers that command. |
-| remember-toggle-choice | false | When enabled, disabling bossbar using `toggle-command` is remembered between reloads and restarts. |
-| hidden-by-default | false | When enabled, bossbar will automatically be hidden until toggle command is used. |
+| Option name            | Default value | Description                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+|------------------------|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| enabled                | false         | Enables / Disables the feature                                                                                                                                                                                                                                                                                                                                                                                                              |
+| toggle-command         | /bossbar      | A command to toggle bossbar visibility for player running the command. This command requires `tab.bossbar.toggle` permission. <br />**Note:** This command will not appear in command auto-complete, because it's not a real registered command. Registered commands must be defined in plugin jar directly and cannot be dynamic. If you want to solve this, you can try getting a dummy private plugin made which registers that command. |
+| remember-toggle-choice | false         | When enabled, disabling bossbar using `toggle-command` is remembered between reloads and restarts.                                                                                                                                                                                                                                                                                                                                          |
+| hidden-by-default      | false         | When enabled, bossbar will automatically be hidden until toggle command is used.                                                                                                                                                                                                                                                                                                                                                            |
 
 # Limitations
 * Does not support newlines. If you want to display more lines, you'll need to create multiple bossbars.
@@ -112,10 +120,15 @@ When using a bossbar announcement, you have a new placeholder available: `%count
 
 # Additional info
 ## Additional note 1 - Hiding bar itself
-If you want to hide the bossbar itself and only show text, this is possible, but not from the plugin's side. You'll need to create a custom resource pack where the bar doesn't show up and only text does. Then, you need to force your players to get the resource pack.
+If you want to hide the bossbar itself and only show text, this is possible, but not from the plugin's side.
+You'll need to create a custom resource pack where the bar is invisible.
+Then, you need to force your players to get the resource pack.
 
 ## Additional note 2 - Not hiding on server switch
-When under a BungeeCord network and having TAB installed on backend server and switching to another server, the bossbar will not hide. This is because BungeeCord makes it look like a world switch to the client. To avoid this, the only way is to install TAB on BungeeCord and disable bossbar on that server.
+When under a proxy network and having TAB installed on backend server and switching to another server,
+the bossbar will not hide.
+This is because BungeeCord makes it look like a world switch to the client.
+To avoid this, the only way is to install TAB on BungeeCord and disable bossbar on that server.
 
 # API
 *To get started with the API, see [Developer API](https://github.com/NEZNAMY/TAB/wiki/Developer-API) page.*
@@ -127,11 +140,11 @@ A boss bar is made up of a few things:
 * A title. This is the display message of the boss bar.
 * The progress from 0 to 100.
 * The color. This determines what color the boss bar will appear when it is shown to clients.
-* The style. This determines how many segments, if any, the boss bar will be split in to.
+* The style. This determines how many segments, if any, the boss bar will be split to.
 
 Let's start with methods in `BossBarManager`:
 * `BossBarManager#createBossBar(String, float, BarColor, BarStyle` - Creates new bossbar using direct values.
-* `BossBarManager#createBossBar(String, String, String, String` - Creates new bossbar. Accepts all of the previous as strings, to allow for placeholders, though the given placeholders must match the requirements (progress will be a number, color and style matching enum names).
+* `BossBarManager#createBossBar(String, String, String, String` - Creates new bossbar. Accepts all the previous parameters as strings, to allow for placeholders, though the given placeholders must match the requirements (progress will be a number, color and style matching enum names).
 * `BossBarManager#getBossBar(String)` - Returns bossbar by name defined in config.
 * `BossBarManager#toggleBossBar(TabPlayer, boolean)` - Toggles all bossbars for specified player. The boolean flags whether toggle message defined in messages.yml should be sent to the player or not.
 * `BossBarManager#hasBossBarVisible(TabPlayer)` - Returns `true` if player has bossbars visible, `false` if disabled using toggling.
@@ -162,7 +175,7 @@ Methods in `BossBar`:
 
 # Tips & Tricks
 ## Tip 1 - Animated bossbar color
-You can animate color of a bossbar using [animations](https://github.com/NEZNAMY/TAB/wiki/Animations).  
+You can animate the color of a bossbar using [animations](https://github.com/NEZNAMY/TAB/wiki/Animations).  
 First, create an animation in **animations.yml**, such as
 ```
 BossColor:
@@ -184,7 +197,12 @@ This bossbar will change color every second between blue and yellow colors.
 You can do the same with progress, style and text as well.
 
 ## Tip 2 - Switching between bossbars with condition
-If you want the plugin to switch between bossbars based on a condition, first consider using condition for text itself (or some other property). If this is not an option (you want text, color, style and progress to be different, which would result in 4 conditions), create 2 bars and give them the same condition, except negate it. If your original condition uses `=`, make second condition use `!=`. For number comparisons, negate `<` using `>=` and so on.  
+If you want the plugin to switch between bossbars based on a condition, first consider using condition for text itself
+(or some other property).
+If this is not an option (you want text, color, style and progress to be different, which would result in 4 conditions),
+create 2 bars and give them the same condition, except, negate it.
+If your original condition uses `=`, make second condition use `!=`.
+For number comparisons, negate `<` using `>=` and so on.  
 **Example**:
 ```
   bars:

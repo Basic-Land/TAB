@@ -61,6 +61,12 @@ public class PlayerJoinResponse implements IncomingMessage {
         Map<PlayerPlaceholderImpl, String> playerPlaceholderUpdates = new HashMap<>();
         for (Map.Entry<String, Object> entry : placeholders.entrySet()) {
             String identifier = entry.getKey();
+
+            // Ignore placeholders that were not registered with this reload
+            // (for example, a condition was used in config but not defined, but now it is defined).
+            // It is also in bridge memory, but bridge will not return the correct value, so ignore it.
+            if (!TAB.getInstance().getPlaceholderManager().getBridgePlaceholders().containsKey(identifier)) continue;
+
             Placeholder pl = TAB.getInstance().getPlaceholderManager().getPlaceholderRaw(identifier);
             if (pl == null) continue;
             if (identifier.startsWith("%rel_")) {

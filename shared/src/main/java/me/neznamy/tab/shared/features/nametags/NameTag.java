@@ -10,7 +10,7 @@ import me.neznamy.tab.api.nametag.NameTagManager;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
@@ -87,7 +87,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         }
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             for (TabPlayer target : onlinePlayers.getPlayers()) {
-                if (target.isVanished() && !TAB.getInstance().getPlatform().canSee(viewer, target)) {
+                if (target.isVanished() && !viewer.canSee(target)) {
                     target.teamData.vanishedFor.add(viewer.getUniqueId());
                 }
                 if (!target.teamData.isDisabled()) registerTeam(target, viewer);
@@ -131,10 +131,10 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         connectedPlayer.teamData.teamName = connectedPlayer.sortingData.shortTeamName; // Sorting is loaded sync before nametags
         for (TabPlayer all : onlinePlayers.getPlayers()) {
             if (all == connectedPlayer) continue; //avoiding double registration
-            if (connectedPlayer.isVanished() && !TAB.getInstance().getPlatform().canSee(all, connectedPlayer)) {
+            if (connectedPlayer.isVanished() && !all.canSee(connectedPlayer)) {
                 connectedPlayer.teamData.vanishedFor.add(all.getUniqueId());
             }
-            if (all.isVanished() && !TAB.getInstance().getPlatform().canSee(connectedPlayer, all)) {
+            if (all.isVanished() && !connectedPlayer.canSee(all)) {
                 all.teamData.vanishedFor.add(connectedPlayer.getUniqueId());
             }
             if (!all.teamData.isDisabled()) {
@@ -159,7 +159,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                         CollisionRule.ALWAYS,
                         Collections.singletonList(redis.getNickname()),
                         2,
-                        prefix.getLastColor().getLegacyColor()
+                        prefix.getLastColor()
                 );
             }
             redis.sendMessage(new UpdateRedisPlayer(
@@ -195,7 +195,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         if (player.isVanished()) {
             for (TabPlayer viewer : onlinePlayers.getPlayers()) {
                 if (viewer == player) continue;
-                if (!TAB.getInstance().getPlatform().canSee(viewer, player)) {
+                if (!viewer.canSee(player)) {
                     player.teamData.vanishedFor.add(viewer.getUniqueId());
                     if (!player.teamData.isDisabled()) {
                         ((SafeScoreboard<?>)viewer.getScoreboard()).unregisterTeamSafe(player.teamData.teamName);
@@ -260,7 +260,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                     player.teamData.teamName,
                     prefix,
                     cache.get(player.teamData.suffix.getFormat(viewer)),
-                    prefix.getLastColor().getLegacyColor()
+                    prefix.getLastColor()
             );
         }
         if (redis != null) redis.sendMessage(new UpdateRedisPlayer(
@@ -347,7 +347,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
 
     private void registerTeam(@NonNull TabPlayer p, @NonNull TabPlayer viewer) {
         if (p.teamData.isDisabled() || p.teamData.vanishedFor.contains(viewer.getUniqueId())) return;
-        if (!TAB.getInstance().getPlatform().canSee(viewer, p) && p != viewer) return;
+        if (!viewer.canSee(p) && p != viewer) return;
         TabComponent prefix = cache.get(p.teamData.prefix.getFormat(viewer));
         viewer.getScoreboard().registerTeam(
                 p.teamData.teamName,
@@ -357,7 +357,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                 p.teamData.getCollisionRule() ? CollisionRule.ALWAYS : CollisionRule.NEVER,
                 Collections.singletonList(p.getNickname()),
                 teamOptions,
-                prefix.getLastColor().getLegacyColor()
+                prefix.getLastColor()
         );
     }
 
@@ -428,41 +428,50 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     @Override
     public void hideNameTag(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (!p.teamData.hiddenNameTag) {
-            p.teamData.hiddenNameTag = true;
-            updateVisibility(p);
-        }
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (!p.teamData.hiddenNameTag) {
+                p.teamData.hiddenNameTag = true;
+                updateVisibility(p);
+            }
+        }, getFeatureName(), "Processing API call (hideNameTag)"));
+
     }
 
     @Override
     public void hideNameTag(@NonNull me.neznamy.tab.api.TabPlayer player, @NonNull me.neznamy.tab.api.TabPlayer viewer) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (!p.teamData.addHiddenNameTagFor((TabPlayer) viewer)) return;
-        updateVisibility(p, (TabPlayer) viewer);
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (!p.teamData.addHiddenNameTagFor((TabPlayer) viewer)) return;
+            updateVisibility(p, (TabPlayer) viewer);
+        }, getFeatureName(), "Processing API call (hideNameTag)"));
     }
 
     @Override
     public void showNameTag(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (p.teamData.hiddenNameTag) {
-            p.teamData.hiddenNameTag = false;
-            updateVisibility(p);
-        }
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (p.teamData.hiddenNameTag) {
+                p.teamData.hiddenNameTag = false;
+                updateVisibility(p);
+            }
+        }, getFeatureName(), "Processing API call (showNameTag)"));
     }
 
     @Override
     public void showNameTag(@NonNull me.neznamy.tab.api.TabPlayer player, @NonNull me.neznamy.tab.api.TabPlayer viewer) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (!p.teamData.removeHiddenNameTagFor((TabPlayer) viewer)) return;
-        updateVisibility(p, (TabPlayer) viewer);
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (!p.teamData.removeHiddenNameTagFor((TabPlayer) viewer)) return;
+            updateVisibility(p, (TabPlayer) viewer);
+        }, getFeatureName(), "Processing API call (showNameTag)"));
     }
 
     @Override
@@ -480,21 +489,25 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     @Override
     public void pauseTeamHandling(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (p.teamData.teamHandlingPaused) return;
-        if (!p.teamData.isDisabled()) unregisterTeam(p.teamData.teamName);
-        p.teamData.teamHandlingPaused = true; //setting after, so unregisterTeam method runs
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (p.teamData.teamHandlingPaused) return;
+            if (!p.teamData.isDisabled()) unregisterTeam(p.teamData.teamName);
+            p.teamData.teamHandlingPaused = true; //setting after, so unregisterTeam method runs
+        }, getFeatureName(), "Processing API call (pauseTeamHandling)"));
     }
 
     @Override
     public void resumeTeamHandling(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (!p.teamData.teamHandlingPaused) return;
-        p.teamData.teamHandlingPaused = false; //setting before, so registerTeam method runs
-        if (!p.teamData.isDisabled()) registerTeam(p);
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (!p.teamData.teamHandlingPaused) return;
+            p.teamData.teamHandlingPaused = false; //setting before, so registerTeam method runs
+            if (!p.teamData.isDisabled()) registerTeam(p);
+        }, getFeatureName(), "Processing API call (resumeTeamHandling)"));
     }
 
     @Override
@@ -505,11 +518,13 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     @Override
     public void setCollisionRule(@NonNull me.neznamy.tab.api.TabPlayer player, Boolean collision) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
-        if (Objects.equals(p.teamData.forcedCollision, collision)) return;
-        p.teamData.forcedCollision = collision;
-        updateCollision(p, true);
+        customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (Objects.equals(p.teamData.forcedCollision, collision)) return;
+            p.teamData.forcedCollision = collision;
+            updateCollision(p, true);
+        }, getFeatureName(), "Processing API call (setCollisionRule)"));
     }
 
     @Override
@@ -523,23 +538,23 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     @Override
     public void setPrefix(@NonNull me.neznamy.tab.api.TabPlayer player, @Nullable String prefix) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
         customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
             p.teamData.prefix.setTemporaryValue(prefix);
             updatePrefixSuffix(p);
-        }, getFeatureName(), "Updating prefix"));
+        }, getFeatureName(), "Processing API call (setPrefix)"));
     }
 
     @Override
     public void setSuffix(@NonNull me.neznamy.tab.api.TabPlayer player, @Nullable String suffix) {
         ensureActive();
-        TabPlayer p = (TabPlayer) player;
-        p.ensureLoaded();
         customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
             p.teamData.suffix.setTemporaryValue(suffix);
             updatePrefixSuffix(p);
-        }, getFeatureName(), "Updating suffix"));
+        }, getFeatureName(), "Processing API call (setSuffix)"));
     }
 
     @Override
@@ -582,10 +597,10 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         TabPlayer player = (TabPlayer) p;
         if (player.teamData.invisibleNameTagView) {
             player.teamData.invisibleNameTagView = false;
-            if (sendToggleMessage) player.sendMessage(TAB.getInstance().getConfiguration().getMessages().getNameTagsShown(), true);
+            if (sendToggleMessage) player.sendMessage(TAB.getInstance().getConfiguration().getMessages().getNameTagsShown());
         } else {
             player.teamData.invisibleNameTagView = true;
-            if (sendToggleMessage) player.sendMessage(TAB.getInstance().getConfiguration().getMessages().getNameTagsHidden(), true);
+            if (sendToggleMessage) player.sendMessage(TAB.getInstance().getConfiguration().getMessages().getNameTagsHidden());
         }
         TAB.getInstance().getPlaceholderManager().getTabExpansion().setNameTagVisibility(player, !player.teamData.invisibleNameTagView);
         for (TabPlayer all : onlinePlayers.getPlayers()) {
@@ -766,7 +781,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                             CollisionRule.ALWAYS,
                             Collections.singletonList(target.getNickname()),
                             2,
-                            prefixComponent.getLastColor().getLegacyColor()
+                            prefixComponent.getLastColor()
                     );
                 }
             } else {
@@ -778,7 +793,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                             nameVisibility,
                             CollisionRule.ALWAYS,
                             2,
-                            prefixComponent.getLastColor().getLegacyColor()
+                            prefixComponent.getLastColor()
                     );
                 }
             }

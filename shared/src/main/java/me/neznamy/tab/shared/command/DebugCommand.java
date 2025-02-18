@@ -3,7 +3,8 @@ package me.neznamy.tab.shared.command;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.chat.TextColor;
+import me.neznamy.chat.component.TextComponent;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.shared.features.sorting.Sorting;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -12,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -133,7 +135,14 @@ public class DebugCommand extends SubCommand {
      */
     private @NotNull String getGroup(@NotNull TabPlayer analyzed) {
         if (TAB.getInstance().getConfiguration().getConfig().isGroupsByPermissions()) {
-            return "&eHighest group permission: &8tab.group.&a" + analyzed.getGroup();
+            if (analyzed.getGroup().equals(TabConstants.NO_GROUP)) {
+                return "&cPlayer does not have tab.group.<name> permission for any of the listed groups";
+            }
+            String s = "&eHighest group permission: &8tab.group.&a" + analyzed.getGroup();
+            if (analyzed.hasPermission(TabConstants.Permission.TEST_PERMISSION)) {
+                s += " &c| This user appears to have all permissions. Are they OP? &r";
+            }
+            return s;
         }
         return "&ePrimary permission group: &a" + analyzed.getGroup();
     }
@@ -183,9 +192,14 @@ public class DebugCommand extends SubCommand {
         if (disabled) {
             sendMessage(sender, "&a" + property.getName() + ": &cDisabled for player with condition");
         } else {
-            String rawValue = EnumChatFormat.decolor(property.getCurrentRawValue());
-            String value = String.format((EnumChatFormat.color("&a%s: &e\"&r%s&r&e\" &7(Source: %s)")), property.getName(), rawValue, property.getSource());
-            sendRawMessage(sender, value);
+            // Do it this way to avoid sending the "§" symbol to the console to try to color the text (does not work on Velocity)
+            sendMessage(sender, new TextComponent("", Arrays.asList(
+                    new TextComponent(property.getName() + ": ", TextColor.GREEN),
+                    new TextComponent("\"", TextColor.YELLOW),
+                    new TextComponent(property.getCurrentRawValue().replace('§', '&'), TextColor.WHITE),
+                    new TextComponent("\" ", TextColor.YELLOW),
+                    new TextComponent("(Source: " + property.getSource() + ")", TextColor.GRAY)
+            )));
         }
     }
 

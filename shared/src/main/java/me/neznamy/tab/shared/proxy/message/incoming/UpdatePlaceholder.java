@@ -24,6 +24,11 @@ public class UpdatePlaceholder implements IncomingMessage {
 
     @Override
     public void process(@NotNull ProxyTabPlayer player) {
+        // Ignore placeholders that were not registered with this reload
+        // (for example, a condition was used in config but not defined, but now it is defined).
+        // It is also in bridge memory, but bridge will not return the correct value, so ignore it.
+        if (!TAB.getInstance().getPlaceholderManager().getBridgePlaceholders().containsKey(identifier)) return;
+
         Placeholder placeholder = TAB.getInstance().getPlaceholderManager().getPlaceholderRaw(identifier);
         if (placeholder == null) return;
         if (placeholder instanceof RelationalPlaceholder) {

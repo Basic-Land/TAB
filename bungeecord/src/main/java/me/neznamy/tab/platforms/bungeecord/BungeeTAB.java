@@ -1,9 +1,8 @@
 package me.neznamy.tab.platforms.bungeecord;
 
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.protocol.packet.PlayerListItem;
 
 /**
  * Main class for BungeeCord.
@@ -12,13 +11,14 @@ public class BungeeTAB extends Plugin {
 
     @Override
     public void onEnable() {
-        try {
-            PlayerListItem.Item.class.getDeclaredField("listOrder");
+        if (ReflectionUtils.classExists("net.md_5.bungee.protocol.packet.Team$NameTagVisibility")) {
             TAB.create(new BungeePlatform(this));
-        } catch (NoSuchFieldException e) {
-            getLogger().warning(EnumChatFormat.RED + "The plugin requires BungeeCord build #1861 " +
-                    "(released on August 24th, 2024) and up (or an equivalent fork) to work. If you are using a fork that did not" +
-                    " update to the new BungeeCord version yet, stay on an older TAB version made for older BungeeCord builds in the meantime.");
+        } else {
+            getLogger().warning("§c====================================================================================================");
+            getLogger().warning("§cThe plugin requires BungeeCord build #1899 " +
+                    "(released on February 1st, 2025) and up (or an equivalent fork) to work. If you are using a fork that did not" +
+                    " update to the new BungeeCord version yet, stay on TAB v5.0.5, which supports older builds.");
+            getLogger().warning("§c====================================================================================================");
         }
     }
 

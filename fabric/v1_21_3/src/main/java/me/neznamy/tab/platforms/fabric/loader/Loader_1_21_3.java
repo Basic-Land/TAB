@@ -2,15 +2,20 @@ package me.neznamy.tab.platforms.fabric.loader;
 
 import com.mojang.authlib.GameProfile;
 import lombok.RequiredArgsConstructor;
+import me.neznamy.chat.ChatModifier;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.GameType;
 import org.jetbrains.annotations.NotNull;
 
@@ -37,8 +42,8 @@ public class Loader_1_21_3 implements Loader {
             Component displayName = nmsData.displayName();
             int latency = nmsData.latency();
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                Component expectedDisplayName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
-                if (expectedDisplayName != null) displayName = expectedDisplayName;
+                TabComponent expectedDisplayName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
+                if (expectedDisplayName != null) displayName = expectedDisplayName.convert();
             }
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
                 latency = TAB.getInstance().getFeatureManager().onLatencyChange(receiver, nmsData.profileId(), latency);
@@ -70,6 +75,23 @@ public class Loader_1_21_3 implements Loader {
                 null
         ));
         return packet;
+    }
+
+    @Override
+    @NotNull
+    public Style convertModifier(@NotNull ChatModifier modifier) {
+        return new Style(
+                modifier.getColor() == null ? null : TextColor.fromRgb(modifier.getColor().getRgb()),
+                modifier.getBold(),
+                modifier.getItalic(),
+                modifier.getUnderlined(),
+                modifier.getStrikethrough(),
+                modifier.getObfuscated(),
+                null,
+                null,
+                null,
+                modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont())
+        );
     }
 
     private static class Register1_19_3 {

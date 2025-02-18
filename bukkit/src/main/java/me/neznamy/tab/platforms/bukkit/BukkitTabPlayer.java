@@ -8,7 +8,7 @@ import me.neznamy.tab.platforms.bukkit.nms.PingRetriever;
 import me.neznamy.tab.platforms.bukkit.platform.BukkitPlatform;
 import me.neznamy.tab.platforms.bukkit.tablist.TabListBase;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.MetadataValue;
@@ -57,7 +57,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
 
     @Override
     public void sendMessage(@NotNull TabComponent message) {
-        getPlayer().sendMessage(getPlatform().toBukkitFormat(message, getVersion().supportsRGB()));
+        getPlayer().sendMessage(getPlatform().toBukkitFormat(message));
     }
 
     @Override
@@ -73,7 +73,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
     @Override
     @Nullable
     public TabList.Skin getSkin() {
-        return ((TabListBase<?>)getTabList()).getSkin();
+        return ((TabListBase)getTabList()).getSkin();
     }
 
     @Override
