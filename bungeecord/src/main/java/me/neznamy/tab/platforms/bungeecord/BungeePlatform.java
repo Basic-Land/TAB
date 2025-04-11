@@ -16,13 +16,14 @@ import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
-import me.neznamy.tab.shared.features.redis.RedisSupport;
+import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.impl.DummyBossBar;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
+import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import me.neznamy.tab.shared.util.cache.Cache;
 import net.md_5.bungee.api.ChatColor;
@@ -69,11 +70,27 @@ public class BungeePlatform extends ProxyPlatform {
     }
 
     @Override
+    public void registerPlaceholders() {
+        super.registerPlaceholders();
+        for (String server : ProxyServer.getInstance().getConfig().getServers().keySet()) {
+            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder("%online_" + server + "%", 1000, () -> {
+                int count = 0;
+                for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
+                    if (player.server.equals(server) && !player.isVanished()) count++;
+                }
+                return PerformanceUtil.toString(count);
+            });
+        }
+    }
+
+    @Override
     @Nullable
-    public RedisSupport getRedisSupport() {
-        if (ReflectionUtils.classExists("com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI") &&
-                RedisBungeeAPI.getRedisBungeeApi() != null) {
-            return new BungeeRedisSupport(plugin);
+    public ProxySupport getProxySupport(@NotNull String plugin) {
+        if (plugin.equalsIgnoreCase("RedisBungee")) {
+            if (ReflectionUtils.classExists("com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI") &&
+                    RedisBungeeAPI.getRedisBungeeApi() != null) {
+                return new BungeeRedisSupport(this.plugin);
+            }
         }
         return null;
     }
@@ -231,16 +248,6 @@ public class BungeePlatform extends ProxyPlatform {
         } else {
             return new BungeeTabList17((BungeeTabPlayer) player);
         }
-    }
-
-    @Override
-    public boolean supportsNumberFormat() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsListOrder() {
-        return true;
     }
 
     @Override

@@ -8,11 +8,11 @@ import lombok.SneakyThrows;
 import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.BukkitUtils;
-import me.neznamy.tab.platforms.bukkit.nms.converter.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.platforms.bukkit.nms.PacketSender;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.TabList;
+import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,11 +22,14 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 /**
- * TabList handler for 1.8 - 1.19.2 servers using packets.
+ * TabList handler for 1.17 - 1.19.2 servers using packets.
  */
 @Setter
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class PacketTabList18 extends TabListBase {
+public class PacketTabList18 extends TrackedTabList<BukkitTabPlayer> {
+
+    @Nullable
+    public static SkinData skinData;
 
     protected static Class<?> PlayerInfoClass;
     protected static Constructor<?> newPlayerInfo;
@@ -61,35 +64,30 @@ public class PacketTabList18 extends TabListBase {
      *          If something goes wrong
      */
     public static void load() throws ReflectiveOperationException {
-        Class<Enum> EnumGamemodeClass = (Class<Enum>) BukkitReflection.getClass("world.level.GameType",
-                "world.level.EnumGamemode", "EnumGamemode", "WorldSettings$EnumGamemode");
+        Class<Enum> EnumGamemodeClass = (Class<Enum>) BukkitReflection.getClass("world.level.GameType", "world.level.EnumGamemode");
         ActionClass = (Class<Enum>) BukkitReflection.getClass(
-                "network.protocol.game.ClientboundPlayerInfoPacket$Action", // Mojang 1.17 - 1.19.2
-                "network.protocol.game.PacketPlayOutPlayerInfo$EnumPlayerInfoAction", // Bukkit 1.17 - 1.19.2
-                "PacketPlayOutPlayerInfo$EnumPlayerInfoAction", // Bukkit 1.8.1 - 1.16.5
-                "EnumPlayerInfoAction" // Bukkit 1.8.0
+                "network.protocol.game.ClientboundPlayerInfoPacket$Action", // Mojang
+                "network.protocol.game.PacketPlayOutPlayerInfo$EnumPlayerInfoAction" // Bukkit
         );
-        PlayerInfoClass = BukkitReflection.getClass("network.protocol.game.ClientboundPlayerInfoUpdatePacket",
-                "network.protocol.game.ClientboundPlayerInfoPacket",
-                "network.protocol.game.PacketPlayOutPlayerInfo", "PacketPlayOutPlayerInfo");
+        PlayerInfoClass = BukkitReflection.getClass(
+                "network.protocol.game.ClientboundPlayerInfoPacket", // Mojang
+                "network.protocol.game.PacketPlayOutPlayerInfo" // Bukkit
+        );
         Class<?> playerInfoDataClass = BukkitReflection.getClass(
-                "network.protocol.game.ClientboundPlayerInfoPacket$PlayerUpdate", // Mojang 1.17 - 1.19.2
-                "network.protocol.game.PacketPlayOutPlayerInfo$PlayerInfoData", // Bukkit 1.17 - 1.19.2
-                "PacketPlayOutPlayerInfo$PlayerInfoData", // Bukkit 1.8.1 - 1.16.5
-                "PlayerInfoData" // Bukkit 1.8.0
+                "network.protocol.game.ClientboundPlayerInfoPacket$PlayerUpdate", // Mojang
+                "network.protocol.game.PacketPlayOutPlayerInfo$PlayerInfoData" // Bukkit
         );
 
-        Class<?> classType = BukkitReflection.getMinorVersion() >= 17 ? Collection.class : Iterable.class;
-        newPlayerInfo = PlayerInfoClass.getConstructor(ActionClass, classType);
+        newPlayerInfo = PlayerInfoClass.getConstructor(ActionClass, Collection.class);
         ACTION = ReflectionUtils.getOnlyField(PlayerInfoClass, ActionClass);
 
         loadSharedContent(playerInfoDataClass, EnumGamemodeClass);
 
-        newPlayerInfoData = playerInfoDataClass.getConstructors()[0]; // #1105, a specific 1.8.8 fork has 2 constructors
+        newPlayerInfoData = playerInfoDataClass.getConstructors()[0];
     }
 
-    protected static void loadSharedContent(Class<?> infoData, Class<Enum> gameMode) throws ReflectiveOperationException {
-        Class<?> IChatBaseComponent = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent", "IChatBaseComponent");
+    protected static void loadSharedContent(Class<?> infoData, Class<Enum> gameMode) {
+        Class<?> IChatBaseComponent = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent");
         PLAYERS = ReflectionUtils.getOnlyField(PlayerInfoClass, List.class);
         PlayerInfoData_Profile = ReflectionUtils.getOnlyField(infoData, GameProfile.class);
         PlayerInfoData_Latency = ReflectionUtils.getFields(infoData, int.class).get(0);
@@ -101,7 +99,6 @@ public class PacketTabList18 extends TabListBase {
                 Enum.valueOf(gameMode, "SPECTATOR")
         };
         packetSender = new PacketSender();
-        if (ComponentConverter.INSTANCE == null) throw new IllegalStateException("Component converter is not available");
         try {
             skinData = new SkinData();
         } catch (Exception e) {
@@ -154,6 +151,11 @@ public class PacketTabList18 extends TabListBase {
         packetSender.sendPacket(player,
                 createPacket(Action.ADD_PLAYER, entry.getUniqueId(), entry.getName(), entry.getSkin(), entry.isListed(),
                         entry.getLatency(), entry.getGameMode(), entry.getDisplayName(), entry.getListOrder(), entry.isShowHat()));
+    }
+
+    @Override
+    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+        player.getPlatform().getHeaderFooter().set(player, header, footer);
     }
 
     /**
@@ -243,5 +245,17 @@ public class PacketTabList18 extends TabListBase {
                 TAB.getInstance().getFeatureManager().onEntryAdd(player, id, profile.getName());
             }
         }
+    }
+
+    @Override
+    public boolean containsEntry(@NonNull UUID entry) {
+        return true; // TODO?
+    }
+
+    @Nullable
+    @Override
+    public Skin getSkin() {
+        if (skinData == null) return null;
+        return skinData.getSkin(player);
     }
 }

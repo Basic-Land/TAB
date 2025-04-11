@@ -1,24 +1,25 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
 }
 
 val platforms = setOf(
     rootProject.projects.bukkit,
-//    rootProject.projects.bungeecord,
-//    rootProject.projects.velocity,
-//    rootProject.projects.sponge7,
-//    rootProject.projects.sponge8
+    rootProject.projects.bukkit.paper,
+    rootProject.projects.bukkit.v18R3,
+    rootProject.projects.bukkit.v112R1,
+    rootProject.projects.bukkit.v116R3,
+    rootProject.projects.bungeecord,
+    rootProject.projects.velocity,
+    rootProject.projects.sponge
 ).map { it.dependencyProject }
 
-//val fabrics = setOf(
-//    rootProject.projects.fabric,
-//    rootProject.projects.fabric.v1144,
-//    rootProject.projects.fabric.v1182,
-//    rootProject.projects.fabric.v1203,
-//    rootProject.projects.fabric.v1213
-//).map { it.dependencyProject }
+val moddedPlatforms = setOf(
+    rootProject.projects.fabric,
+    rootProject.projects.neoforge,
+    rootProject.projects.forge
+).map { it.dependencyProject }
 
 tasks {
     shadowJar {
@@ -35,11 +36,9 @@ tasks {
             registerPlatform(it, it.tasks.named<ShadowJar>("shadowJar").get())
         }
 
-//        fabrics.forEach {
-//            registerPlatform(it, it.tasks.named<org.gradle.jvm.tasks.Jar>("remapJar").get())
-//        }
+        moddedPlatforms.forEach {
+            registerPlatform(it, it.tasks.named<org.gradle.jvm.tasks.Jar>("remapJar").get())
+        }
     }
-    build {
-        dependsOn(shadowJar)
-    }
+    build.get().dependsOn(shadowJar)
 }

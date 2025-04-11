@@ -1,18 +1,16 @@
 package me.neznamy.tab.platforms.fabric;
 
+import com.mojang.logging.LogUtils;
 import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.Placeholders;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import me.neznamy.tab.platforms.fabric.hook.FabricTabExpansion;
-import me.neznamy.tab.shared.ProtocolVersion;
-import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.chat.component.KeybindComponent;
 import me.neznamy.chat.component.TabComponent;
 import me.neznamy.chat.component.TextComponent;
 import me.neznamy.chat.component.TranslatableComponent;
+import me.neznamy.tab.platforms.fabric.hook.FabricTabExpansion;
+import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
@@ -24,7 +22,12 @@ import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -36,16 +39,10 @@ import java.util.Collections;
 
 /**
  * Platform implementation for Fabric
+ *
+ * @param server Minecraft server reference
  */
-@RequiredArgsConstructor
-@Getter
-public class FabricPlatform implements BackendPlatform {
-
-    /** Minecraft server reference */
-    private final MinecraftServer server;
-
-    /** Server version */
-    private final ProtocolVersion serverVersion = ProtocolVersion.fromFriendlyName(FabricTAB.minecraftVersion);
+public record FabricPlatform(MinecraftServer server) implements BackendPlatform {
 
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
@@ -55,12 +52,11 @@ public class FabricPlatform implements BackendPlatform {
         }
 
         PlaceholderManagerImpl manager = TAB.getInstance().getPlaceholderManager();
-        int refresh = manager.getRefreshInterval(identifier);
-        manager.registerPlayerPlaceholder(identifier, refresh,
+        manager.registerPlayerPlaceholder(identifier,
                 p -> Placeholders.parseText(
-                            FabricMultiVersion.newTextComponent(identifier),
-                            PlaceholderContext.of((ServerPlayer) p.getPlayer())
-                        ).getString()
+                        Component.literal(identifier),
+                        PlaceholderContext.of((ServerPlayer) p.getPlayer())
+                ).getString()
         );
     }
 
@@ -98,18 +94,18 @@ public class FabricPlatform implements BackendPlatform {
 
     @Override
     public void logInfo(@NotNull TabComponent message) {
-        FabricMultiVersion.logInfo(message);
+        LogUtils.getLogger().info("[TAB] {}", message.toRawText());
     }
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        FabricMultiVersion.logWarn(message);
+        LogUtils.getLogger().warn("[TAB] {}", message.toRawText());
     }
 
     @Override
     @NotNull
     public String getServerVersionInfo() {
-        return "[Fabric] " + FabricTAB.minecraftVersion;
+        return "[Fabric] " + SharedConstants.getCurrentVersion().name();
     }
 
     @Override
@@ -137,19 +133,31 @@ public class FabricPlatform implements BackendPlatform {
     @NotNull
     public Component convertComponent(@NotNull TabComponent component) {
         // Component type
-        Component nmsComponent;
+        MutableComponent nmsComponent;
         if (component instanceof TextComponent) {
-            nmsComponent = FabricMultiVersion.newTextComponent(((TextComponent) component).getText());
+            nmsComponent = Component.literal(((TextComponent) component).getText());
         } else if (component instanceof TranslatableComponent) {
-            nmsComponent = FabricMultiVersion.newTranslatableComponent(((TranslatableComponent) component).getKey());
+            nmsComponent = Component.translatable(((TranslatableComponent) component).getKey());
         } else if (component instanceof KeybindComponent) {
-            nmsComponent = FabricMultiVersion.newKeybindComponent(((KeybindComponent) component).getKeybind());
+            nmsComponent = Component.keybind(((KeybindComponent) component).getKeybind());
         } else {
             throw new IllegalStateException("Unexpected component type: " + component.getClass().getName());
         }
 
         // Component style
-        FabricMultiVersion.setStyle(nmsComponent, FabricMultiVersion.convertModifier(component.getModifier()));
+        nmsComponent.setStyle(new Style(
+                component.getModifier().getColor() == null ? null : TextColor.fromRgb(component.getModifier().getColor().getRgb()),
+                component.getModifier().getShadowColor(),
+                component.getModifier().getBold(),
+                component.getModifier().getItalic(),
+                component.getModifier().getUnderlined(),
+                component.getModifier().getStrikethrough(),
+                component.getModifier().getObfuscated(),
+                null,
+                null,
+                null,
+                component.getModifier().getFont() == null ? null : ResourceLocation.tryParse(component.getModifier().getFont())
+        ));
 
         // Extra
         for (TabComponent extra : component.getExtra()) {
@@ -178,16 +186,6 @@ public class FabricPlatform implements BackendPlatform {
     }
 
     @Override
-    public boolean supportsNumberFormat() {
-        return serverVersion.getNetworkId() >= ProtocolVersion.V1_20_3.getNetworkId();
-    }
-
-    @Override
-    public boolean supportsListOrder() {
-        return serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId();
-    }
-
-    @Override
     public boolean supportsScoreboards() {
         return true;
     }
@@ -201,6 +199,6 @@ public class FabricPlatform implements BackendPlatform {
 
     @Override
     public double getMSPT() {
-        return FabricMultiVersion.getMSPT(server);
+        return (float) server.getAverageTickTimeNanos() / 1000000;
     }
 }

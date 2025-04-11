@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -59,7 +60,7 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer> {
 
     @Override
     public void updateHat(@NonNull UUID entry, boolean showHat) {
-        // TODO once velocity adds it
+        player.getPlayer().getTabList().getEntry(entry).ifPresent(e -> e.setShowHat(showHat));
     }
 
     @Override
@@ -74,8 +75,8 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer> {
                 .gameMode(entry.getGameMode())
                 .listed(entry.isListed())
                 .listOrder(entry.getListOrder())
+                .showHat(entry.isShowHat())
                 .build();
-        // TODO showHat once velocity adds it
 
         // Remove entry because:
         // #1 - If player is 1.8 - 1.19.2, KeyedVelocityTabList#addEntry will throw IllegalArgumentException
@@ -96,6 +97,19 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer> {
     @Override
     public boolean containsEntry(@NonNull UUID entry) {
         return player.getPlayer().getTabList().containsEntry(entry);
+    }
+
+    @Override
+    @Nullable
+    public Skin getSkin() {
+        List<GameProfile.Property> properties = player.getPlayer().getGameProfile().getProperties();
+        if (properties.isEmpty()) return null; //Offline mode
+        for (GameProfile.Property property : properties) {
+            if (property.getName().equals(TEXTURES_PROPERTY)) {
+                return new Skin(property.getValue(), property.getSignature());
+            }
+        }
+        return null;
     }
 
     @Override

@@ -56,6 +56,8 @@ playerlist-objective:
   enabled: true
   value: "%ping%"
   fancy-value: "&7Ping: %ping%"
+  title: "Java Edition is better" # Only visible on Bedrock Edition
+  render-type: INTEGER
   disable-condition: '%world%=disabledworld'
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Belowname
@@ -188,7 +190,7 @@ conditions:
     yes: "%player%"
     no: "~%essentials_nickname%"
 
-placeholderapi-refresh-intervals:
+placeholder-refresh-intervals:
   default-refresh-interval: 500
   "%server_uptime%": 1000
   "%server_tps_1_colored%": 1000
@@ -228,6 +230,20 @@ mysql:
   username: user
   password: password
   useSSL: true
+
+proxy-support:
+  enabled: true
+  # Supported types: PLUGIN, REDIS, RABBITMQ
+  type: PLUGIN
+  plugin:
+    # Compatible plugins: RedisBungee
+    # If enabled and compatible plugin is found, hook is enabled to work with proxied players
+    name: RedisBungee
+  redis:
+    url: 'redis://:password@localhost:6379/0'
+  rabbitmq:
+    exchange: 'plugin'
+    url: 'amqp://guest:guest@localhost:5672/%2F'
 
 ########################################################################
 # BUKKIT ONLY - THE FOLLOWING SECTION IS ONLY FOR BACKEND INSTALLATION #
@@ -281,6 +297,3 @@ use-bukkit-permissions-manager: false
 # If you experience tablist formatting not working, toggle this option (set it to opposite value)
 # Only affects proxies with online mode enabled
 use-online-uuid-in-tablist: true
-
-# If enabled and RedisBungee plugin is found, hook is enabled to work with players on all proxies
-enable-redisbungee-support: true

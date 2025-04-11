@@ -14,7 +14,6 @@ import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import me.neznamy.tab.shared.platform.Platform;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.proxy.message.outgoing.RegisterPlaceholder;
-import me.neznamy.tab.shared.util.PerformanceUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,20 +36,8 @@ public abstract class ProxyPlatform implements Platform {
     @Override
     public void registerUnknownPlaceholder(@NotNull String identifier) {
         PlaceholderManagerImpl pl = TAB.getInstance().getPlaceholderManager();
-        //internal dynamic %online_<server>% placeholder
-        if (identifier.startsWith("%online_")) {
-            String server = identifier.substring(8, identifier.length()-1);
-            pl.registerServerPlaceholder(identifier, 1000, () -> {
-                int count = 0;
-                for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                    if (player.server.equals(server) && !player.isVanished()) count++;
-                }
-                return PerformanceUtil.toString(count);
-            });
-            return;
-        }
         Placeholder placeholder;
-        int refresh = pl.getRefreshInterval(identifier);
+        int refresh = pl.getConfiguration().getRefreshInterval(identifier);
         if (identifier.startsWith("%rel_")) {
             placeholder = pl.registerRelationalBridgePlaceholder(identifier, refresh);
         } else {
@@ -63,7 +50,7 @@ public abstract class ProxyPlatform implements Platform {
 
     @Override
     public void registerPlaceholders() {
-        TAB.getInstance().getPlaceholderManager().registerServerPlaceholder(TabConstants.Placeholder.TPS, -1,
+        TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder(TabConstants.Placeholder.TPS, -1,
                 () -> "\"tps\" is a backend-only placeholder as the proxy does not tick anything. If you wish to display TPS of " +
                         "the server player is connected to, use placeholders from PlaceholderAPI and install TAB-Bridge for forwarding support to the proxy.");
         new UniversalPlaceholderRegistry().registerPlaceholders(TAB.getInstance().getPlaceholderManager());

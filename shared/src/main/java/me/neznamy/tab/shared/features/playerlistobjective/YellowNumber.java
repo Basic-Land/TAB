@@ -5,16 +5,15 @@ import com.google.common.io.ByteArrayDataOutput;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import me.neznamy.chat.component.SimpleTextComponent;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.chat.component.SimpleTextComponent;
-import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
-import me.neznamy.tab.shared.features.redis.RedisPlayer;
-import me.neznamy.tab.shared.features.redis.RedisSupport;
-import me.neznamy.tab.shared.features.redis.message.RedisMessage;
+import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
+import me.neznamy.tab.shared.features.proxy.ProxySupport;
+import me.neznamy.tab.shared.features.proxy.message.ProxyMessage;
 import me.neznamy.tab.shared.features.types.*;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.Scoreboard;
@@ -27,36 +26,31 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Feature handler for scoreboard objective with
  * PLAYER_LIST display slot (in tablist).
  */
+@Getter
 public class YellowNumber extends RefreshableFeature implements JoinListener, QuitListener, Loadable,
-        CustomThreaded, RedisFeature {
+        CustomThreaded, ProxyFeature {
 
     /** Objective name used by this feature */
     public static final String OBJECTIVE_NAME = "TAB-PlayerList";
 
-    /** Scoreboard title which is unused in java */
-    private static final TabComponent TITLE = new SimpleTextComponent("Java Edition is better"); // Unused by this objective slot (on Java, only visible on Bedrock)
-
-    @Getter
     private final StringToComponentCache cache = new StringToComponentCache("Playerlist Objective", 1000);
 
-    @Getter
     private final ThreadExecutor customThread = new ThreadExecutor("TAB Playerlist Objective Thread");
 
-    @Getter
     private OnlinePlayers onlinePlayers;
 
     private final PlayerListObjectiveConfiguration configuration;
 
+    private final PlayerlistObjectiveTitleRefresher titleRefresher = new PlayerlistObjectiveTitleRefresher(this);
     private final DisableChecker disableChecker;
 
     @Nullable
-    private final RedisSupport redis = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.REDIS_BUNGEE);
+    private final ProxySupport proxy = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PROXY_SUPPORT);
 
     /**
      * Constructs new instance and registers disable condition checker to feature manager.
@@ -68,8 +62,104 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         this.configuration = configuration;
         disableChecker = new DisableChecker(this, Condition.getCondition(configuration.getDisableCondition()), this::onDisableConditionChange, p -> p.playerlistObjectiveData.disabled);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.YELLOW_NUMBER + "-Condition", disableChecker);
-        if (redis != null) {
-            redis.registerMessage("yellow-number", UpdateRedisPlayer.class, UpdateRedisPlayer::new);
+        TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.YELLOW_NUMBER_TEXT, titleRefresher);
+        if (proxy != null) {
+            proxy.registerMessage("yellow-number", UpdateProxyPlayer.class, UpdateProxyPlayer::new);
+        }
+    }
+
+    @Override
+    public void load() {
+        onlinePlayers = new OnlinePlayers(TAB.getInstance().getOnlinePlayers());
+        Map<TabPlayer, Integer> values = new HashMap<>();
+        for (TabPlayer loaded : onlinePlayers.getPlayers()) {
+            loadProperties(loaded);
+            if (disableChecker.isDisableConditionMet(loaded)) {
+                loaded.playerlistObjectiveData.disabled.set(true);
+            } else {
+                register(loaded);
+            }
+            values.put(loaded, getValueNumber(loaded));
+            if (proxy != null) {
+                proxy.sendMessage(new UpdateProxyPlayer(loaded.getTablistId(), values.get(loaded), loaded.playerlistObjectiveData.valueModern.get()));
+            }
+        }
+        for (TabPlayer viewer : onlinePlayers.getPlayers()) {
+            for (Map.Entry<TabPlayer, Integer> entry : values.entrySet()) {
+                setScore(viewer, entry.getKey(), entry.getValue(), entry.getKey().playerlistObjectiveData.valueModern.getFormat(viewer));
+            }
+        }
+    }
+
+    private void loadProperties(@NotNull TabPlayer player) {
+        player.playerlistObjectiveData.valueLegacy = new Property(this, player, configuration.getValue());
+        player.playerlistObjectiveData.valueModern = new Property(this, player, configuration.getFancyValue());
+        player.playerlistObjectiveData.title = new Property(titleRefresher, player, configuration.getTitle());
+    }
+
+    @Override
+    public void onJoin(@NotNull TabPlayer connectedPlayer) {
+        onlinePlayers.addPlayer(connectedPlayer);
+        loadProperties(connectedPlayer);
+        if (disableChecker.isDisableConditionMet(connectedPlayer)) {
+            connectedPlayer.playerlistObjectiveData.disabled.set(true);
+        } else {
+            register(connectedPlayer);
+        }
+        int value = getValueNumber(connectedPlayer);
+        Property valueFancy = connectedPlayer.playerlistObjectiveData.valueModern;
+        valueFancy.update();
+        for (TabPlayer all : onlinePlayers.getPlayers()) {
+            setScore(all, connectedPlayer, value, valueFancy.getFormat(connectedPlayer));
+            if (all != connectedPlayer) {
+                setScore(connectedPlayer, all, getValueNumber(all), all.playerlistObjectiveData.valueModern.getFormat(connectedPlayer));
+            }
+        }
+        if (proxy != null) {
+            proxy.sendMessage(new UpdateProxyPlayer(connectedPlayer.getTablistId(), getValueNumber(connectedPlayer), connectedPlayer.playerlistObjectiveData.valueModern.get()));
+            if (connectedPlayer.playerlistObjectiveData.disabled.get()) return;
+            for (ProxyPlayer proxied : proxy.getProxyPlayers().values()) {
+                if (proxied.getPlayerlistFancy() == null) continue; // This proxy player is not loaded yet
+                connectedPlayer.getScoreboard().setScore(
+                        OBJECTIVE_NAME,
+                        proxied.getNickname(),
+                        proxied.getPlayerlistNumber(),
+                        null, // Unused by this objective slot
+                        proxied.getPlayerlistFancy()
+                );
+            }
+        }
+    }
+
+    /**
+     * Processes disable condition change.
+     *
+     * @param   p
+     *          Player who the condition has changed for
+     * @param   disabledNow
+     *          Whether the feature is disabled now or not
+     */
+    public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
+        if (disabledNow) {
+            p.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
+        } else {
+            register(p);
+            for (TabPlayer all : onlinePlayers.getPlayers()) {
+                setScore(p, all, getValueNumber(all), all.playerlistObjectiveData.valueModern.getFormat(p));
+            }
+            if (proxy != null) {
+                proxy.sendMessage(new UpdateProxyPlayer(p.getTablistId(), getValueNumber(p), p.playerlistObjectiveData.valueModern.get()));
+                for (ProxyPlayer proxied : proxy.getProxyPlayers().values()) {
+                    if (proxied.getPlayerlistFancy() == null) continue; // This proxy player is not loaded yet
+                    p.getScoreboard().setScore(
+                            OBJECTIVE_NAME,
+                            proxied.getNickname(),
+                            proxied.getPlayerlistNumber(),
+                            null, // Unused by this objective slot
+                            proxied.getPlayerlistFancy()
+                    );
+                }
+            }
         }
     }
 
@@ -99,97 +189,6 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         }
     }
 
-    @Override
-    public void load() {
-        onlinePlayers = new OnlinePlayers(TAB.getInstance().getOnlinePlayers());
-        Map<TabPlayer, Integer> values = new HashMap<>();
-        for (TabPlayer loaded : onlinePlayers.getPlayers()) {
-            loaded.playerlistObjectiveData.valueLegacy = new Property(this, loaded, configuration.getValue());
-            loaded.playerlistObjectiveData.valueModern = new Property(this, loaded, configuration.getFancyValue());
-            if (disableChecker.isDisableConditionMet(loaded)) {
-                loaded.playerlistObjectiveData.disabled.set(true);
-            } else {
-                register(loaded);
-            }
-            values.put(loaded, getValueNumber(loaded));
-            if (redis != null) {
-                redis.sendMessage(new UpdateRedisPlayer(loaded.getTablistId(), values.get(loaded), loaded.playerlistObjectiveData.valueModern.get()));
-            }
-        }
-        for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            for (Map.Entry<TabPlayer, Integer> entry : values.entrySet()) {
-                setScore(viewer, entry.getKey(), entry.getValue(), entry.getKey().playerlistObjectiveData.valueModern.getFormat(viewer));
-            }
-        }
-    }
-
-    @Override
-    public void onJoin(@NotNull TabPlayer connectedPlayer) {
-        onlinePlayers.addPlayer(connectedPlayer);
-        connectedPlayer.playerlistObjectiveData.valueLegacy = new Property(this, connectedPlayer, configuration.getValue());
-        connectedPlayer.playerlistObjectiveData.valueModern = new Property(this, connectedPlayer, configuration.getFancyValue());
-        if (disableChecker.isDisableConditionMet(connectedPlayer)) {
-            connectedPlayer.playerlistObjectiveData.disabled.set(true);
-        } else {
-            register(connectedPlayer);
-        }
-        int value = getValueNumber(connectedPlayer);
-        Property valueFancy = connectedPlayer.playerlistObjectiveData.valueModern;
-        valueFancy.update();
-        for (TabPlayer all : onlinePlayers.getPlayers()) {
-            setScore(all, connectedPlayer, value, valueFancy.getFormat(connectedPlayer));
-            if (all != connectedPlayer) {
-                setScore(connectedPlayer, all, getValueNumber(all), all.playerlistObjectiveData.valueModern.getFormat(connectedPlayer));
-            }
-        }
-        if (redis != null) {
-            redis.sendMessage(new UpdateRedisPlayer(connectedPlayer.getTablistId(), getValueNumber(connectedPlayer), connectedPlayer.playerlistObjectiveData.valueModern.get()));
-            if (connectedPlayer.playerlistObjectiveData.disabled.get()) return;
-            for (RedisPlayer redis : redis.getRedisPlayers().values()) {
-                if (redis.getPlayerlistFancy() == null) continue; // This redis player is not loaded yet
-                connectedPlayer.getScoreboard().setScore(
-                        OBJECTIVE_NAME,
-                        redis.getNickname(),
-                        redis.getPlayerlistNumber(),
-                        null, // Unused by this objective slot
-                        redis.getPlayerlistFancy()
-                );
-            }
-        }
-    }
-
-    /**
-     * Processes disable condition change.
-     *
-     * @param   p
-     *          Player who the condition has changed for
-     * @param   disabledNow
-     *          Whether the feature is disabled now or not
-     */
-    public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
-        if (disabledNow) {
-            p.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
-        } else {
-            register(p);
-            for (TabPlayer all : onlinePlayers.getPlayers()) {
-                setScore(p, all, getValueNumber(all), all.playerlistObjectiveData.valueModern.getFormat(p));
-            }
-            if (redis != null) {
-                redis.sendMessage(new UpdateRedisPlayer(p.getTablistId(), getValueNumber(p), p.playerlistObjectiveData.valueModern.get()));
-                for (RedisPlayer redis : redis.getRedisPlayers().values()) {
-                    if (redis.getPlayerlistFancy() == null) continue; // This redis player is not loaded yet
-                    p.getScoreboard().setScore(
-                            OBJECTIVE_NAME,
-                            redis.getNickname(),
-                            redis.getPlayerlistNumber(),
-                            null, // Unused by this objective slot
-                            redis.getPlayerlistFancy()
-                    );
-                }
-            }
-        }
-    }
-
     @NotNull
     @Override
     public String getRefreshDisplayName() {
@@ -204,11 +203,17 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             setScore(viewer, refreshed, value, refreshed.playerlistObjectiveData.valueModern.getFormat(viewer));
         }
-        if (redis != null) redis.sendMessage(new UpdateRedisPlayer(refreshed.getTablistId(), value, refreshed.playerlistObjectiveData.valueModern.get()));
+        if (proxy != null) proxy.sendMessage(new UpdateProxyPlayer(refreshed.getTablistId(), value, refreshed.playerlistObjectiveData.valueModern.get()));
     }
 
     private void register(@NotNull TabPlayer player) {
-        player.getScoreboard().registerObjective(Scoreboard.DisplaySlot.PLAYER_LIST, OBJECTIVE_NAME, TITLE, configuration.getHealthDisplay(), new SimpleTextComponent(""));
+        player.getScoreboard().registerObjective(
+                OBJECTIVE_NAME,
+                cache.get(player.playerlistObjectiveData.title.updateAndGet()),
+                configuration.getHealthDisplay(),
+                SimpleTextComponent.EMPTY
+        );
+        player.getScoreboard().setDisplaySlot(OBJECTIVE_NAME, Scoreboard.DisplaySlot.PLAYER_LIST);
     }
 
     /**
@@ -254,10 +259,14 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         onlinePlayers.removePlayer(disconnectedPlayer);
     }
 
+    // ------------------
+    // ProxySupport
+    // ------------------
+
     @Override
-    public void onRedisLoadRequest() {
+    public void onProxyLoadRequest() {
         for (TabPlayer all : onlinePlayers.getPlayers()) {
-            redis.sendMessage(new UpdateRedisPlayer(all.getTablistId(), getValueNumber(all), all.playerlistObjectiveData.valueModern.get()));
+            proxy.sendMessage(new UpdateProxyPlayer(all.getTablistId(), getValueNumber(all), all.playerlistObjectiveData.valueModern.get()));
         }
     }
 
@@ -268,26 +277,11 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     }
 
     /**
-     * Class holding header/footer data for players.
-     */
-    public static class PlayerData {
-
-        /** Player's score value */
-        public Property valueLegacy;
-
-        /** Player's score number format */
-        public Property valueModern;
-
-        /** Flag tracking whether this feature is disabled for the player with condition or not */
-        public final AtomicBoolean disabled = new AtomicBoolean();
-    }
-
-    /**
-     * Redis message to update playerlist objective data of a player.
+     * Proxy message to update playerlist objective data of a player.
      */
     @NoArgsConstructor
     @AllArgsConstructor
-    private class UpdateRedisPlayer extends RedisMessage {
+    private class UpdateProxyPlayer extends ProxyMessage {
 
         private UUID playerId;
         private int value;
@@ -313,14 +307,19 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         }
 
         @Override
-        public void process(@NotNull RedisSupport redisSupport) {
-            RedisPlayer target = redisSupport.getRedisPlayers().get(playerId);
+        public void process(@NotNull ProxySupport proxySupport) {
+            ProxyPlayer target = proxySupport.getProxyPlayers().get(playerId);
             if (target == null) {
-                TAB.getInstance().getErrorManager().printError("Unable to process Playerlist objective update of redis player " + playerId + ", because no such player exists", null);
+                TAB.getInstance().getErrorManager().printError("Unable to process Playerlist objective update of proxy player " + playerId + ", because no such player exists", null);
                 return;
             }
             if (target.getPlayerlistFancy() == null) {
-                TAB.getInstance().debug("Processing playerlist objective join of redis player " + target.getName());
+                TAB.getInstance().debug("Processing playerlist objective join of proxy player " + target.getName());
+            }
+            // Yellow number is already being processed by connected player
+            if (TAB.getInstance().isPlayerConnected(target.getUniqueId())) {
+                TAB.getInstance().debug("The player " + target.getName() + " is already connected");
+                return;
             }
             target.setPlayerlistNumber(value);
             target.setPlayerlistFancy(cache.get(fancyValue));

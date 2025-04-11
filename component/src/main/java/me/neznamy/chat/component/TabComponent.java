@@ -1,5 +1,8 @@
 package me.neznamy.chat.component;
 
+import com.viaversion.nbt.tag.Tag;
+import com.viaversion.viaversion.libs.gson.JsonElement;
+import com.viaversion.viaversion.util.ComponentUtil;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -7,15 +10,14 @@ import me.neznamy.chat.ChatModifier;
 import me.neznamy.chat.EnumChatFormat;
 import me.neznamy.chat.TextColor;
 import me.neznamy.chat.hook.AdventureHook;
+import me.neznamy.chat.hook.ViaVersionHook;
 import me.neznamy.chat.rgb.RGBUtils;
 import me.neznamy.chat.util.TriFunction;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,26 +33,61 @@ public abstract class TabComponent {
 
     /** Formatter to convert gradient into TAB's #RRGGBB spam */
     private static final TriFunction<TextColor, String, TextColor, String> TABGradientFormatter = (start, text, end) -> {
-        //lazy support for magic codes in gradients
-        String magicCodes = EnumChatFormat.getLastColors(text);
-        String deColorized = text.substring(magicCodes.length());
-        StringBuilder sb = new StringBuilder();
-        int length = deColorized.length();
-        if (length == 1) {
-            sb.append("#");
-            sb.append(start.getHexCode());
-            sb.append(magicCodes);
-            sb.append(deColorized);
-            return sb.toString();
+        if (text.length() == 1) {
+            return "#" + start.getHexCode() + text;
         }
+        StringBuilder sb = new StringBuilder();
+        List<Character> characters = new ArrayList<>();
+        List<ChatModifier> modifiers = new ArrayList<>();
+        ChatModifier modifier = new ChatModifier();
+        for (int i=0; i<text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '§' && i < text.length() - 1) {
+                switch (text.charAt(i+1)) {
+                    case 'l':
+                        modifier.setBold(true);
+                        i++;
+                        break;
+                    case 'o':
+                        modifier.setItalic(true);
+                        i++;
+                        break;
+                    case 'k':
+                        modifier.setObfuscated(true);
+                        i++;
+                        break;
+                    case 'm':
+                        modifier.setStrikethrough(true);
+                        i++;
+                        break;
+                    case 'n':
+                        modifier.setUnderlined(true);
+                        i++;
+                        break;
+                    case 'r':
+                        modifier = new ChatModifier();
+                        i++;
+                        break;
+                    default:
+                        // Invalid code
+                        characters.add('§');
+                        modifiers.add(new ChatModifier(modifier));
+                        break;
+                }
+            } else {
+                characters.add(c);
+                modifiers.add(new ChatModifier(modifier));
+            }
+        }
+
+        int length = characters.size();
         for (int i=0; i<length; i++) {
             int red = (int) (start.getRed() + (float)(end.getRed() - start.getRed())/(length-1)*i);
             int green = (int) (start.getGreen() + (float)(end.getGreen() - start.getGreen())/(length-1)*i);
             int blue = (int) (start.getBlue() + (float)(end.getBlue() - start.getBlue())/(length-1)*i);
-            sb.append("#");
-            sb.append(new TextColor(red, green, blue).getHexCode());
-            sb.append(magicCodes);
-            sb.append(deColorized.charAt(i));
+            sb.append(String.format("#%02X%02X%02X", red, green, blue));
+            sb.append(modifiers.get(i).getMagicCodes());
+            sb.append(characters.get(i));
         }
         return sb.toString();
     };
@@ -68,6 +105,15 @@ public abstract class TabComponent {
     @Nullable
     @Setter
     private Component adventureComponent;
+
+    /** ViaVersion component from this component */
+    @Nullable
+    @Setter
+    private JsonElement viaComponent;
+    /** ViaVersion tag from this component */
+    @Nullable
+    @Setter
+    private Tag viaTag;
 
     @Nullable
     private Object fixedFormat;
@@ -137,6 +183,26 @@ public abstract class TabComponent {
     public Component toAdventure() {
         if (adventureComponent == null) adventureComponent = AdventureHook.convert(this);
         return adventureComponent;
+    }
+
+    /**
+     * Converts this component to an ViaVersion component.
+     * @return  Converted component
+     */
+    @NotNull
+    public JsonElement toViaVersion() {
+        if (viaComponent == null) viaComponent = ViaVersionHook.convert(this);
+        return viaComponent;
+    }
+
+    /**
+     * Converts this component to an ViaVersion tag.
+     * @return  Converted component
+     */
+    @NotNull
+    public Tag toViaVersionTag() {
+        if (viaTag == null) viaTag = ComponentUtil.jsonToTag(toViaVersion());
+        return viaTag;
     }
 
     /**
@@ -262,7 +328,11 @@ public abstract class TabComponent {
                 break;
             }
         }
-        return new TextComponent("", components);
+        final TextComponent component = new TextComponent("", components);
+        // Safe check to avoid rare mojang "bug" that display text as italic by default
+        // This doesn't affect #toLegacyText() method at all
+        component.modifier.setItalic(false);
+        return component;
     }
 
     @NotNull

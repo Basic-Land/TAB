@@ -2,14 +2,10 @@ package me.neznamy.tab.platforms.bukkit;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.SneakyThrows;
 import me.neznamy.tab.shared.ProtocolVersion;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Collection;
 
 /**
  * Class containing static util methods used on Bukkit.
@@ -21,26 +17,6 @@ public class BukkitUtils {
     public static final boolean PRINT_EXCEPTIONS = false;
 
     private static boolean compatibilityIssue;
-
-    /**
-     * Returns online players from Bukkit API. This requires reflection, as return type changed in 1.8,
-     * and we want to avoid errors.
-     *
-     * @return  Online players from Bukkit API.
-     */
-    @SuppressWarnings("unchecked")
-    @SneakyThrows
-    @NotNull
-    public static Player[] getOnlinePlayers() {
-        Object players = Bukkit.class.getMethod("getOnlinePlayers").invoke(null);
-        if (players instanceof Player[]) {
-            //1.7-
-            return (Player[]) players;
-        } else {
-            //1.8+
-            return ((Collection<Player>)players).toArray(new Player[0]);
-        }
-    }
 
     /**
      * Prints a console warn that some compatibility issue was found.
@@ -79,8 +55,8 @@ public class BukkitUtils {
      */
     public static void sendCompatibilityMessage() {
         if (!compatibilityIssue) return;
-        Bukkit.getConsoleSender().sendMessage("§c[TAB] Please update the plugin to " +
-                "a version with native support for your server version for optimal experience. This plugin version " +
-                "was made for " + ProtocolVersion.V1_5.getFriendlyName() + " - " + ProtocolVersion.LATEST_KNOWN_VERSION.getFriendlyName() + ".");
+        Bukkit.getConsoleSender().sendMessage("§c[TAB] Please use " +
+                "a plugin version with full support for your server version for optimal experience. This plugin version " +
+                "has full support for 1.8.8, 1.12.2 and 1.16.5 - " + ProtocolVersion.LATEST_KNOWN_VERSION.getFriendlyName() + ".");
     }
 }

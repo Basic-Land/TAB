@@ -117,13 +117,13 @@ public class ErrorManager {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + "[TAB v" + TabConstants.PLUGIN_VERSION + "] " + message + System.lineSeparator());
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().getConfig().isDebugMode())
-                        TAB.getInstance().getPlatform().logWarn(new SimpleTextComponent(message));
+                        TAB.getInstance().getPlatform().logWarn(SimpleTextComponent.text(message));
                 }
                 for (String line : error) {
                     if (file.length() < TabConstants.MAX_LOG_SIZE)
                         buf.write(dateFormat.format(new Date()) + line + System.lineSeparator());
                     if (intoConsoleToo || TAB.getInstance().getConfiguration().getConfig().isDebugMode())
-                        TAB.getInstance().getPlatform().logWarn(new SimpleTextComponent(line));
+                        TAB.getInstance().getPlatform().logWarn(SimpleTextComponent.text(line));
                 }
             }
         } catch (IOException ex) {
@@ -133,7 +133,7 @@ public class ErrorManager {
             lines.add("Original error: " + message);
             lines.addAll(error);
             for (String line : lines) {
-                TAB.getInstance().getPlatform().logWarn(new SimpleTextComponent(line));
+                TAB.getInstance().getPlatform().logWarn(SimpleTextComponent.text(line));
             }
         }
     }
@@ -232,8 +232,8 @@ public class ErrorManager {
      * @param   action
      *          Message action
      */
-    public void unknownRedisMessage(@NotNull String action) {
-        printError("RedisSupport received unknown action: \"" + action +
+    public void unknownProxyMessage(@NotNull String action) {
+        printError("ProxySupport received unknown action: \"" + action +
                 "\". Does it come from a feature enabled on another proxy, but not here?",
                 Collections.emptyList(), false, errorLog);
     }

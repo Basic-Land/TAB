@@ -1,17 +1,13 @@
 package me.neznamy.tab.platforms.bungeecord;
 
-import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.chat.component.TabComponent;
-import me.neznamy.tab.shared.platform.TabList;
+import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.connection.InitialHandler;
-import net.md_5.bungee.connection.LoginResult;
+import net.md_5.bungee.api.connection.Server;
 import net.md_5.bungee.protocol.DefinedPacket;
-import net.md_5.bungee.protocol.Property;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * TabPlayer implementation for BungeeCord
@@ -46,21 +42,6 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
     }
 
     @Override
-    @Nullable
-    public TabList.Skin getSkin() {
-        LoginResult loginResult = ((InitialHandler)getPlayer().getPendingConnection()).getLoginProfile();
-        if (loginResult == null) return null;
-        Property[] properties = loginResult.getProperties();
-        if (properties == null) return null; //Offline mode
-        for (Property property : properties) {
-            if (property.getName().equals(TabList.TEXTURES_PROPERTY)) {
-                return new TabList.Skin(property.getValue(), property.getSignature());
-            }
-        }
-        return null;
-    }
-
-    @Override
     @NotNull
     public ProxiedPlayer getPlayer() {
         return (ProxiedPlayer) player;
@@ -73,7 +54,8 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
 
     @Override
     public void sendPluginMessage(byte[] message) {
-        getPlayer().getServer().sendData(TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME, message);
+        Server server = getPlayer().getServer();
+        if (server != null) server.sendData(TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME, message);
     }
 
     /**

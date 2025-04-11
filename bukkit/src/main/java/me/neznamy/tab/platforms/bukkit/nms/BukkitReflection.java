@@ -3,10 +3,10 @@ package me.neznamy.tab.platforms.bukkit.nms;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import me.neznamy.tab.shared.util.function.FunctionWithException;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -23,6 +23,7 @@ public class BukkitReflection {
     public static final Method CraftPlayer_getHandle = getHandle();
 
     /** Server version data */
+    @Getter
     private static final ServerVersion serverVersion = detectServerVersion();
 
     /** Flag determining whether the server version is at least 1.20.2 or not */
@@ -38,6 +39,9 @@ public class BukkitReflection {
     private static final boolean is1_21_4Plus = serverVersion.minorVersion >= 21 &&
             ReflectionUtils.getFields(getClass("network.chat.Style", "network.chat.ChatModifier"), Integer.class).size() == 1;
 
+    @Getter
+    private static final boolean mojangMapped = ReflectionUtils.classExists("org.bukkit.craftbukkit.CraftServer");
+
     @NotNull
     @SneakyThrows
     private static Method getHandle() {
@@ -45,22 +49,14 @@ public class BukkitReflection {
     }
 
     private static ServerVersion detectServerVersion() {
-        FunctionWithException<String, Class<?>> classFunction = name -> Class.forName("net.minecraft." + name);
         String[] array = CRAFTBUKKIT_PACKAGE.split("\\.");
-        int minorVersion;
         if (array.length > 3) {
             // Normal packaging
-            String serverPackage = array[3];
-            minorVersion = Integer.parseInt(serverPackage.split("_")[1]);
-            if (minorVersion < 17) {
-                ClassLoader loader = BukkitReflection.class.getClassLoader();
-                classFunction = name -> loader.loadClass("net.minecraft.server." + serverPackage + "." + name);
-            }
+            return new ServerVersion(Integer.parseInt(array[3].split("_")[1]), array[3]);
         } else {
             // Paper without CB relocation
-            minorVersion = Integer.parseInt(Bukkit.getBukkitVersion().split("-")[0].split("\\.")[1]);
+            return new ServerVersion(Integer.parseInt(Bukkit.getBukkitVersion().split("-")[0].split("\\.")[1]), null);
         }
-        return new ServerVersion(classFunction, minorVersion);
     }
 
     /**
@@ -73,8 +69,8 @@ public class BukkitReflection {
     }
 
     /**
-     * Returns class with given potential names in same order. For 1.17+ it takes packaged class names
-     * without "net.minecraft." prefix, for <1.17 it takes class name only.
+     * Returns class with given potential names in same order. It takes packaged class names
+     * without "net.minecraft." prefix.
      *
      * @param   names
      *          possible class names
@@ -86,7 +82,7 @@ public class BukkitReflection {
     public static Class<?> getClass(@NotNull String... names) {
         for (String name : names) {
             try {
-                return serverVersion.getClass.apply(name);
+                return Class.forName("net.minecraft." + name);
             } catch (ClassNotFoundException | NullPointerException ignored) {
                 // not the first class name in array
             }
@@ -99,9 +95,11 @@ public class BukkitReflection {
      */
     @RequiredArgsConstructor
     @Getter
-    private static class ServerVersion {
+    public static class ServerVersion {
 
-        private final FunctionWithException<String, Class<?>> getClass;
         private final int minorVersion;
+
+        @Nullable
+        private final String serverPackage;
     }
 }

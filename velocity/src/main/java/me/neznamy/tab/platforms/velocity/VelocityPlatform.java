@@ -5,6 +5,7 @@ import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.event.scoreboard.ObjectiveEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.scoreboard.ScoreboardManager;
 import lombok.Getter;
 import me.neznamy.tab.platforms.velocity.features.VelocityRedisSupport;
@@ -15,7 +16,7 @@ import me.neznamy.chat.TextColor;
 import me.neznamy.chat.component.TabComponent;
 import me.neznamy.chat.component.TextComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
-import me.neznamy.tab.shared.features.redis.RedisSupport;
+import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
@@ -23,6 +24,7 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
 import me.neznamy.tab.shared.platform.impl.DummyScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
+import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -100,11 +102,27 @@ public class VelocityPlatform extends ProxyPlatform {
     }
 
     @Override
+    public void registerPlaceholders() {
+        super.registerPlaceholders();
+        for (RegisteredServer server : plugin.getServer().getAllServers()) {
+            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder("%online_" + server.getServerInfo().getName() + "%", 1000, () -> {
+                int count = 0;
+                for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
+                    if (player.server.equals(server.getServerInfo().getName()) && !player.isVanished()) count++;
+                }
+                return PerformanceUtil.toString(count);
+            });
+        }
+    }
+
+    @Override
     @Nullable
-    public RedisSupport getRedisSupport() {
-        if (ReflectionUtils.classExists("com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI") &&
-                RedisBungeeAPI.getRedisBungeeApi() != null) {
-            return new VelocityRedisSupport(plugin);
+    public ProxySupport getProxySupport(@NotNull String plugin) {
+        if (plugin.equalsIgnoreCase("RedisBungee")) {
+            if (ReflectionUtils.classExists("com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI") &&
+                    RedisBungeeAPI.getRedisBungeeApi() != null) {
+                return new VelocityRedisSupport(this.plugin);
+            }
         }
         return null;
     }
@@ -175,16 +193,6 @@ public class VelocityPlatform extends ProxyPlatform {
     @NotNull
     public TabList createTabList(@NotNull TabPlayer player) {
         return new VelocityTabList((VelocityTabPlayer) player);
-    }
-
-    @Override
-    public boolean supportsNumberFormat() {
-        return true;
-    }
-
-    @Override
-    public boolean supportsListOrder() {
-        return true;
     }
 
     @Override

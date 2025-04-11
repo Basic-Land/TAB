@@ -4,26 +4,28 @@ plugins {
 
 allprojects {
     group = "me.neznamy"
-    version = "5.0.8-SNAPSHOT"
+    version = "5.2.1-SNAPSHOT"
     description = "An all-in-one solution that works"
 
     ext.set("id", "tab")
     ext.set("website", "https://github.com/NEZNAMY/TAB")
     ext.set("author", "NEZNAMY")
+    ext.set("credits", "Joseph T. McQuigg (JT122406)")
 }
 
 val platforms = setOf(
     projects.bukkit,
-//    projects.bungeecord,
+    projects.bukkit.paper,
+    projects.bukkit.v18R3,
+    projects.bukkit.v112R1,
+    projects.bukkit.v116R3,
+    projects.bungeecord,
     projects.component,
-//    projects.velocity,
-//    projects.sponge7,
-//    projects.sponge8,
-//    projects.fabric,
-//    projects.fabric.v1144,
-//    projects.fabric.v1182,
-//    projects.fabric.v1203,
-//    projects.fabric.v1213
+    projects.velocity,
+    projects.sponge,
+    projects.fabric,
+    projects.neoforge,
+    projects.forge
 ).map { it.dependencyProject }
 
 val special = setOf(

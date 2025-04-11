@@ -11,24 +11,24 @@ This is a collection of random information about the plugin not necessarily limi
 * [Debug config option](#debug-config-option)
 
 # Vanish detection
-Although TAB does not manage vanishing players in any way,
-it checks vanish status for features to be properly compatible.
+TAB is not a vanish plugin and does not manage vanishing players in any way, therefore, is not responsible for removing vanished players from the tablist.
+However, it checks vanish status for features to be properly compatible.
 At the moment, vanishing detection is used for:
 * `%vanished%` placeholder (used for internal functionality, but can be used to display vanish status if one wants to)
 * `%online%`, `%serveronline%`, `%worldonline%` and `%staffonline%` will not count vanished players
 * [Global playerlist](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Global-playerlist) makes vanish plugins unable to remove players on other servers from tablist, vanish check will make TAB remove vanished players.
 * Hide vanished players from [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout).
-* Unregister teams of vanished players to players who cannot see them to prevent third party client exploits from seeing vanished players.
+* [Unregister teams of vanished players](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Nametags#additional-note-6---vanish-hook) to players who cannot see them to prevent third party client exploits from seeing vanished players.
 
 Permission `tab.seevanished` allows players to:
 * See vanished players in [Global playerlist](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Global-playerlist).
 * See vanished players in [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout).
-* Not have teams of vanished players unregistered, which would make them not appear sorted properly and have no nametag prefix/suffix.
+* Not have [teams of vanished players unregistered](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Nametags#additional-note-6---vanish-hook), which would make them not appear sorted properly and have no nametag prefix/suffix.
 
 For a player to be detected, player has to have `vanished` metadata flag set to `true`.
 Most, (if not all) vanish plugins do this, including, but not limited to CMI,
 Essentials, SuperVanish, PremiumVanish and probably more.
-If TAB is installed on BungeeCord,
+If TAB is installed on proxy,
 [Bridge](https://github.com/NEZNAMY/TAB/wiki/TAB-Bridge) must be installed on backend servers
 to forward vanish status to the proxy.
 
@@ -71,10 +71,8 @@ You can check what version the plugin thinks player has by using any of the foll
 * Set `debug: true` in config and check console messages on player join, it will send a message containing game version ViaVersion API has returned
 
 Player game version detection may fail. Here are a few possible scenarios why:
-* ViaVersion is installed on BungeeCord
-  * And TAB on BungeeCord as well - ViaVersion makes BungeeCord API return version of the backend server player is connected to instead of player's actual version
-  * And TAB is on backend servers - There is no ViaVersion to hook into, therefore, there is no suspicion of player not using server's version and not having a way to verify it
-* ViaVersion API returns `-1` - There is currently no known cause when or why this happens. However, when this happens, TAB prints a console warn notifying this has happened. Plugin will assume player is using the same version as the server in such cases.
+* ViaVersion is installed on proxy and TAB is on backend servers - There is no ViaVersion to hook into, therefore, there is no suspicion of player not using server's version and not having a way to verify it.
+* ViaVersion API returns `-1` - This was an issue in the past and hasn't been reported in years now.
 
 When a player's game version is not detected correctly, player's experience will be very limited, see below.
 
@@ -86,7 +84,7 @@ You will not experience all of these, only those that affect the version differe
 | Change of logic                                                                                                                                                                                                                                                                                                               | Negative side effect if version is not detected correctly                                                                                                                                                 |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Disabling [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout) for 1.7 players                                                                                                                                                                                                                                 | [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout) entries being sent into the tablist of the player, breaking it as the layout is not designed support 1.7                              |
-| use alternate way of sorting [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout) entries for 1.19.3 - 1.21.1 as the optimal sorting way cannot be used                                                                                                                                                        | [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout) entries being out of order for 1.19.3 - 1.21.1 <br />Layout entries appearing in chat complete for <1.19.3 even if they don't have to |
+| Use alternate way of sorting [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout) entries for 1.19.3 - 1.21.1 as the optimal sorting way cannot be used                                                                                                                                                        | [Layout](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Layout) entries being out of order for 1.19.3 - 1.21.1 <br />Layout entries appearing in chat complete for <1.19.3 even if they don't have to |
 | Show 1.9+ bossbar on 1.8 servers for 1.9+ players using ViaVersion API                                                                                                                                                                                                                                                        | No 1.9+ bossbar for 1.9+ players on 1.8 server                                                                                                                                                            |
 | Disabling [Tablist name formatting](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Tablist-name-formatting) for 1.7 and lower due to a 16-character limit total to take advantage of the mechanic where nametags are displayed in tablist, which extends the limit to up to 48 characters (16 prefix, 16 name, 16 suffix) | Trying to fit the entire formatting into 16 characters, resulting in massive cutting and nametag feature not working                                                                                      |
 | Play around <1.13 limitations of [Scoreboard](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Scoreboard)                                                                                                                                                                                                                  | Scoreboard lines limited to ~26 characters, even for 1.13+ clients <br />Scoreboard lines limited to 14 characters for < 1.13 clients                                                                     |

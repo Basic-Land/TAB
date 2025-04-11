@@ -1,6 +1,7 @@
 package me.neznamy.tab.shared.config;
 
 import lombok.Getter;
+import lombok.NonNull;
 import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.FeatureManager;
 import me.neznamy.tab.shared.TAB;
@@ -85,6 +86,7 @@ public class Configs {
      *
      * @return  playerdata.yml file
      */
+    @Nullable
     public ConfigurationFile getPlayerDataFile() {
         if (playerdata == null) {
             File file = new File(TAB.getInstance().getDataFolder(), "playerdata.yml");
@@ -109,8 +111,10 @@ public class Configs {
      *          Element to find
      * @return  Group containing the element or element itself if not found
      */
-    public String getGroup(@NotNull Collection<String> serverGroups, @Nullable String element) {
-        if (serverGroups.isEmpty() || element == null) return element;
+    @NotNull
+    public String getGroup(@NonNull Collection<String> serverGroups, @Nullable String element) {
+        if (element == null) return "null";
+        if (serverGroups.isEmpty()) return element;
         for (Object worldGroup : serverGroups) {
             for (String definedWorld : worldGroup.toString().split(";")) {
                 if (definedWorld.endsWith("*")) {
@@ -136,7 +140,8 @@ public class Configs {
      *          Server to find
      * @return  Group containing the element or element itself if not found
      */
-    public String getServerGroup(@NotNull Collection<String> serverGroups, @Nullable String server) {
+    @NotNull
+    public String getServerGroup(@NonNull Collection<String> serverGroups, @Nullable String server) {
         String globalGroup = tryServerGroup(serverGroups, server);
         if (globalGroup != null) return globalGroup;
 
@@ -144,7 +149,8 @@ public class Configs {
         return getGroup(serverGroups, server);
     }
 
-    private @Nullable String tryServerGroup(@NotNull Collection<String> serverGroups, @Nullable String server) {
+    @Nullable
+    private String tryServerGroup(@NonNull Collection<String> serverGroups, @Nullable String server) {
         if (serverGroups.isEmpty() || server == null) return null;
 
         // Check global-playerlist server-groups for this server

@@ -1,15 +1,15 @@
 package me.neznamy.tab.shared.config;
 
+import lombok.Getter;
+import lombok.NonNull;
+import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.config.file.YamlConfigurationFile;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import lombok.Getter;
-import me.neznamy.tab.shared.config.file.YamlConfigurationFile;
-import org.jetbrains.annotations.NotNull;
-
-import me.neznamy.tab.shared.TAB;
 
 @Getter
 public class MessageFile extends YamlConfigurationFile {
@@ -49,6 +49,8 @@ public class MessageFile extends YamlConfigurationFile {
             ,"    &7shows CPU usage of the plugin"
             ," &8>> &3&l/tab group/player <name> remove"
             ,"    &7Clears all data about player/group"
+            ," &8>> &3&l/tab nametag"
+            ,"    &7Nametag-related commands"
             ,"&m                                                                                "));
     private final List<String> mySQLHelpMenu = getStringList("mysql-help-menu", Arrays.asList(
             "/tab mysql upload - uploads data from files to mysql",
@@ -58,12 +60,6 @@ public class MessageFile extends YamlConfigurationFile {
     private final String mySQLFailError = getString("mysql-fail-error", "MySQL download failed due to an error. Check console for more info.");
     private final String mySQLDownloadSuccess = getString("mysql-download-success", "&aMySQL data downloaded successfully.");
     private final String mySQLUploadSuccess = getString("mysql-upload-success", "&aMySQL data uploaded successfully.");
-    private final List<String> nameTagHelpMenu = getStringList("nametag-help-menu", Arrays.asList(
-            "/tab nametag toggle [player] - toggles nametags on all players for command sender"
-    ));
-    private final String nameTagFeatureNotEnabled = getString("nametag-feature-not-enabled", "&cThis command requires nametag feature to be enabled.");
-    private final String nameTagsHidden = getString("nametags-hidden", "&aNametags of all players were hidden to you");
-    private final String nameTagsShown = getString("nametags-shown", "&aNametags of all players were shown to you");
     private final List<String> scoreboardHelpMenu = getStringList("scoreboard-help-menu", Arrays.asList(
             "/tab scoreboard [on/off/toggle] [player] [options]",
             "/tab scoreboard show <name> [player]",
@@ -75,60 +71,87 @@ public class MessageFile extends YamlConfigurationFile {
             "/tab bossbar announce <name> <length>"
     ));
 
+    // ------------------
+    // Nametags
+    // ------------------
+
+    private final List<String> nameTagHelpMenu = getStringList("nametag.help-menu", Arrays.asList(
+            "/tab nametag <show/hide/toggle> [player] [-s] - Toggles nametag of specified player",
+            "/tab nametag <showview/hideview/toggleview> [player] [viewer] [-s] - Toggles nametag VIEW of specified player on other player(s)"
+    ));
+    private final String nameTagFeatureNotEnabled = getString("nametag.feature-not-enabled", "&cThis command requires nametag feature to be enabled.");
+    private final String nameTagViewHidden = getString("nametag.view-hidden", "&aNametags of all players were hidden to you");
+    private final String nameTagViewShown = getString("nametag.view-shown", "&aNametags of all players were shown to you");
+    private final String nameTagTargetHidden = getString("nametag.player-hidden", "&aYour nametag was hidden");
+    private final String nameTagTargetShown = getString("nametag.player-shown", "&aYour nametag was shown");
+    private final String nameTagNoArgFromConsole = getString("nametag.no-arg-from-console", "&cYou need to specify player if running this command from the console");
+
     public MessageFile() throws IOException {
         super(MessageFile.class.getClassLoader().getResourceAsStream("config/messages.yml"), new File(TAB.getInstance().getDataFolder(), "messages.yml"));
     }
 
-    public @NotNull String getBossBarNotFound(@NotNull String name) {
+    @NotNull
+    public String getBossBarNotFound(@NonNull String name) {
         return getString("bossbar-not-found", "&cNo bossbar found with the name \"%name%\"").replace("%name%", name);
     }
 
-    public @NotNull String getGroupDataRemoved(@NotNull String group) {
+    @NotNull
+    public String getGroupDataRemoved(@NonNull String group) {
         return getString("group-data-removed", "&3[TAB] All data has been successfully removed from group &e%group%").replace("%group%", group);
     }
 
-    public @NotNull String getGroupValueAssigned(@NotNull String property, @NotNull String value, @NotNull String group) {
+    @NotNull
+    public String getGroupValueAssigned(@NonNull String property, @NonNull String value, @NonNull String group) {
         return getString("group-value-assigned", "&3[TAB] %property% '&r%value%&r&3' has been successfully assigned to group &e%group%")
                 .replace("%property%", property).replace("%value%", value).replace("%group%", group);
     }
 
-    public @NotNull String getGroupValueRemoved(@NotNull String property, @NotNull String group) {
+    @NotNull
+    public String getGroupValueRemoved(@NonNull String property, @NonNull String group) {
         return getString("group-value-removed", "&3[TAB] %property% has been successfully removed from group &e%group%")
                 .replace("%property%", property).replace("%group%", group);
     }
 
-    public @NotNull String getPlayerDataRemoved(@NotNull String player) {
+    @NotNull
+    public String getPlayerDataRemoved(@NonNull String player) {
         return getString("user-data-removed", "&3[TAB] All data has been successfully removed from player &e%player%").replace("%player%", player);
     }
 
-    public @NotNull String getPlayerValueAssigned(@NotNull String property, @NotNull String value, @NotNull String player) {
+    @NotNull
+    public String getPlayerValueAssigned(@NonNull String property, @NonNull String value, @NonNull String player) {
         return getString("user-value-assigned", "&3[TAB] %property% '&r%value%&r&3' has been successfully assigned to player &e%player%")
                 .replace("%property%", property).replace("%value%", value).replace("%player%", player);
     }
 
-    public @NotNull String getPlayerValueRemoved(@NotNull String property, @NotNull String player) {
+    @NotNull
+    public String getPlayerValueRemoved(@NonNull String property, @NonNull String player) {
         return getString("user-value-removed", "&3[TAB] %property% has been successfully removed from player &e%player%")
                 .replace("%property%", property).replace("%player%", player);
     }
 
-    public @NotNull String getPlayerNotFound(@NotNull String name) {
+    @NotNull
+    public String getPlayerNotFound(@NonNull String name) {
         return getString("player-not-online", "&cNo online player found with the name \"%player%\"").replace("%player%", name);
     }
 
-    public @NotNull String getInvalidNumber(@NotNull String input) {
+    @NotNull
+    public String getInvalidNumber(@NonNull String input) {
         return getString("invalid-number", "\"%input%\" is not a number!").replace("%input%", input);
     }
 
-    public @NotNull String getScoreboardNotFound(@NotNull String name) {
+    @NotNull
+    public String getScoreboardNotFound(@NonNull String name) {
         return getString("scoreboard-not-found", "&cNo scoreboard found with the name \"%name%\"").replace("%name%", name);
     }
 
-    public @NotNull String getBossBarAnnouncementSuccess(@NotNull String bar, int length) {
+    @NotNull
+    public String getBossBarAnnouncementSuccess(@NonNull String bar, int length) {
         return getString("bossbar-announcement-success", "&aAnnouncing bossbar &6%bossbar% &afor %length% seconds.")
                 .replace("%bossbar%", bar).replace("%length%", String.valueOf(length));
     }
 
-    public @NotNull String getBossBarSendSuccess(@NotNull String player, @NotNull String bar, int length) {
+    @NotNull
+    public String getBossBarSendSuccess(@NonNull String player, @NonNull String bar, int length) {
         return getString("bossbar-send-success", "&aSending bossbar &6%bossbar% &ato player &6%player% &afor %length% seconds.")
                 .replace("%player%", player).replace("%bossbar%", bar).replace("%length%", String.valueOf(length));
     }
