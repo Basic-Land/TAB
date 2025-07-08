@@ -35,7 +35,7 @@ For Maven users, you can add the API dependency like this:
     <dependency>
         <groupId>com.github.NEZNAMY</groupId>
         <artifactId>TAB-API</artifactId>
-        <version>5.2.0</version>
+        <version>5.2.4</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -50,7 +50,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.NEZNAMY:TAB-API:5.2.0'
+    compileOnly 'com.github.NEZNAMY:TAB-API:5.2.4'
 }
 ```
 
@@ -61,14 +61,17 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.NEZNAMY", "TAB-API", "5.2.0")
+    compileOnly("com.github.NEZNAMY", "TAB-API", "5.2.4")
 }
 ```
 
-**WARNING: DO NOT SHADE THE API IN TO YOUR JAR! DO NOT RELOCATE THE API FROM ITS ORIGINAL PACKAGE!**
-
-If you relocate, the API that you are calling will also get relocated in your code, meaning that you will be trying to call the relocated API. If you shade the API in, your code could load that bundled API, causing class path conflicts.
+> [!WARNING]
+> DO NOT SHADE THE API IN TO YOUR JAR! DO NOT RELOCATE THE API FROM ITS ORIGINAL PACKAGE!**
+> If you relocate, the API that you are calling will also get relocated in your code, meaning that you will be trying to call the relocated API. If you shade the API in, your code could load that bundled API, causing class path conflicts.
 Ensure that you are using **`<scope>provided</scope>` for Maven**, or **`compileOnly` for Gradle**.
+
+> [!WARNING]
+> If you are on Paper and your plugin is defined as a paper plugin (paper-plugin.yml), TAB's classes may not be visible to the class loader that loaded your plugin. To avoid this issue, do not use paper-plugin.yml in your plugin, just plugin.yml.
 
 # Getting started
 First, you need to get an instance of the API.

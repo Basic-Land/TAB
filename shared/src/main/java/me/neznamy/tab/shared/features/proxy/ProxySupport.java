@@ -16,9 +16,12 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.PerformanceUtil;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * Feature synchronizing player display data between
@@ -33,20 +36,23 @@ public abstract class ProxySupport extends TabFeature implements JoinListener, Q
     /** Proxy players on other proxies by their UUID */
     @NotNull protected final Map<UUID, ProxyPlayer> proxyPlayers = new ConcurrentHashMap<>();
 
+    /** Queued data of players on other proxies by their UUID */
+    @NotNull private final Map<UUID, QueuedData> queuedData = new ConcurrentHashMap<>();
+
     /** UUID of this proxy to ignore messages coming from the same proxy */
     @NotNull private final UUID proxy = UUID.randomUUID();
 
     private EventHandler<TabPlaceholderRegisterEvent> eventHandler;
-    @NotNull private final Map<String, Supplier<ProxyMessage>> messages = new HashMap<>();
-    @NotNull private final Map<Class<? extends ProxyMessage>, String> classStringMap = new HashMap<>();
+    @NotNull private final Map<String, Function<ByteArrayDataInput, ProxyMessage>> stringToClass = new HashMap<>();
+    @NotNull private final Map<Class<? extends ProxyMessage>, String> classToString = new HashMap<>();
 
     protected ProxySupport() {
-        registerMessage("load", Load.class, Load::new);
-        registerMessage("loadrequest", LoadRequest.class, LoadRequest::new);
-        registerMessage("join", PlayerJoin.class, PlayerJoin::new);
-        registerMessage("quit", PlayerQuit.class, PlayerQuit::new);
-        registerMessage("server", ServerSwitch.class, ServerSwitch::new);
-        registerMessage("vanish", UpdateVanishStatus.class, UpdateVanishStatus::new);
+        registerMessage(Load.class, Load::new);
+        registerMessage(LoadRequest.class, in -> new LoadRequest());
+        registerMessage(PlayerJoin.class, PlayerJoin::new);
+        registerMessage(PlayerQuit.class, PlayerQuit::new);
+        registerMessage(ServerSwitch.class, ServerSwitch::new);
+        registerMessage(UpdateVanishStatus.class, UpdateVanishStatus::new);
     }
 
     @NotNull
@@ -61,20 +67,27 @@ public abstract class ProxySupport extends TabFeature implements JoinListener, Q
      * @param   msg
      *          json message to process
      */
-    public void processMessage(@NotNull String msg) {
-        // Queue the task to make sure it does not execute before load does, causing NPE
+    public synchronized void processMessage(@NotNull String msg) {
+        ByteArrayDataInput in = ByteStreams.newDataInput(Base64.getDecoder().decode(msg));
+        String proxy = in.readUTF();
+        if (proxy.equals(this.proxy.toString())) return; // Message coming from current proxy
+        String action = in.readUTF();
+        Function<ByteArrayDataInput, ProxyMessage> function = stringToClass.get(action);
+        if (function == null) {
+            TAB.getInstance().getErrorManager().unknownProxyMessage(action);
+            return;
+        }
+        ProxyMessage proxyMessage;
+        try {
+            proxyMessage = function.apply(in);
+            TAB.getInstance().debug("[Proxy Support] Decoded message " + proxyMessage);
+        } catch (Exception e) {
+            TAB.getInstance().getErrorManager().printError("Failed to decode proxy message \"" + new String(Base64.getDecoder().decode(msg)) + "\" ", e);
+            return;
+        }
+
+        // Queue the task to make sure it does not execute before plugin fully loads, causing NPE
         TAB.getInstance().getCpu().runMeasuredTask(getFeatureName(), CpuUsageCategory.PROXY_MESSAGE, () -> {
-            ByteArrayDataInput in = ByteStreams.newDataInput(Base64.getDecoder().decode(msg));
-            String proxy = in.readUTF();
-            if (proxy.equals(this.proxy.toString())) return; // Message coming from current proxy
-            String action = in.readUTF();
-            Supplier<ProxyMessage> supplier = messages.get(action);
-            if (supplier == null) {
-                TAB.getInstance().getErrorManager().unknownProxyMessage(action);
-                return;
-            }
-            ProxyMessage proxyMessage = supplier.get();
-            proxyMessage.read(in);
             if (proxyMessage.getCustomThread() != null) {
                 proxyMessage.getCustomThread().execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> proxyMessage.process(this), getFeatureName(), CpuUsageCategory.PROXY_MESSAGE));
             } else {
@@ -190,7 +203,8 @@ public abstract class ProxySupport extends TabFeature implements JoinListener, Q
     public void sendMessage(@NotNull ProxyMessage message) {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         out.writeUTF(proxy.toString());
-        out.writeUTF(classStringMap.get(message.getClass()));
+        out.writeUTF(classToString.get(message.getClass()));
+        TAB.getInstance().debug("[Proxy Support] Encoding message " + message);
         message.write(out);
         sendMessage(Base64.getEncoder().encodeToString(out.toByteArray()));
     }
@@ -198,16 +212,14 @@ public abstract class ProxySupport extends TabFeature implements JoinListener, Q
     /**
      * Registers proxy message.
      *
-     * @param   name
-     *          Message name
      * @param   clazz
      *          Message class
-     * @param   supplier
-     *          Message supplier
+     * @param   function
+     *          Message function
      */
-    public void registerMessage(@NotNull String name, @NotNull Class<? extends ProxyMessage> clazz, @NotNull Supplier<ProxyMessage> supplier) {
-        messages.put(name, supplier);
-        classStringMap.put(clazz, name);
+    public void registerMessage(@NotNull Class<? extends ProxyMessage> clazz, @NotNull Function<ByteArrayDataInput, ProxyMessage> function) {
+        stringToClass.put(clazz.getSimpleName(), function);
+        classToString.put(clazz, clazz.getSimpleName());
     }
 
     @Override

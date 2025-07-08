@@ -1,7 +1,6 @@
 package me.neznamy.tab.shared.cpu;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import lombok.SneakyThrows;
 import me.neznamy.tab.shared.TAB;
 import org.jetbrains.annotations.NotNull;
 
@@ -14,6 +13,9 @@ import java.util.concurrent.TimeUnit;
  * All tasks are try/catch-ed and might track CPU usage if needed.
  */
 public class ThreadExecutor {
+
+    /** Timeout for finishing tasks when shutting down thread executor */
+    private static final int SHUTDOWN_TIMEOUT = 2000;
 
     private final String threadName;
     private final ScheduledExecutorService executor;
@@ -32,12 +34,15 @@ public class ThreadExecutor {
     /**
      * Shuts down the executor.
      */
-    @SneakyThrows
     public void shutdown() {
         executor.shutdown();
-        if (!executor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-            TAB.getInstance().getErrorManager().printError("Soft shutdown of thread " + threadName + " exceeded time limit of 500ms, forcing shutdown. This may cause issues.", null);
-            executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(SHUTDOWN_TIMEOUT, TimeUnit.MILLISECONDS)) {
+                TAB.getInstance().getErrorManager().printError("Soft shutdown of thread " + threadName + " exceeded time limit of " + SHUTDOWN_TIMEOUT + "ms, forcing shutdown. This may cause issues.", null);
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException ignored) {
+            // Shutdown successful (?)
         }
     }
 

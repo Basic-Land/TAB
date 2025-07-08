@@ -61,8 +61,8 @@ public class Condition {
         conditionTypes.put("<=", line -> new NumericCondition(splitAndTrim(line, "<="), (left, right) -> left <= right)::isMet);
         conditionTypes.put("<-", line -> new StringCondition(splitAndTrim(line, "<-"), String::contains)::isMet);
         conditionTypes.put("<", line -> new NumericCondition(splitAndTrim(line, "<"), (left, right) -> left < right)::isMet);
-        conditionTypes.put("|-", line -> new StringCondition(splitAndTrim(line, "\\|-"), String::startsWith)::isMet);
-        conditionTypes.put("-|", line -> new StringCondition(splitAndTrim(line, "-\\|"), String::endsWith)::isMet);
+        conditionTypes.put("|-", line -> new StringCondition(splitAndTrim(line, "|-"), String::startsWith)::isMet);
+        conditionTypes.put("-|", line -> new StringCondition(splitAndTrim(line, "-|"), String::endsWith)::isMet);
         conditionTypes.put("!=", line -> new StringCondition(splitAndTrim(line, "!="), (left, right) -> !left.equals(right))::isMet);
         conditionTypes.put("=", line -> new StringCondition(splitAndTrim(line, "="), String::equals)::isMet);
         conditionTypes.put("!permission:", line -> {
@@ -74,11 +74,44 @@ public class Condition {
             return p -> p.hasPermission(node);
         });
     }
-    
+
     @NotNull
     private static String[] splitAndTrim(@NotNull String string, @NonNull String delimiter) {
-        return Arrays.stream(string.split(delimiter)).map(String::trim).toArray(String[]::new);
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean insidePercentBlock = false;
+        int i = 0;
+        int len = string.length();
+        int delimiterLength = delimiter.length();
+
+        while (i < len) {
+            // Check for '%' toggling
+            if (string.charAt(i) == '%') {
+                insidePercentBlock = !insidePercentBlock;
+                current.append('%');
+                i++;
+                continue;
+            }
+
+            // Check for delimiter match
+            if (!insidePercentBlock && i + delimiterLength <= len &&
+                    string.regionMatches(i, delimiter, 0, delimiterLength)) {
+                // Split here
+                result.add(current.toString().trim());
+                current.setLength(0);
+                i += delimiterLength;
+            } else {
+                current.append(string.charAt(i));
+                i++;
+            }
+        }
+
+        // Add last part
+        result.add(current.toString().trim());
+
+        return result.toArray(new String[0]);
     }
+
 
     /**
      * Constructs new instance with given parameters and registers
@@ -253,17 +286,22 @@ public class Condition {
     }
 
     /**
-     * Compiles condition from condition line. This includes detection
+     * Compiles condition from condition pattern. This includes detection
      * what kind of condition it is and creating it.
      *
-     * @param   line
-     *          condition line
+     * @param   pattern
+     *          condition pattern
      * @return  compiled condition or null if no valid pattern was found
      */
-    private static Function<TabPlayer, Boolean> compile(String line) {
+    private static Function<TabPlayer, Boolean> compile(String pattern) {
+        // Avoid wrong condition type detection if placeholder contains a symbol that is used in condition patterns (#1503)
+        String noPlaceholders = pattern;
+        for (String placeholder : PlaceholderManagerImpl.detectPlaceholders(pattern)) {
+            noPlaceholders = noPlaceholders.replace(placeholder, "");
+        }
         for (Map.Entry<String, Function<String, Function<TabPlayer, Boolean>>> entry : conditionTypes.entrySet()) {
-            if (line.contains(entry.getKey())) {
-                return entry.getValue().apply(line);
+            if (noPlaceholders.contains(entry.getKey())) {
+                return entry.getValue().apply(pattern);
             }
         }
         return null;

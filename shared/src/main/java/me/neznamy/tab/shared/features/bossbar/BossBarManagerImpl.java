@@ -93,6 +93,7 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
 
     @Override
     public void onJoin(@NotNull TabPlayer connectedPlayer) {
+        TAB.getInstance().getPlaceholderManager().getTabExpansion().setBossBarVisible(connectedPlayer, false);
         if (toggleManager != null) toggleManager.convert(connectedPlayer);
         setBossBarVisible(connectedPlayer, configuration.isHiddenByDefault() == (toggleManager != null && toggleManager.contains(connectedPlayer)), false);
     }
@@ -184,6 +185,32 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
     @NotNull
     public Map<String, BossBar> getRegisteredBossBars() {
         return Collections.unmodifiableMap(registeredBossBars);
+    }
+
+    @Override
+    public void removeBossBar(@NonNull String name) {
+        ensureActive();
+        BossBar bar = registeredBossBars.remove(name);
+        if (bar == null) throw new IllegalArgumentException("No registered BossBar found with name " + name);
+        lineValues = registeredBossBars.values().toArray(new BossBarLine[0]);
+        for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
+            bar.removePlayer(player);
+            player.bossbarData.visibleBossBars.remove(bar);
+        }
+    }
+
+    @Override
+    public void removeBossBar(@NonNull BossBar bossBar) {
+        ensureActive();
+        BossBarLine bar = (BossBarLine) bossBar;
+        if (!registeredBossBars.remove(bar.getName(), bar)) {
+            throw new IllegalArgumentException("This bossbar (" + bar.getName() + ") is not registered.");
+        }
+        lineValues = registeredBossBars.values().toArray(new BossBarLine[0]);
+        for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
+            bar.removePlayer(player);
+            player.bossbarData.visibleBossBars.remove(bar);
+        }
     }
 
     @Override

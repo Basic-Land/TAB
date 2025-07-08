@@ -3,7 +3,7 @@ package me.neznamy.tab.platforms.bukkit.v1_12_R1;
 import io.netty.channel.Channel;
 import lombok.Getter;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
-import me.neznamy.tab.platforms.bukkit.nms.converter.ComponentConverter;
+import me.neznamy.tab.platforms.bukkit.provider.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.provider.ImplementationProvider;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
@@ -12,7 +12,7 @@ import org.bukkit.craftbukkit.v1_12_R1.entity.CraftPlayer;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Implementation provider using direct NMS code for 1.12.2.
+ * Implementation provider using direct NMS code for 1.12.x.
  */
 @Getter
 public class NMSImplementationProvider implements ImplementationProvider {

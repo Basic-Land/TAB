@@ -3,6 +3,7 @@ package me.neznamy.tab.platforms.fabric;
 import com.mojang.logging.LogUtils;
 import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.Placeholders;
+import me.neznamy.chat.ChatModifier;
 import me.neznamy.chat.component.KeybindComponent;
 import me.neznamy.chat.component.TabComponent;
 import me.neznamy.chat.component.TextComponent;
@@ -134,30 +135,28 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
     public Component convertComponent(@NotNull TabComponent component) {
         // Component type
         MutableComponent nmsComponent;
-        if (component instanceof TextComponent) {
-            nmsComponent = Component.literal(((TextComponent) component).getText());
-        } else if (component instanceof TranslatableComponent) {
-            nmsComponent = Component.translatable(((TranslatableComponent) component).getKey());
-        } else if (component instanceof KeybindComponent) {
-            nmsComponent = Component.keybind(((KeybindComponent) component).getKeybind());
+        if (component instanceof TextComponent text) {
+            nmsComponent = Component.literal(text.getText());
+        } else if (component instanceof TranslatableComponent translatable) {
+            nmsComponent = Component.translatable(translatable.getKey());
+        } else if (component instanceof KeybindComponent keybind) {
+            nmsComponent = Component.keybind(keybind.getKeybind());
         } else {
             throw new IllegalStateException("Unexpected component type: " + component.getClass().getName());
         }
 
         // Component style
-        nmsComponent.setStyle(new Style(
-                component.getModifier().getColor() == null ? null : TextColor.fromRgb(component.getModifier().getColor().getRgb()),
-                component.getModifier().getShadowColor(),
-                component.getModifier().getBold(),
-                component.getModifier().getItalic(),
-                component.getModifier().getUnderlined(),
-                component.getModifier().getStrikethrough(),
-                component.getModifier().getObfuscated(),
-                null,
-                null,
-                null,
-                component.getModifier().getFont() == null ? null : ResourceLocation.tryParse(component.getModifier().getFont())
-        ));
+        ChatModifier modifier = component.getModifier();
+        Style style = Style.EMPTY
+                .withColor(modifier.getColor() == null ? null : TextColor.fromRgb(modifier.getColor().getRgb()))
+                .withBold(modifier.getBold())
+                .withItalic(modifier.getItalic())
+                .withUnderlined(modifier.getUnderlined())
+                .withStrikethrough(modifier.getStrikethrough())
+                .withObfuscated(modifier.getObfuscated())
+                .withFont(modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont()));
+        if (modifier.getShadowColor() != null) style = style.withShadowColor(modifier.getShadowColor());
+        nmsComponent.setStyle(style);
 
         // Extra
         for (TabComponent extra : component.getExtra()) {

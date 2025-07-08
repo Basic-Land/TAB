@@ -11,6 +11,8 @@ import org.jetbrains.annotations.NotNull;
 public enum ProtocolVersion {
 
     UNKNOWN,
+    V1_21_7 (772),
+    V1_21_6 (771),
     V1_21_5 (770),
     V1_21_4 (769),
     V1_21_3 (768),
@@ -85,9 +87,6 @@ public enum ProtocolVersion {
 
     /** Array to iterate over to prevent new array creation each time */
     private static final ProtocolVersion[] VALUES = values();
-
-    /** Newest MC version this plugin jar knows */
-    public static final ProtocolVersion LATEST_KNOWN_VERSION = V1_21_5;
 
     /** Version's network id found at <a href="https://wiki.vg/Protocol_version_numbers">wiki.vg</a> */
     private final int networkId;

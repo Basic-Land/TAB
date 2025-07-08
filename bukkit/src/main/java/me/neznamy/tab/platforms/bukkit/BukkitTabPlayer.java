@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.platforms.bukkit.hook.LibsDisguisesHook;
-import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.platforms.bukkit.platform.BukkitPlatform;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import org.bukkit.entity.Player;
@@ -49,7 +48,7 @@ public class BukkitTabPlayer extends BackendTabPlayer {
 
     @Override
     public int getPing() {
-        return getPlatform().getServerImplementationProvider().getPing(this);
+        return getPlatform().getImplementationProvider().getPing(this);
     }
 
     @Override

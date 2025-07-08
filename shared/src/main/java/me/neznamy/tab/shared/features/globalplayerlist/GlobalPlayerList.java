@@ -17,9 +17,7 @@ import me.neznamy.tab.shared.util.PerformanceUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Feature handler for global PlayerList feature.
@@ -249,7 +247,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     public void onGameModeChange(@NotNull TabPlayer player) {
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             if (!player.server.equals(viewer.server)) {
-                viewer.getTabList().updateGameMode(player.getTablistId(), configuration.isOthersAsSpectators() ? 3 : player.getGamemode());
+                viewer.getTabList().updateGameMode(player, configuration.isOthersAsSpectators() ? 3 : player.getGamemode());
             }
         }
     }
@@ -284,7 +282,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
         //player ping changed, must manually update latency for players on other servers
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             if (viewer.globalPlayerListData.serverGroup == refreshed.globalPlayerListData.serverGroup && !refreshed.server.equals(viewer.server)) {
-                viewer.getTabList().updateLatency(refreshed.getTablistId(), refreshed.getPing());
+                viewer.getTabList().updateLatency(refreshed, refreshed.getPing());
             }
         }
     }
@@ -292,7 +290,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     private boolean shouldSee(@NotNull TabPlayer viewer, @NotNull ProxyPlayer target) {
         if (target.isVanished() && !viewer.hasPermission(TabConstants.Permission.SEE_VANISHED)) return false;
         // Do not show duplicate player that will be removed in a sec
-        if (TAB.getInstance().isPlayerConnected(target.getUniqueId())) return false;
+        if (TAB.getInstance().isPlayerConnected(target.getTablistId())) return false;
         if (viewer.globalPlayerListData.onSpyServer) return true;
         return viewer.globalPlayerListData.serverGroup == target.serverGroup;
     }
@@ -319,16 +317,18 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
             if (shouldSee(viewer, player)) {
                 viewer.getTabList().addEntry(player.asEntry());
             } else {
-                viewer.getTabList().removeEntry(player.getUniqueId());
+                viewer.getTabList().removeEntry(player.getTablistId());
             }
         }
     }
 
     @Override
     public void onQuit(@NotNull ProxyPlayer player) {
+        TabPlayer connected = TAB.getInstance().getPlayer(player.getUniqueId());
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            if (!player.server.equals(viewer.server)) {
-                viewer.getTabList().removeEntry(player.getUniqueId());
+            // Make sure to not remove player if they are connected already and added into tablist by the server
+            if (!player.server.equals(viewer.server) && (connected == null || !shouldSee(viewer, connected))) {
+                viewer.getTabList().removeEntry(player.getTablistId());
             }
         }
     }
@@ -338,7 +338,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
         if (player.isVanished()) {
             for (TabPlayer all : onlinePlayers.getPlayers()) {
                 if (!shouldSee(all, player)) {
-                    all.getTabList().removeEntry(player.getUniqueId());
+                    all.getTabList().removeEntry(player.getTablistId());
                 }
             }
         } else {

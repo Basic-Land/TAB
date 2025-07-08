@@ -31,6 +31,7 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
     private static String lastTeamOverrideMessage;
 
     /** Player this scoreboard belongs to */
+    @Getter
     protected final T player;
 
     /** Map of blocked team adds, key is player and value is team name */
@@ -48,22 +49,16 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
     /** Registered teams */
     private final Map<String, Team> teams = new ConcurrentHashMap<>();
 
-    /** Flag tracking anti-override value for teams */
-    @Getter
-    private boolean antiOverrideTeams;
-
-    /** Flag tracking other plugin detection for Scoreboards */
-    @Getter
-    private boolean antiOverrideScoreboard;
-
     @Override
     public synchronized void registerObjective(@NonNull String objectiveName, @NonNull TabComponent title,
                                         @NonNull HealthDisplay display, @Nullable TabComponent numberFormat) {
-        Objective objective = new Objective(objectiveName, title, display, numberFormat, null);
-        if (objectives.put(objectiveName, objective) != null) {
+        Objective existing = objectives.get(objectiveName);
+        if (existing != null) {
             error("Tried to register duplicated objective %s to player ", objectiveName);
             return;
         }
+        Objective objective = new Objective(objectiveName, title, display, numberFormat, null);
+        objectives.put(objectiveName, objective);
         if (frozen) return;
         registerObjective(objective);
     }
@@ -140,12 +135,14 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
     public synchronized void registerTeam(@NonNull String name, @NonNull TabComponent prefix, @NonNull TabComponent suffix,
                                    @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
                                    @NonNull Collection<String> players, int options, @NonNull TextColor color) {
-        Team team = new Team(createTeam(name), name, prefix, suffix, visibility, collision, players, options, color);
-        if (teams.put(name, team) != null) {
-            error("Tried to register team %s with entry %s, while this team already exists with entry %s to player ",
-                    name, players.toString(), teams.get(name).players.toString());
+        Team existing = teams.get(name);
+        if (existing != null) {
+            error("Tried to register duplicated team %s with entry %s, while this team already exists with entry %s to player ",
+                    name, players.toString(), existing.players.toString());
             return;
         }
+        Team team = new Team(createTeam(name), name, prefix, suffix, visibility, collision, players, options, color);
+        teams.put(name, team);
         if (frozen) return;
         registerTeam(team);
     }

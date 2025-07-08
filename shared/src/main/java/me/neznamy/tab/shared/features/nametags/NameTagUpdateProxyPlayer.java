@@ -3,16 +3,17 @@ package me.neznamy.tab.shared.features.nametags;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import me.neznamy.chat.component.TabComponent;
+import lombok.ToString;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
+import me.neznamy.tab.shared.features.proxy.QueuedData;
 import me.neznamy.tab.shared.features.proxy.message.ProxyMessage;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.UUID;
@@ -20,16 +21,33 @@ import java.util.UUID;
 /**
  * Proxy message to update team data of a player.
  */
-@RequiredArgsConstructor
 @AllArgsConstructor
+@ToString
 public class NameTagUpdateProxyPlayer extends ProxyMessage {
 
     @NotNull private final NameTag feature;
-    private UUID playerId;
-    private String teamName;
-    private String prefix;
-    private String suffix;
-    private Scoreboard.NameVisibility nameVisibility;
+    @NotNull private final UUID playerId;
+    @NotNull private final String teamName;
+    @NotNull private final String prefix;
+    @NotNull private final String suffix;
+    @NotNull private final Scoreboard.NameVisibility nameVisibility;
+
+    /**
+     * Creates new instance and reads data from byte input.
+     *
+     * @param   in
+     *          Input stream to read from
+     * @param   feature
+     *          Feature instance to use for processing
+     */
+    public NameTagUpdateProxyPlayer(@NotNull ByteArrayDataInput in, @NotNull NameTag feature) {
+        this.feature = feature;
+        playerId = readUUID(in);
+        teamName = in.readUTF();
+        prefix = in.readUTF();
+        suffix = in.readUTF();
+        nameVisibility = Scoreboard.NameVisibility.getByName(in.readUTF());
+    }
 
     @NotNull
     public ThreadExecutor getCustomThread() {
@@ -46,67 +64,57 @@ public class NameTagUpdateProxyPlayer extends ProxyMessage {
     }
 
     @Override
-    public void read(@NotNull ByteArrayDataInput in) {
-        playerId = readUUID(in);
-        teamName = in.readUTF();
-        prefix = in.readUTF();
-        suffix = in.readUTF();
-        nameVisibility = Scoreboard.NameVisibility.getByName(in.readUTF());
-    }
-
-    @Override
     public void process(@NotNull ProxySupport proxySupport) {
         ProxyPlayer target = proxySupport.getProxyPlayers().get(playerId);
         if (target == null) {
-            TAB.getInstance().getErrorManager().printError("Unable to process nametag update of proxy player " + playerId + ", because no such player exists", null);
-            return;
-        }
-        if (target.getTeamName() == null) {
-            TAB.getInstance().debug("Processing nametag join of proxy player " + target.getName());
-        }
-        // Nametag is already being processed by connected player
-        if (TAB.getInstance().isPlayerConnected(target.getUniqueId())) {
-            TAB.getInstance().debug("The player " + target.getName() + " is already connected");
+            unknownPlayer(playerId.toString(), "nametag update update");
+            QueuedData data = proxySupport.getQueuedData().computeIfAbsent(playerId, k -> new QueuedData());
+            data.setTeamName(checkTeamName(null, teamName.substring(0, teamName.length()-1)));
+            data.setTagPrefix(feature.getCache().get(prefix));
+            data.setTagSuffix(feature.getCache().get(suffix));
+            data.setNameVisibility(nameVisibility);
             return;
         }
         String oldTeamName = target.getTeamName();
         String newTeamName = checkTeamName(target, teamName.substring(0, teamName.length()-1));
         target.setTeamName(newTeamName);
-        target.setTagPrefix(prefix);
-        target.setTagSuffix(suffix);
+        target.setTagPrefix(feature.getCache().get(prefix));
+        target.setTagSuffix(feature.getCache().get(suffix));
         target.setNameVisibility(nameVisibility);
-        TabComponent prefixComponent = feature.getCache().get(prefix);
-        if (!newTeamName.equals(oldTeamName)) {
-            for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
-                if (oldTeamName != null) viewer.getScoreboard().unregisterTeam(oldTeamName);
-                viewer.getScoreboard().registerTeam(
-                        newTeamName,
-                        prefixComponent,
-                        feature.getCache().get(suffix),
-                        nameVisibility,
-                        Scoreboard.CollisionRule.ALWAYS,
-                        Collections.singletonList(target.getNickname()),
-                        2,
-                        prefixComponent.getLastColor()
-                );
-            }
-        } else {
-            for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
-                viewer.getScoreboard().updateTeam(
-                        oldTeamName,
-                        prefixComponent,
-                        feature.getCache().get(suffix),
-                        nameVisibility,
-                        Scoreboard.CollisionRule.ALWAYS,
-                        2,
-                        prefixComponent.getLastColor()
-                );
+
+        if (target.getConnectionState() == ProxyPlayer.ConnectionState.CONNECTED) {
+            if (!newTeamName.equals(oldTeamName)) {
+                for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
+                    if (oldTeamName != null) viewer.getScoreboard().unregisterTeam(oldTeamName);
+                    viewer.getScoreboard().registerTeam(
+                            newTeamName,
+                            target.getTagPrefix(),
+                            target.getTagSuffix(),
+                            nameVisibility,
+                            Scoreboard.CollisionRule.ALWAYS,
+                            Collections.singletonList(target.getNickname()),
+                            2,
+                            target.getTagPrefix().getLastColor()
+                    );
+                }
+            } else {
+                for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
+                    viewer.getScoreboard().updateTeam(
+                            oldTeamName,
+                            target.getTagPrefix(),
+                            target.getTagSuffix(),
+                            nameVisibility,
+                            Scoreboard.CollisionRule.ALWAYS,
+                            2,
+                            target.getTagPrefix().getLastColor()
+                    );
+                }
             }
         }
     }
 
     @NotNull
-    private String checkTeamName(@NotNull ProxyPlayer player, @NotNull String currentName15) {
+    private String checkTeamName(@Nullable ProxyPlayer player, @NotNull String currentName15) {
         char id = 'A';
         while (true) {
             String potentialTeamName = currentName15 + id;
