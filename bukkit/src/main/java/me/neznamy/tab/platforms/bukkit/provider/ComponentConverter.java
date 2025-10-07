@@ -1,16 +1,27 @@
 package me.neznamy.tab.platforms.bukkit.provider;
 
-import me.neznamy.chat.ChatModifier;
-import me.neznamy.chat.component.KeybindComponent;
-import me.neznamy.chat.component.TabComponent;
-import me.neznamy.chat.component.TextComponent;
-import me.neznamy.chat.component.TranslatableComponent;
+import me.neznamy.tab.shared.chat.TabStyle;
+import me.neznamy.tab.shared.chat.component.TabKeybindComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabTextComponent;
+import me.neznamy.tab.shared.chat.component.TabTranslatableComponent;
+import me.neznamy.tab.shared.chat.component.object.TabAtlasSprite;
+import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
+import me.neznamy.tab.shared.chat.component.object.TabPlayerSprite;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.UUID;
 
 /**
  * Interface for converting TAB components into NMS components (1.7+).
+ *
+ * @param   <T>
+ *          NMS component type
  */
-public abstract class ComponentConverter {
+public abstract class ComponentConverter<T> {
+
+    /** Empty UUID for creating dummy profiles */
+    protected final UUID NIL_UUID = new UUID(0, 0);
 
     /**
      * Converts TAB component to NMS component.
@@ -20,15 +31,23 @@ public abstract class ComponentConverter {
      * @return  Converted component
      */
     @NotNull
-    public Object convert(@NotNull TabComponent component) {
+    public T convert(@NotNull TabComponent component) {
         // Component type
-        Object nmsComponent;
-        if (component instanceof TextComponent) {
-            nmsComponent = newTextComponent(((TextComponent) component).getText());
-        } else if (component instanceof TranslatableComponent) {
-            nmsComponent = newTranslatableComponent(((TranslatableComponent) component).getKey());
-        } else if (component instanceof KeybindComponent) {
-            nmsComponent = newKeybindComponent(((KeybindComponent)component).getKeybind());
+        T nmsComponent;
+        if (component instanceof TabTextComponent) {
+            nmsComponent = newTextComponent(((TabTextComponent) component).getText());
+        } else if (component instanceof TabTranslatableComponent) {
+            nmsComponent = newTranslatableComponent(((TabTranslatableComponent) component).getKey());
+        } else if (component instanceof TabKeybindComponent) {
+            nmsComponent = newKeybindComponent(((TabKeybindComponent)component).getKeybind());
+        } else if (component instanceof TabObjectComponent) {
+            if ((((TabObjectComponent) component).getContents() instanceof TabAtlasSprite)) {
+                nmsComponent = newObjectComponent((TabAtlasSprite) ((TabObjectComponent) component).getContents());
+            } else if ((((TabObjectComponent) component).getContents() instanceof TabPlayerSprite)) {
+                nmsComponent = newObjectComponent((TabPlayerSprite) ((TabObjectComponent) component).getContents());
+            } else {
+                throw new IllegalArgumentException("Unexpected object component type: " + ((TabObjectComponent) component).getContents().getClass().getName());
+            }
         } else {
             throw new IllegalArgumentException("Unexpected component type: " + component.getClass().getName());
         }
@@ -52,7 +71,7 @@ public abstract class ComponentConverter {
      * @return  Text component with given text
      */
     @NotNull
-    public abstract Object newTextComponent(@NotNull String text);
+    public abstract T newTextComponent(@NotNull String text);
 
     /**
      * Creates a new translatable component with the given key.
@@ -62,7 +81,7 @@ public abstract class ComponentConverter {
      * @return  Translatable component with the given key
      */
     @NotNull
-    public abstract Object newTranslatableComponent(@NotNull String key);
+    public abstract T newTranslatableComponent(@NotNull String key);
 
     /**
      * Creates a new keybind component with given keybind.
@@ -72,7 +91,26 @@ public abstract class ComponentConverter {
      * @return  Keybind component with given keybind
      */
     @NotNull
-    public abstract Object newKeybindComponent(@NotNull String keybind);
+    public abstract T newKeybindComponent(@NotNull String keybind);
+
+    /**
+     * Creates a new object component with given atlas and sprite.
+     *
+     * @param sprite Sprite to use
+     * @return Object component with given atlas and sprite
+     */
+    @NotNull
+    public abstract T newObjectComponent(@NotNull TabAtlasSprite sprite);
+
+    /**
+     * Creates a new head component with given skin.
+     *
+     * @param   sprite
+     *          Skin to use
+     * @return  Head component with given skin
+     */
+    @NotNull
+    public abstract T newObjectComponent(@NotNull TabPlayerSprite sprite);
 
     /**
      * Converts given chat modifier to minecraft style and applies it to the component.
@@ -82,7 +120,7 @@ public abstract class ComponentConverter {
      * @param   style
      *          Style to convert and apply
      */
-    public abstract void applyStyle(@NotNull Object nmsComponent, @NotNull ChatModifier style);
+    public abstract void applyStyle(@NotNull T nmsComponent, @NotNull TabStyle style);
 
     /**
      * Appends child to the given parent component.
@@ -92,5 +130,5 @@ public abstract class ComponentConverter {
      * @param   child
      *          Child component to append
      */
-    public abstract void addSibling(@NotNull Object parent, @NotNull Object child);
+    public abstract void addSibling(@NotNull T parent, @NotNull T child);
 }

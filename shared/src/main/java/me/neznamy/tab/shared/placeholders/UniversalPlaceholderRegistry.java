@@ -51,12 +51,13 @@ public class UniversalPlaceholderRegistry {
 
     private void registerConstants(@NotNull PlaceholderManagerImpl manager) {
         // Player
-        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.BEDROCK, -1, p -> Boolean.toString(((TabPlayer)p).isBedrockPlayer()));
+        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.BEDROCK, -1, p -> Boolean.toString(p.isBedrockPlayer()));
         manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.PLAYER, -1, me.neznamy.tab.api.TabPlayer::getName);
-        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.WORLD, -1, p -> ((TabPlayer)p).world);
-        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.SERVER, -1, p -> ((TabPlayer)p).server);
+        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.UUID, -1, p -> p.getUniqueId().toString());
+        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.WORLD, -1, p -> ((TabPlayer)p).world.getName());
+        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.SERVER, -1, p -> ((TabPlayer)p).server.getName());
         manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.PLAYER_VERSION, -1, p -> ((TabPlayer)p).getVersion().getFriendlyName());
-        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.PLAYER_VERSION_ID, -1, p -> PerformanceUtil.toString(((TabPlayer)p).getVersion().getNetworkId()));
+        manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.PLAYER_VERSION_ID, -1, p -> PerformanceUtil.toString(((TabPlayer)p).getVersionId()));
 
         // Server
         manager.registerInternalServerPlaceholder("%%", -1, () -> "%");
@@ -108,14 +109,14 @@ public class UniversalPlaceholderRegistry {
         manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.WORLD_ONLINE, 1000, p -> {
             int count = 0;
             for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                if (((TabPlayer)p).world.equals(player.world) && !player.isVanished()) count++;
+                if (((TabPlayer)p).world == player.world && !player.isVanished()) count++;
             }
             return PerformanceUtil.toString(count);
         });
         manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.SERVER_ONLINE, 1000, p -> {
             int count = 0;
             for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                if (((TabPlayer)p).server.equals(player.server) && !player.isVanished()) count++;
+                if (((TabPlayer)p).server == player.server && !player.isVanished()) count++;
             }
             return PerformanceUtil.toString(count);
         });
@@ -136,12 +137,11 @@ public class UniversalPlaceholderRegistry {
             Animation a = new Animation(manager, entry.getKey(), entry.getValue());
             manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.animation(a.getName()), a.getRefresh(), p -> a.getMessage());
         }
-        Condition.clearConditions();
         for (Entry<String, ConditionDefinition> condition : TAB.getInstance().getConfiguration().getConfig().getConditions().getConditions().entrySet()) {
-            ConditionDefinition def = condition.getValue();
-            Condition c = new Condition(def.isType(), condition.getKey(), def.getConditions(), def.getYes(), def.getNo());
+            Condition c = new Condition(condition.getValue());
             manager.registerInternalPlayerPlaceholder(TabConstants.Placeholder.condition(c.getName()), c.getRefresh(), p -> c.getText((TabPlayer)p));
+            TAB.getInstance().getPlaceholderManager().getConditionManager().registerCondition(c);
         }
-        Condition.finishSetups();
+        manager.getConditionManager().finishSetups();
     }
 }

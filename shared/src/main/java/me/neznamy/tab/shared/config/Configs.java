@@ -14,11 +14,13 @@ import me.neznamy.tab.shared.config.files.Config;
 import me.neznamy.tab.shared.config.mysql.MySQL;
 import me.neznamy.tab.shared.config.mysql.MySQLGroupConfiguration;
 import me.neznamy.tab.shared.config.mysql.MySQLUserConfiguration;
-import me.neznamy.tab.shared.features.globalplayerlist.GlobalPlayerList;
+import me.neznamy.tab.shared.config.skin.SkinManager;
+import me.neznamy.tab.shared.data.Server;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.yaml.snakeyaml.error.YAMLException;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -40,7 +42,18 @@ public class Configs {
     private final MessageFile messages = new MessageFile();
 
     //playerdata.yml, used for bossbar & scoreboard toggle saving
-    private ConfigurationFile playerdata;
+    private final ConfigurationFile playerData = new YamlConfigurationFile(
+            new ByteArrayInputStream(new byte[0]),
+            new File(TAB.getInstance().getDataFolder(), "playerdata.yml")
+    );
+
+    /** Skin cache file for Layout and Head components */
+    private final ConfigurationFile skinCache = new YamlConfigurationFile(
+            new ByteArrayInputStream(new byte[0]),
+            new File(TAB.getInstance().getDataFolder(), "skincache.yml")
+    );
+
+    private final SkinManager skinManager = new SkinManager(skinCache);
 
     private PropertyConfiguration groups;
 
@@ -79,26 +92,6 @@ public class Configs {
         }
         groups = new YamlPropertyConfigurationFile(getClass().getClassLoader().getResourceAsStream("config/groups.yml"), new File(TAB.getInstance().getDataFolder(), "groups.yml"));
         users = new YamlPropertyConfigurationFile(getClass().getClassLoader().getResourceAsStream("config/users.yml"), new File(TAB.getInstance().getDataFolder(), "users.yml"));
-    }
-
-    /**
-     * Returns playerdata.yml file used for storing feature toggle status.
-     *
-     * @return  playerdata.yml file
-     */
-    @Nullable
-    public ConfigurationFile getPlayerDataFile() {
-        if (playerdata == null) {
-            File file = new File(TAB.getInstance().getDataFolder(), "playerdata.yml");
-            try {
-                if (file.exists() || file.createNewFile()) {
-                    playerdata = new YamlConfigurationFile(null, file);
-                }
-            } catch (IOException e) {
-                TAB.getInstance().getErrorManager().criticalError("Failed to load playerdata.yml", e);
-            }
-        }
-        return playerdata;
     }
 
     /**
@@ -141,28 +134,20 @@ public class Configs {
      * @return  Group containing the element or element itself if not found
      */
     @NotNull
-    public String getServerGroup(@NonNull Collection<String> serverGroups, @Nullable String server) {
+    public String getServerGroup(@NonNull Collection<String> serverGroups, @Nullable Server server) {
         String globalGroup = tryServerGroup(serverGroups, server);
         if (globalGroup != null) return globalGroup;
 
         // Use existing logic to check config key for server group (separated by ';')
-        return getGroup(serverGroups, server);
+        return getGroup(serverGroups, server == null ? null : server.getName());
     }
 
     @Nullable
-    private String tryServerGroup(@NonNull Collection<String> serverGroups, @Nullable String server) {
+    private String tryServerGroup(@NonNull Collection<String> serverGroups, @Nullable Server server) {
         if (serverGroups.isEmpty() || server == null) return null;
-
-        // Check global-playerlist server-groups for this server
-        FeatureManager featureManager = TAB.getInstance().getFeatureManager();
-        if (!featureManager.isFeatureEnabled(TabConstants.Feature.GLOBAL_PLAYER_LIST)) return null;
-
-        GlobalPlayerList t = featureManager.getFeature(TabConstants.Feature.GLOBAL_PLAYER_LIST);
-        if (t == null) return null;
-
-        String globalGroup = t.getServerGroupName(server);
-        for (Object serverGroup : serverGroups) {
-            if (globalGroup.equals(serverGroup.toString())) return globalGroup;
+        if (serverGroups.contains(server.getName())) return server.getName();
+        if (server.getServerGroup() != null) {
+            if (serverGroups.contains(server.getServerGroup().getName())) return server.getServerGroup().getName();
         }
         return null;
     }

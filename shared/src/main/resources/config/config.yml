@@ -1,35 +1,28 @@
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Header-&-Footer
 header-footer:
   enabled: true
-  header:
-    - "<#FFFFFF>&m                                                </#FFFF00>"
-    - "&3&lServer name"
-    - "&r&7&l>> %animation:Welcome%&3 &l%player%&7&l! &7&l<<"
-    - "&r&7Online players: &f%online%"
-    - "&6Online staff: &e%staffonline%"
-    - ""
-  footer:
-    - "%animation:time%"
-    - "&2Ping: %ping%"
-    - "&7&l Used memory: %memory-used% MB / %memory-max% MB"
-    - ""
-    - "&r&7Visit our webpage %animation:web%"
-    - "<#FFFFFF>&m                                                </#FFFF00>"
-  disable-condition: '%world%=disabledworld'
-  per-world:
-    world1:
+  designs:
+    world-test:
+      display-condition: "%world%=test"
       header:
-        - "an example of world with custom"
+        - "Test header in world 'test'"
       footer:
-        - "header/footer and prefix/suffix"
-    world2;world3:
+        - "Test footer in world 'test'"
+    default:
       header:
-        - "This is a shared header for"
-        - "world2 and world3"
-  per-server:
-    server1:
-      header:
-        - "an example of server with custom header"
+        - "<#FFFFFF>&m                                                </#FFFF00>"
+        - "&3&lServer name"
+        - "&r&7&l>> %animation:Welcome%&3 &l%player%&7&l! &7&l<<"
+        - "&r&7Online players: &f%online%"
+        - "&6Online staff: &e%staffonline%"
+        - ""
+      footer:
+        - "%animation:time%"
+        - "&2Ping: %ping%"
+        - "&7&l Used memory: %memory-used% MB / %memory-max% MB"
+        - ""
+        - "&r&7Visit our webpage %animation:web%"
+        - "<#FFFFFF>&m                                                </#FFFF00>"
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Tablist-name-formatting
 tablist-name-formatting:
@@ -130,7 +123,7 @@ scoreboard:
 layout:
   enabled: false
   direction: COLUMNS
-  default-skin: mineskin:383747683
+  default-skin: mineskin:37e93c8e12cd426cb28fce31969e0674
   enable-remaining-players-text: true
   remaining-players-text: '... and %s more'
   empty-slot-ping-value: 1000
@@ -167,6 +160,24 @@ layout:
 ping-spoof:
   enabled: false
   value: 0
+
+# https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Global-playerlist
+global-playerlist:
+  enabled: false
+  display-others-as-spectators: false
+  display-vanished-players-as-spectators: true
+  isolate-unlisted-servers: false
+  update-latency: false
+  spy-servers:
+    - spyserver1
+    - spyserver2
+  server-groups:
+    lobbies:
+      - lobby1
+      - lobby2
+    group2:
+      - server1
+      - server2
 
 placeholders:
   date-format: "dd.MM.yyyy"
@@ -229,6 +240,7 @@ mysql:
   password: password
   useSSL: true
 
+# https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Multi-server-support
 proxy-support:
   enabled: true
   # Supported types: PLUGIN, REDIS, RABBITMQ
@@ -242,6 +254,13 @@ proxy-support:
   rabbitmq:
     exchange: 'plugin'
     url: 'amqp://guest:guest@localhost:5672/%2F'
+
+components:
+  minimessage-support: true
+  disable-shadow-for-heads: true
+
+# Internal value, do not change this
+config-version: 2
 
 ########################################################################
 # BUKKIT ONLY - THE FOLLOWING SECTION IS ONLY FOR BACKEND INSTALLATION #
@@ -269,24 +288,6 @@ compensate-for-packetevents-bug: false
 #####################################################################
 # PROXY ONLY - THE FOLLOWING SECTION IS ONLY FOR PROXY INSTALLATION #
 #####################################################################
-
-# https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Global-playerlist
-global-playerlist:
-  enabled: false
-  display-others-as-spectators: false
-  display-vanished-players-as-spectators: true
-  isolate-unlisted-servers: false
-  update-latency: false
-  spy-servers:
-    - spyserver1
-    - spyserver2
-  server-groups:
-    lobbies:
-      - lobby1
-      - lobby2
-    group2:
-      - server1
-      - server2
 
 # Take permissions and groups from backend server instead of proxy
 use-bukkit-permissions-manager: false

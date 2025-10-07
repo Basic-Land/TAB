@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = "me.neznamy"
-    version = "5.2.5-SNAPSHOT"
+    version = "5.3.2-SNAPSHOT"
     description = "An all-in-one solution that works"
 
     ext.set("id", "tab")
@@ -18,14 +18,43 @@ val platforms = setOf(
     projects.bukkit.paper1205,
     projects.bukkit.paper1212,
     projects.bukkit.paper1214,
+    projects.bukkit.paper1219,
+    projects.bukkit.v17R1,
+    projects.bukkit.v17R2,
+    projects.bukkit.v17R3,
+    projects.bukkit.v17R4,
+    projects.bukkit.v18R1,
+    projects.bukkit.v18R2,
     projects.bukkit.v18R3,
+    projects.bukkit.v19R1,
+    projects.bukkit.v19R2,
+    projects.bukkit.v110R1,
+    projects.bukkit.v111R1,
     projects.bukkit.v112R1,
+    projects.bukkit.v113R1,
+    projects.bukkit.v113R2,
+    projects.bukkit.v114R1,
+    projects.bukkit.v115R1,
+    projects.bukkit.v116R1,
+    projects.bukkit.v116R2,
     projects.bukkit.v116R3,
     projects.bukkit.v117R1,
+    projects.bukkit.v118R1,
     projects.bukkit.v118R2,
     projects.bukkit.v119R1,
+    projects.bukkit.v119R2,
+    projects.bukkit.v119R3,
+    projects.bukkit.v120R1,
+    projects.bukkit.v120R2,
+    projects.bukkit.v120R3,
+    projects.bukkit.v120R4,
+    projects.bukkit.v121R1,
+    projects.bukkit.v121R2,
+    projects.bukkit.v121R3,
+    projects.bukkit.v121R4,
+    projects.bukkit.v121R5,
+    projects.bukkit.v121R6,
     projects.bungeecord,
-    projects.component,
     projects.velocity,
     projects.sponge,
     projects.fabric,

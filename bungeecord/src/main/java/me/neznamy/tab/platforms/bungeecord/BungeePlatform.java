@@ -1,11 +1,6 @@
 package me.neznamy.tab.platforms.bungeecord;
 
 import com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI;
-import me.neznamy.chat.ChatModifier;
-import me.neznamy.chat.component.KeybindComponent;
-import me.neznamy.chat.component.TabComponent;
-import me.neznamy.chat.component.TextComponent;
-import me.neznamy.chat.component.TranslatableComponent;
 import me.neznamy.tab.platforms.bungeecord.features.BungeeRedisSupport;
 import me.neznamy.tab.platforms.bungeecord.hook.BungeePremiumVanishHook;
 import me.neznamy.tab.platforms.bungeecord.injection.BungeePipelineInjector;
@@ -15,6 +10,16 @@ import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList18;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.chat.TabStyle;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabKeybindComponent;
+import me.neznamy.tab.shared.chat.component.TabTextComponent;
+import me.neznamy.tab.shared.chat.component.TabTranslatableComponent;
+import me.neznamy.tab.shared.chat.component.object.ObjectInfo;
+import me.neznamy.tab.shared.chat.component.object.TabAtlasSprite;
+import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
+import me.neznamy.tab.shared.chat.component.object.TabPlayerSprite;
+import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.platform.BossBar;
@@ -25,10 +30,14 @@ import me.neznamy.tab.shared.platform.impl.DummyBossBar;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
 import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
-import me.neznamy.tab.shared.util.cache.Cache;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.*;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.objects.PlayerObject;
+import net.md_5.bungee.api.chat.objects.SpriteObject;
+import net.md_5.bungee.api.chat.player.Profile;
+import net.md_5.bungee.api.chat.player.Property;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import org.bstats.bungeecord.Metrics;
 import org.bstats.charts.SimplePie;
@@ -45,9 +54,6 @@ public class BungeePlatform extends ProxyPlatform {
 
     @NotNull
     private final BungeeTAB plugin;
-
-    /** Cache for legacy components for <1.16 players, as we need 2 different components for each tab component */
-    private final Cache<TabComponent, BaseComponent> legacyComponentCache = new Cache<>("Bungee legacy component cache", 1000, tab -> createComponent(tab, false));
 
     /**
      * Constructs new instance with given plugin instance.
@@ -72,11 +78,12 @@ public class BungeePlatform extends ProxyPlatform {
     @Override
     public void registerPlaceholders() {
         super.registerPlaceholders();
-        for (String server : ProxyServer.getInstance().getConfig().getServers().keySet()) {
-            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder("%online_" + server + "%", 1000, () -> {
+        for (String serverName : ProxyServer.getInstance().getConfig().getServers().keySet()) {
+            Server server = Server.byName(serverName);
+            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder("%online_" + serverName + "%", 1000, () -> {
                 int count = 0;
                 for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                    if (player.server.equals(server) && !player.isVanished()) count++;
+                    if (player.server == server && !player.isVanished()) count++;
                 }
                 return PerformanceUtil.toString(count);
             });
@@ -146,8 +153,12 @@ public class BungeePlatform extends ProxyPlatform {
 
     @Override
     @NotNull
-    public BaseComponent convertComponent(@NotNull TabComponent component) {
-        return createComponent(component, true);
+    public BaseComponent @NotNull [] convertComponent(@NotNull TabComponent component) {
+        return new BaseComponent[] {
+                createComponent(component, ProtocolVersion.V1_21_9),
+                createComponent(component, ProtocolVersion.V1_16),
+                createComponent(component, ProtocolVersion.V1_8),
+        };
     }
 
     /**
@@ -161,41 +172,75 @@ public class BungeePlatform extends ProxyPlatform {
      */
     @NotNull
     public BaseComponent transformComponent(@NotNull TabComponent component, @NotNull ProtocolVersion version) {
-        if (version.getMinorVersion() >= 16) {
-            return component.convert();
+        return pickCorrectComponent(component.convert(), version);
+    }
+
+    /**
+     * Picks correct component from the given array based on client version.
+     *
+     * @param   components
+     *          Array of 3 components for 1.21.9+, 1.16-1.21.8 and below 1.16
+     * @param   version
+     *          Client version
+     * @return  Correct component for the specified client version
+     */
+    @NotNull
+    public BaseComponent pickCorrectComponent(@NotNull BaseComponent[] components, @NotNull ProtocolVersion version) {
+        if (version.getNetworkId() >= ProtocolVersion.V1_21_9.getNetworkId()) {
+            return components[0];
+        } else if (version.getNetworkId() >= ProtocolVersion.V1_16.getNetworkId()) {
+            return components[1];
         } else {
-            // Convert color to legacy for <1.16 players
-            return legacyComponentCache.get(component);
+            return components[2];
         }
     }
 
     /**
-     * Creates a bungee component using the given TAB component and modern flag for an RGB/legacy color decision.
+     * Creates a bungee component using the given TAB component and target client version.
      *
      * @param   component
      *          Component to convert
-     * @param   modern
-     *          {@code true} if colors should be as RGB, {@code false} if legacy
+     * @param   version
+     *          Client version to create the component for
      * @return  Converted component
      */
     @NotNull
-    private BaseComponent createComponent(@NotNull TabComponent component, boolean modern) {
+    private BaseComponent createComponent(@NotNull TabComponent component, @NotNull ProtocolVersion version) {
         // Component type
         BaseComponent bComponent;
-        if (component instanceof TextComponent) {
-            bComponent = new net.md_5.bungee.api.chat.TextComponent(((TextComponent) component).getText());
-        } else if (component instanceof TranslatableComponent) {
-            bComponent = new net.md_5.bungee.api.chat.TranslatableComponent(((TranslatableComponent) component).getKey());
-        } else if (component instanceof KeybindComponent) {
-            bComponent = new net.md_5.bungee.api.chat.KeybindComponent(((KeybindComponent) component).getKeybind());
+        if (component instanceof TabTextComponent) {
+            bComponent = new TextComponent(((TabTextComponent) component).getText());
+        } else if (component instanceof TabTranslatableComponent) {
+            bComponent = new TranslatableComponent(((TabTranslatableComponent) component).getKey());
+        } else if (component instanceof TabKeybindComponent) {
+            bComponent = new KeybindComponent(((TabKeybindComponent) component).getKeybind());
+        } else if (component instanceof TabObjectComponent) {
+            if (version.getNetworkId() >= ProtocolVersion.V1_21_9.getNetworkId()) {
+                ObjectInfo info = ((TabObjectComponent) component).getContents();
+                if (info instanceof TabAtlasSprite) {
+                    bComponent = new ObjectComponent(new SpriteObject(((TabAtlasSprite) info).getAtlas(), ((TabAtlasSprite) info).getSprite()));
+                } else if (info instanceof TabPlayerSprite) {
+                    bComponent = new ObjectComponent(new PlayerObject(new Profile(
+                            ((TabPlayerSprite) info).getName(),
+                            ((TabPlayerSprite) info).getId(),
+                            ((TabPlayerSprite) info).getSkin() == null ? new Property[0] : new Property[] {
+                                    new Property("textures", ((TabPlayerSprite) info).getSkin().getValue(), ((TabPlayerSprite) info).getSkin().getSignature())
+                            }
+                    ), ((TabPlayerSprite) info).isShowHat()));
+                } else {
+                    throw new IllegalStateException("Unexpected object component type: " + info.getClass().getName());
+                }
+            } else {
+                bComponent = new TextComponent(component.toLegacyText());
+            }
         } else {
             throw new IllegalStateException("Unexpected component type: " + component.getClass().getName());
         }
 
         // Component style
-        ChatModifier modifier = component.getModifier();
+        TabStyle modifier = component.getModifier();
         if (modifier.getColor() != null) {
-            if (modern) {
+            if (version.getMinorVersion() >= 16) {
                 bComponent.setColor(ChatColor.of("#" + modifier.getColor().getHexCode()));
             } else {
                 bComponent.setColor(ChatColor.of(modifier.getColor().getLegacyColor().name()));
@@ -216,7 +261,7 @@ public class BungeePlatform extends ProxyPlatform {
 
         // Extra
         for (TabComponent extra : component.getExtra()) {
-            bComponent.addExtra(createComponent(extra, modern));
+            bComponent.addExtra(createComponent(extra, version));
         }
 
         return bComponent;
@@ -241,9 +286,9 @@ public class BungeePlatform extends ProxyPlatform {
     @Override
     @NotNull
     public TabList createTabList(@NotNull TabPlayer player) {
-        if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId()) {
+        if (player.getVersionId() >= ProtocolVersion.V1_19_3.getNetworkId()) {
             return new BungeeTabList1193((BungeeTabPlayer) player);
-        } else if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_8.getNetworkId()) {
+        } else if (player.getVersionId() >= ProtocolVersion.V1_8.getNetworkId()) {
             return new BungeeTabList18((BungeeTabPlayer) player);
         } else {
             return new BungeeTabList17((BungeeTabPlayer) player);

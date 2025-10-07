@@ -2,7 +2,7 @@ package me.neznamy.tab.shared.features.layout;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import me.neznamy.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.config.file.ConfigurationSection;
@@ -108,8 +108,8 @@ public class LayoutConfiguration {
         }
 
         public String getEntryName(@NotNull TabPlayer viewer, int slot, boolean teamsEnabled) {
-            boolean legacySorting = viewer.getVersion().getNetworkId() < ProtocolVersion.V1_19_3.getNetworkId();
-            boolean modernSorting = viewer.getVersion().getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId() && TAB.getInstance().getPlatform().supportsListOrder();
+            boolean legacySorting = viewer.getVersionId() < ProtocolVersion.V1_19_3.getNetworkId();
+            boolean modernSorting = viewer.getVersionId() >= ProtocolVersion.V1_21_2.getNetworkId() && TAB.getInstance().getPlatform().supportsListOrder();
             if (legacySorting || modernSorting) {
                 return "";
             } else {
@@ -130,6 +130,7 @@ public class LayoutConfiguration {
     public static class LayoutDefinition {
 
         @Nullable private final String condition;
+        @Nullable private final String defaultSkin;
         @NotNull private final List<FixedSlotDefinition> fixedSlots;
         @NotNull private final LinkedHashMap<String, GroupPattern> groups;
 
@@ -145,7 +146,7 @@ public class LayoutConfiguration {
          */
         public static LayoutDefinition fromSection(@NotNull String name, @NotNull ConfigurationSection section) {
             // Check keys
-            section.checkForUnknownKey(Arrays.asList("condition", "fixed-slots", "groups"));
+            section.checkForUnknownKey(Arrays.asList("condition", "default-skin", "fixed-slots", "groups"));
 
             List<FixedSlotDefinition> fixedSlots = new ArrayList<>();
             for (String line : section.getStringList("fixed-slots", Collections.emptyList())) {
@@ -181,7 +182,12 @@ public class LayoutConfiguration {
 
                 groups.put(asString, pattern);
             }
-            return new LayoutDefinition(section.getString("condition"), fixedSlots, groups);
+            return new LayoutDefinition(
+                    section.getString("condition"),
+                    section.getString("default-skin"),
+                    fixedSlots,
+                    groups
+            );
         }
 
         /**

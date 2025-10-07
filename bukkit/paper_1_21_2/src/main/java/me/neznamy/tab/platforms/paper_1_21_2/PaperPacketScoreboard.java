@@ -124,7 +124,7 @@ public class PaperPacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
         PlayerTeam t = (PlayerTeam) team.getPlatformTeam();
         t.setAllowFriendlyFire((team.getOptions() & 0x01) != 0);
         t.setSeeFriendlyInvisibles((team.getOptions() & 0x02) != 0);
-        t.setColor(formats[team.getColor().getLegacyColor().ordinal()]);
+        t.setColor(formats[team.getColor().ordinal()]);
         t.setCollisionRule(collisions[team.getCollision().ordinal()]);
         t.setNameTagVisibility(visibilities[team.getVisibility().ordinal()]);
         t.setPlayerPrefix(team.getPrefix().convert());
@@ -133,7 +133,8 @@ public class PaperPacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
 
     @Override
     @SneakyThrows
-    public void onPacketSend(@NonNull Object packet) {
+    @NotNull
+    public Object onPacketSend(@NonNull Object packet) {
         if (packet instanceof ClientboundSetDisplayObjectivePacket display) {
             TAB.getInstance().getFeatureManager().onDisplayObjective(player, display.getSlot().ordinal(), display.getObjectiveName());
         }
@@ -142,9 +143,11 @@ public class PaperPacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
         }
         if (packet instanceof ClientboundSetPlayerTeamPacket team) {
             int action = getMethod(team);
-            if (action == TeamAction.UPDATE) return;
-            players.set(team, onTeamPacket(action, team.getName(), team.getPlayers() == null ? Collections.emptyList() : team.getPlayers()));
+            if (action != TeamAction.UPDATE) {
+                players.set(team, onTeamPacket(action, team.getName(), team.getPlayers() == null ? Collections.emptyList() : team.getPlayers()));
+            }
         }
+        return packet;
     }
 
     private static int getMethod(@NonNull ClientboundSetPlayerTeamPacket team) {

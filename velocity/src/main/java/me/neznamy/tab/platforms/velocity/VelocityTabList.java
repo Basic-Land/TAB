@@ -3,7 +3,7 @@ package me.neznamy.tab.platforms.velocity;
 import com.velocitypowered.api.proxy.player.TabListEntry;
 import com.velocitypowered.api.util.GameProfile;
 import lombok.NonNull;
-import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -90,7 +90,7 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer> {
     }
 
     @Override
-    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+    public void setPlayerListHeaderFooter0(@NonNull TabComponent header, @NonNull TabComponent footer) {
         player.getPlayer().sendPlayerListHeaderAndFooter(header.toAdventure(), footer.toAdventure());
     }
 
@@ -115,9 +115,19 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer> {
     @Override
     public void checkDisplayNames() {
         for (TabListEntry entry : player.getPlayer().getTabList().getEntries()) {
-            TabComponent expectedComponent = getExpectedDisplayNames().get(entry.getProfile().getId());
+            TabComponent expectedComponent = getForcedDisplayNames().get(entry.getProfile().getId());
             if (expectedComponent != null && entry.getDisplayNameComponent().orElse(null) != expectedComponent.toAdventure()) {
                 entry.setDisplayName(expectedComponent.toAdventure());
+            }
+        }
+    }
+
+    @Override
+    public void checkGameModes() {
+        for (TabListEntry entry : player.getPlayer().getTabList().getEntries()) {
+            Integer forcedGameMode = getForcedGameModes().get(entry.getProfile().getId());
+            if (forcedGameMode != null && entry.getGameMode() != forcedGameMode) {
+                entry.setGameMode(forcedGameMode);
             }
         }
     }

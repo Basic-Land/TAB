@@ -1,10 +1,11 @@
 package me.neznamy.tab.platforms.neoforge;
 
-import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.platforms.neoforge.hook.LuckPermsAPIHook;
 import me.neznamy.tab.shared.backend.BackendTabPlayer;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -21,7 +22,7 @@ public class NeoForgeTabPlayer extends BackendTabPlayer {
      *          Platform's player object
      */
     public NeoForgeTabPlayer(@NotNull NeoForgePlatform platform, @NotNull ServerPlayer player) {
-        super(platform, player, player.getUUID(), player.getGameProfile().getName(),
+        super(platform, player, player.getUUID(), player.getGameProfile().name(),
                 NeoForgeTAB.getLevelName(player.level()), SharedConstants.getProtocolVersion());
     }
 
@@ -67,6 +68,11 @@ public class NeoForgeTabPlayer extends BackendTabPlayer {
     }
 
     @Override
+    public int getDeaths() {
+        return getPlayer().getStats().getValue(Stats.CUSTOM.get(Stats.DEATHS));
+    }
+
+    @Override
     public int getGamemode() {
         return getPlayer().gameMode.getGameModeForPlayer().getId();
     }
@@ -79,6 +85,6 @@ public class NeoForgeTabPlayer extends BackendTabPlayer {
     @Override
     @NotNull
     public String getDisplayName() {
-        return getPlayer().getGameProfile().getName(); // Will make it work properly if someone asks
+        return getPlayer().getGameProfile().name(); // Will make it work properly if someone asks
     }
 }

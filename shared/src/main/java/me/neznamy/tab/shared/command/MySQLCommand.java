@@ -1,6 +1,8 @@
 package me.neznamy.tab.shared.command;
 
 import me.neznamy.tab.shared.config.PropertyConfiguration;
+import me.neznamy.tab.shared.data.Server;
+import me.neznamy.tab.shared.data.World;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
@@ -67,12 +69,12 @@ public class MySQLCommand extends SubCommand {
                 CachedRowSet crs = mysql.getCRS("select * from tab_groups");
                 while (crs.next()) {
                     groupFile.setProperty(crs.getString("group"), crs.getString("property"),
-                            crs.getString("server"), crs.getString("world"), crs.getString("value"));
+                            Server.byName(crs.getString("server")), World.byName(crs.getString("world")), crs.getString("value"));
                 }
                 crs = mysql.getCRS("select * from tab_users");
                 while (crs.next()) {
                     userFile.setProperty(crs.getString("user"), crs.getString("property"),
-                            crs.getString("server"), crs.getString("world"), crs.getString("value"));
+                            Server.byName(crs.getString("server")), World.byName(crs.getString("world")), crs.getString("value"));
                 }
                 sendMessage(sender, getMessages().getMySQLDownloadSuccess());
             } catch (YAMLException | IOException | SQLException e) {
@@ -92,10 +94,12 @@ public class MySQLCommand extends SubCommand {
             try {
                 YamlPropertyConfigurationFile groupFile = new YamlPropertyConfigurationFile(Configs.class.getClassLoader().getResourceAsStream("config/groups.yml"), new File(TAB.getInstance().getDataFolder(), "groups.yml"));
                 YamlPropertyConfigurationFile userFile = new YamlPropertyConfigurationFile(Configs.class.getClassLoader().getResourceAsStream("config/users.yml"), new File(TAB.getInstance().getDataFolder(), "users.yml"));
+                mysql.execute("DELETE FROM tab_groups");
+                mysql.execute("DELETE FROM tab_users");
                 upload(groupFile, TAB.getInstance().getConfiguration().getGroups());
                 upload(userFile, TAB.getInstance().getConfiguration().getUsers());
                 sendMessage(sender, getMessages().getMySQLUploadSuccess());
-            } catch (YAMLException | IOException e) {
+            } catch (YAMLException | IOException | SQLException e) {
                 sendMessage(sender, getMessages().getMySQLFailError());
                 TAB.getInstance().getErrorManager().criticalError("MySQL upload failed", e);
             }
@@ -110,13 +114,13 @@ public class MySQLCommand extends SubCommand {
             for (Map.Entry<String, Map<String, Object>> world : file.getPerWorldSettings(name).entrySet()) {
                 if (world.getValue() == null) continue;
                 for (Map.Entry<String, Object> property : world.getValue().entrySet()) {
-                    mysqlTable.setProperty(name, property.getKey(), null, world.getKey(), toString(property.getValue()));
+                    mysqlTable.setProperty(name, property.getKey(), null, World.byName(world.getKey()), toString(property.getValue()));
                 }
             }
             for (Map.Entry<String, Map<String, Object>> server : file.getPerServerSettings(name).entrySet()) {
                 if (server.getValue() == null) continue;
                 for (Map.Entry<String, Object> property : server.getValue().entrySet()) {
-                    mysqlTable.setProperty(name, property.getKey(), server.getKey(), null, toString(property.getValue()));
+                    mysqlTable.setProperty(name, property.getKey(), Server.byName(server.getKey()), null, toString(property.getValue()));
                 }
             }
         }

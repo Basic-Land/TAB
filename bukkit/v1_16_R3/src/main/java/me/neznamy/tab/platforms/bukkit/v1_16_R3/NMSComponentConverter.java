@@ -1,48 +1,62 @@
 package me.neznamy.tab.platforms.bukkit.v1_16_R3;
 
-import me.neznamy.chat.ChatModifier;
+import me.neznamy.tab.shared.chat.TabStyle;
+import me.neznamy.tab.shared.chat.component.object.TabAtlasSprite;
+import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
 import me.neznamy.tab.platforms.bukkit.provider.ComponentConverter;
+import me.neznamy.tab.shared.chat.component.object.TabPlayerSprite;
 import net.minecraft.server.v1_16_R3.*;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Component converter using direct NMS code.
  */
-public class NMSComponentConverter extends ComponentConverter {
+public class NMSComponentConverter extends ComponentConverter<IChatBaseComponent> {
 
     @Override
     @NotNull
-    public Object newTextComponent(@NotNull String text) {
+    public IChatBaseComponent newTextComponent(@NotNull String text) {
         return new ChatComponentText(text);
     }
 
     @Override
     @NotNull
-    public Object newTranslatableComponent(@NotNull String key) {
+    public IChatBaseComponent newTranslatableComponent(@NotNull String key) {
         return new ChatMessage(key);
     }
 
     @Override
     @NotNull
-    public Object newKeybindComponent(@NotNull String keybind) {
+    public IChatBaseComponent newKeybindComponent(@NotNull String keybind) {
         return new ChatComponentKeybind(keybind);
     }
 
     @Override
-    public void applyStyle(@NotNull Object nmsComponent, @NotNull ChatModifier modifier) {
-        ((IChatMutableComponent)nmsComponent).setChatModifier(
-                net.minecraft.server.v1_16_R3.ChatModifier.a
-                        .setColor(modifier.getColor() == null ? null : ChatHexColor.a(modifier.getColor().getRgb()))
-                        .setBold(modifier.getBold())
-                        .setItalic(modifier.getItalic())
-                        .setUnderline(modifier.getUnderlined())
-                        .setStrikethrough(modifier.getStrikethrough())
-                        .setRandom(modifier.getObfuscated())
+    @NotNull
+    public IChatBaseComponent newObjectComponent(@NotNull TabAtlasSprite sprite) {
+        return new ChatComponentText(TabObjectComponent.ERROR_MESSAGE);
+    }
+
+    @Override
+    @NotNull
+    public IChatBaseComponent newObjectComponent(@NotNull TabPlayerSprite sprite) {
+        return new ChatComponentText(TabObjectComponent.ERROR_MESSAGE);
+    }
+
+    @Override
+    public void applyStyle(@NotNull IChatBaseComponent nmsComponent, @NotNull TabStyle modifier) {
+        ((IChatMutableComponent)nmsComponent).setChatModifier(ChatModifier.a
+                .setColor(modifier.getColor() == null ? null : ChatHexColor.a(modifier.getColor().getRgb()))
+                .setBold(modifier.getBold())
+                .setItalic(modifier.getItalic())
+                .setUnderline(modifier.getUnderlined())
+                .setStrikethrough(modifier.getStrikethrough())
+                .setRandom(modifier.getObfuscated())
         );
     }
 
     @Override
-    public void addSibling(@NotNull Object parent, @NotNull Object child) {
-        ((IChatMutableComponent)parent).addSibling((IChatBaseComponent) child);
+    public void addSibling(@NotNull IChatBaseComponent parent, @NotNull IChatBaseComponent child) {
+        ((IChatMutableComponent)parent).addSibling(child);
     }
 }

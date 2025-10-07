@@ -1,10 +1,11 @@
 package me.neznamy.tab.shared.command;
 
+import me.neznamy.tab.shared.ProjectVariables;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.chat.TextColor;
-import me.neznamy.chat.component.TextComponent;
+import me.neznamy.tab.shared.chat.TabTextColor;
+import me.neznamy.tab.shared.chat.component.TabTextComponent;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.shared.features.sorting.Sorting;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -58,7 +59,7 @@ public class DebugCommand extends SubCommand {
         sendMessage(sender, "&3[TAB] &a&lShowing debug information");
         sendMessage(sender, separator);
         sendMessage(sender, "&6Server version: &b" + tab.getPlatform().getServerVersionInfo());
-        sendMessage(sender, "&6Plugin version: &b" + TabConstants.PLUGIN_VERSION);
+        sendMessage(sender, "&6Plugin version: &b" + ProjectVariables.PLUGIN_VERSION);
         sendMessage(sender, "&6Permission plugin: &b" + TAB.getInstance().getGroupManager().getPermissionPlugin());
         sendMessage(sender, "&6Permission group choice logic: &b" + getGroupChoiceLogic());
         sendMessage(sender, "&6Sorting system: &b" + getSortingType());
@@ -71,7 +72,9 @@ public class DebugCommand extends SubCommand {
             return;
         }
         sendMessage(sender, "&ePlayer: &a" + analyzed.getName());
-        sendMessage(sender, "&ePlayer version: &a" + analyzed.getVersion().getFriendlyName());
+        sendMessage(sender, "&eInternal UUID: &a" + analyzed.getUniqueId());
+        sendMessage(sender, "&eTablist UUID: &a" + analyzed.getTablistId());
+        sendMessage(sender, "&ePlayer version: &a" + analyzed.getVersion().getFriendlyName() + " (" + analyzed.getVersionId() + ")");
         if (analyzed instanceof ProxyTabPlayer) {
             char versionRequired = TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME.charAt(TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME.length()-1);
             sendMessage(sender, "&eBridge connection: " + (((ProxyTabPlayer)analyzed).isBridgeConnected() ?
@@ -193,12 +196,12 @@ public class DebugCommand extends SubCommand {
             sendMessage(sender, "&a" + property.getName() + ": &cDisabled for player with condition");
         } else {
             // Do it this way to avoid sending the "§" symbol to the console to try to color the text (does not work on Velocity)
-            sendMessage(sender, new TextComponent("", Arrays.asList(
-                    new TextComponent(property.getName() + ": ", TextColor.GREEN),
-                    new TextComponent("\"", TextColor.YELLOW),
-                    new TextComponent(property.getCurrentRawValue().replace('§', '&'), TextColor.WHITE),
-                    new TextComponent("\" ", TextColor.YELLOW),
-                    new TextComponent("(Source: " + property.getSource() + ")", TextColor.GRAY)
+            sendMessage(sender, new TabTextComponent("", Arrays.asList(
+                    new TabTextComponent(property.getName() + ": ", TabTextColor.GREEN),
+                    new TabTextComponent("\"", TabTextColor.YELLOW),
+                    new TabTextComponent(property.getCurrentRawValue().replace('§', '&'), TabTextColor.WHITE),
+                    new TabTextComponent("\" ", TabTextColor.YELLOW),
+                    new TabTextComponent("(Source: " + property.getSource() + ")", TabTextColor.GRAY)
             )));
         }
     }

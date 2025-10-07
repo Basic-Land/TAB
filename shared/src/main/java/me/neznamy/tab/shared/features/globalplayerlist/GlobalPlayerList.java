@@ -1,11 +1,12 @@
 package me.neznamy.tab.shared.features.globalplayerlist;
 
 import lombok.Getter;
-import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
+import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.features.playerlist.PlayerList;
 import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
@@ -29,8 +30,6 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     @Getter private OnlinePlayers onlinePlayers;
     @Nullable private final ProxySupport proxy = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PROXY_SUPPORT);
     @NotNull private final GlobalPlayerListConfiguration configuration;
-    @NotNull  private final Map<String, String> serverToGroupName = new HashMap<>();
-    @NotNull private final Map<String, Object> groupNameToGroup = new HashMap<>();
     @Nullable private final PlayerList playerlist = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PLAYER_LIST);
 
     /**
@@ -41,16 +40,17 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
      */
     public GlobalPlayerList(@NotNull GlobalPlayerListConfiguration configuration) {
         this.configuration = configuration;
+        TAB.getInstance().getDataManager().applyConfiguration(configuration);
         for (Map.Entry<String, List<String>> entry : configuration.getSharedServers().entrySet()) {
             TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder(TabConstants.Placeholder.globalPlayerListGroup(entry.getKey()), 1000, () -> {
                 if (onlinePlayers == null) return "0"; // Not loaded yet
                 int count = 0;
                 for (TabPlayer player : onlinePlayers.getPlayers()) {
-                    if (entry.getValue().contains(player.server) && !player.isVanished()) count++;
+                    if (entry.getValue().contains(player.server.getName()) && !player.isVanished()) count++;
                 }
                 if (proxy != null) {
                     for (ProxyPlayer player : proxy.getProxyPlayers().values()) {
-                        if (entry.getValue().contains(player.server) && !player.isVanished()) count++;
+                        if (entry.getValue().contains(player.server.getName()) && !player.isVanished()) count++;
                     }
                 }
                 return PerformanceUtil.toString(count);
@@ -62,13 +62,9 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     public void load() {
         onlinePlayers =  new OnlinePlayers(TAB.getInstance().getOnlinePlayers());
         if (configuration.isUpdateLatency()) addUsedPlaceholder(TabConstants.Placeholder.PING);
-        for (TabPlayer all : onlinePlayers.getPlayers()) {
-            all.globalPlayerListData.serverGroup = getServerGroup(all.server);
-            all.globalPlayerListData.onSpyServer = configuration.getSpyServers().contains(all.server.toLowerCase());
-        }
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             for (TabPlayer displayed : onlinePlayers.getPlayers()) {
-                if (viewer.server.equals(displayed.server)) continue;
+                if (viewer.server == displayed.server) continue;
                 if (shouldSee(viewer, displayed)) {
                     viewer.getTabList().addEntry(getAddInfoData(displayed, viewer));
                 }
@@ -86,62 +82,14 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
      * @return  {@code true} if viewer should see the target, {@code false} if not
      */
     public boolean shouldSee(@NotNull TabPlayer viewer, @NotNull TabPlayer displayed) {
-        if (displayed == viewer) return true;
-        if (!viewer.canSee(displayed)) return false;
-        if (viewer.globalPlayerListData.onSpyServer) return true;
-        return viewer.globalPlayerListData.serverGroup == displayed.globalPlayerListData.serverGroup;
-    }
-
-    /**
-     * Returns server group of specified server. If not part of any group,
-     * returns either default or unique name if isolate unlisted servers is enabled.
-     *
-     * @param   playerServer
-     *          Server to get group of
-     * @return  Name of server group for this server
-     */
-    @NotNull
-    public synchronized String getServerGroupName(@NotNull String playerServer) {
-        return serverToGroupName.computeIfAbsent(playerServer, this::computeServerGroup);
-    }
-
-    /**
-     * Returns server group of specified server. The returned object identity is equal for
-     * all servers in the same group.
-     *
-     * @param   playerServer
-     *          Server to get group of
-     * @return  Server group of specified server
-     */
-    @NotNull
-    private synchronized Object getServerGroup(@NotNull String playerServer) {
-        return groupNameToGroup.computeIfAbsent(getServerGroupName(playerServer), n -> new Object());
-    }
-
-    @NotNull
-    private String computeServerGroup(@NotNull String server) {
-        for (Map.Entry<String, List<String>> group : configuration.getSharedServers().entrySet()) {
-            for (String serverDefinition : group.getValue()) {
-                if (serverDefinition.endsWith("*")) {
-                    if (server.toLowerCase().startsWith(serverDefinition.substring(0, serverDefinition.length()-1).toLowerCase()))
-                        return group.getKey();
-                } else if (serverDefinition.startsWith("*")) {
-                    if (server.toLowerCase().endsWith(serverDefinition.substring(1).toLowerCase()))
-                        return group.getKey();
-                }  else {
-                    if (server.equalsIgnoreCase(serverDefinition))
-                        return group.getKey();
-                }
-            }
-        }
-        return configuration.isIsolateUnlistedServers() ? "isolated:" + server : "DEFAULT";
+        return viewer.server.canSee(displayed.server) && viewer.canSee(displayed);
     }
 
     @Override
     public void unload() {
         for (TabPlayer displayed : onlinePlayers.getPlayers()) {
             for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-                if (!displayed.server.equals(viewer.server)) viewer.getTabList().removeEntry(displayed.getTablistId());
+                if (displayed.server != viewer.server) viewer.getTabList().removeEntry(displayed.getTablistId());
             }
         }
     }
@@ -149,10 +97,8 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     @Override
     public void onJoin(@NotNull TabPlayer connectedPlayer) {
         onlinePlayers.addPlayer(connectedPlayer);
-        connectedPlayer.globalPlayerListData.serverGroup = getServerGroup(connectedPlayer.server);
-        connectedPlayer.globalPlayerListData.onSpyServer = configuration.getSpyServers().contains(connectedPlayer.server.toLowerCase());
         for (TabPlayer all : onlinePlayers.getPlayers()) {
-            if (connectedPlayer.server.equals(all.server)) continue;
+            if (connectedPlayer.server == all.server) continue;
             if (shouldSee(all, connectedPlayer)) {
                 all.getTabList().addEntry(getAddInfoData(connectedPlayer, all));
             }
@@ -162,7 +108,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
         }
         if (proxy != null) {
             for (ProxyPlayer proxied : proxy.getProxyPlayers().values()) {
-                if (!proxied.server.equals(connectedPlayer.server) && shouldSee(connectedPlayer, proxied)) {
+                if (proxied.server != connectedPlayer.server && shouldSee(connectedPlayer, proxied)) {
                     connectedPlayer.getTabList().addEntry(proxied.asEntry());
                 }
             }
@@ -178,9 +124,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     }
 
     @Override
-    public void onServerChange(@NotNull TabPlayer changed, @NotNull String from, @NotNull String to) {
-        changed.globalPlayerListData.serverGroup = getServerGroup(changed.server);
-        changed.globalPlayerListData.onSpyServer = configuration.getSpyServers().contains(changed.server.toLowerCase());
+    public void onServerChange(@NotNull TabPlayer changed, @NotNull Server from, @NotNull Server to) {
         // TODO fix players potentially not appearing on rapid server switching (if anyone reports it)
         // Player who switched server is removed from tablist of other players in ~70-110ms (depending on online count), re-add with a delay
         customThread.executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
@@ -188,7 +132,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
             for (TabPlayer all : onlinePlayers.getPlayers()) {
                 // Remove for everyone and add back if visible, easy solution to display-others-as-spectators option
                 // Also do not remove/add players from the same server, let backend handle it
-                if (!all.server.equals(changed.server)) {
+                if (all.server != changed.server) {
                     all.getTabList().removeEntry(changed.getTablistId());
                     if (shouldSee(all, changed)) {
                         all.getTabList().addEntry(getAddInfoData(changed, all));
@@ -202,13 +146,13 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     public void onTabListClear(@NotNull TabPlayer player) {
         for (TabPlayer all : onlinePlayers.getPlayers()) {
             // Ignore players on the same server, since the server already sends add packet
-            if (!all.server.equals(player.server) && shouldSee(player, all)) {
+            if (all.server != player.server && shouldSee(player, all)) {
                 player.getTabList().addEntry(getAddInfoData(all, player));
             }
         }
         if (proxy != null) {
             for (ProxyPlayer proxied : proxy.getProxyPlayers().values()) {
-                if (!proxied.server.equals(player.server) && shouldSee(player, proxied)) {
+                if (proxied.server != player.server && shouldSee(player, proxied)) {
                     player.getTabList().addEntry(proxied.asEntry());
                 }
             }
@@ -246,7 +190,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     @Override
     public void onGameModeChange(@NotNull TabPlayer player) {
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            if (!player.server.equals(viewer.server)) {
+            if (player.server != viewer.server) {
                 viewer.getTabList().updateGameMode(player, configuration.isOthersAsSpectators() ? 3 : player.getGamemode());
             }
         }
@@ -281,18 +225,16 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
         //player ping changed, must manually update latency for players on other servers
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            if (viewer.globalPlayerListData.serverGroup == refreshed.globalPlayerListData.serverGroup && !refreshed.server.equals(viewer.server)) {
+            if (refreshed.server != viewer.server && viewer.server.canSee(refreshed.server)) {
                 viewer.getTabList().updateLatency(refreshed, refreshed.getPing());
             }
         }
     }
 
     private boolean shouldSee(@NotNull TabPlayer viewer, @NotNull ProxyPlayer target) {
-        if (target.isVanished() && !viewer.hasPermission(TabConstants.Permission.SEE_VANISHED)) return false;
         // Do not show duplicate player that will be removed in a sec
         if (TAB.getInstance().isPlayerConnected(target.getTablistId())) return false;
-        if (viewer.globalPlayerListData.onSpyServer) return true;
-        return viewer.globalPlayerListData.serverGroup == target.serverGroup;
+        return viewer.server.canSee(target.server) && (!target.isVanished() || viewer.hasPermission(TabConstants.Permission.SEE_VANISHED));
     }
 
     // ------------------
@@ -301,9 +243,8 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
 
     @Override
     public void onJoin(@NotNull ProxyPlayer player) {
-        player.serverGroup = getServerGroup(player.server);
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            if (shouldSee(viewer, player) && !viewer.server.equals(player.server)) {
+            if (shouldSee(viewer, player) && viewer.server != player.server) {
                 viewer.getTabList().addEntry(player.asEntry());
             }
         }
@@ -311,9 +252,8 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
 
     @Override
     public void onServerSwitch(@NotNull ProxyPlayer player) {
-        player.serverGroup = getServerGroup(player.server);
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            if (viewer.server.equals(player.server)) continue;
+            if (viewer.server == player.server) continue;
             if (shouldSee(viewer, player)) {
                 viewer.getTabList().addEntry(player.asEntry());
             } else {
@@ -327,7 +267,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
         TabPlayer connected = TAB.getInstance().getPlayer(player.getUniqueId());
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             // Make sure to not remove player if they are connected already and added into tablist by the server
-            if (!player.server.equals(viewer.server) && (connected == null || !shouldSee(viewer, connected))) {
+            if (player.server != viewer.server && (connected == null || !shouldSee(viewer, connected))) {
                 viewer.getTabList().removeEntry(player.getTablistId());
             }
         }
@@ -354,17 +294,5 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     @Override
     public String getFeatureName() {
         return "Global PlayerList";
-    }
-
-    /**
-     * Class holding global playerlist data for players.
-     */
-    public static class PlayerData {
-
-        /** Server group of server the player is connected to */
-        private Object serverGroup;
-
-        /** Flag tracking whether the player is on spy server or not */
-        private boolean onSpyServer;
     }
 }

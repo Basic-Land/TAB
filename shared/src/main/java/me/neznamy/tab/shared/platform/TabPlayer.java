@@ -3,7 +3,6 @@ package me.neznamy.tab.shared.platform;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.api.integration.VanishIntegration;
 import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
 import me.neznamy.tab.api.placeholder.RelationalPlaceholder;
@@ -11,18 +10,20 @@ import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.data.Server;
+import me.neznamy.tab.shared.data.World;
 import me.neznamy.tab.shared.event.impl.PlayerLoadEventImpl;
 import me.neznamy.tab.shared.features.NickCompatibility;
 import me.neznamy.tab.shared.features.belowname.BelowNamePlayerData;
-import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
-import me.neznamy.tab.shared.features.globalplayerlist.GlobalPlayerList;
-import me.neznamy.tab.shared.features.header.HeaderFooter;
+import me.neznamy.tab.shared.features.bossbar.BossBarPlayerData;
+import me.neznamy.tab.shared.features.header.HeaderFooterPlayerData;
 import me.neznamy.tab.shared.features.layout.LayoutManagerImpl;
 import me.neznamy.tab.shared.features.nametags.NameTagPlayerData;
-import me.neznamy.tab.shared.features.playerlist.PlayerList;
-import me.neznamy.tab.shared.features.playerlistobjective.PlayerlistObjectivePlayerData;
-import me.neznamy.tab.shared.features.scoreboard.ScoreboardManagerImpl;
-import me.neznamy.tab.shared.features.sorting.Sorting;
+import me.neznamy.tab.shared.features.playerlist.TablistFormattingPlayerData;
+import me.neznamy.tab.shared.features.playerlistobjective.PlayerListObjectivePlayerData;
+import me.neznamy.tab.shared.features.scoreboard.ScoreboardPlayerData;
+import me.neznamy.tab.shared.features.sorting.SortingPlayerData;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.hook.FloodgateHook;
 import net.luckperms.api.model.user.User;
@@ -61,12 +62,12 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
      * World the player is currently in, {@code "N/A"} if TAB is
      * installed on proxy and bridge is not installed
      */
-    @Getter
-    public String world;
+    @NotNull
+    public World world;
 
     /** Server the player is currently in, {@code "N/A"} if TAB is installed on backend */
-    @Getter
-    public String server;
+    @NotNull
+    public Server server;
 
     /** Player's permission group defined in permission plugin or with permission nodes */
     @Getter
@@ -78,7 +79,10 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     /** Player's game type, {@code true} for Bedrock, {@code false} for Java */
     @Getter private final boolean bedrockPlayer;
 
-    /** Player's game version */
+    /** Player's protocol version (actual retrieved value) */
+    @Getter private final int versionId;
+
+    /** Player's game version (evaluated to known versions) */
     @Getter protected final ProtocolVersion version;
 
     /**
@@ -91,10 +95,10 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     @Getter private boolean online = true;
 
     /** Data for sorting */
-    public final Sorting.PlayerData sortingData = new Sorting.PlayerData();
+    public final SortingPlayerData sortingData = new SortingPlayerData();
 
     /** Data for sidebar scoreboard feature */
-    public final ScoreboardManagerImpl.PlayerData scoreboardData = new ScoreboardManagerImpl.PlayerData();
+    public final ScoreboardPlayerData scoreboardData = new ScoreboardPlayerData();
 
     /** Data for scoreboard team */
     public final NameTagPlayerData teamData = new NameTagPlayerData();
@@ -103,22 +107,19 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     public final LayoutManagerImpl.PlayerData layoutData = new LayoutManagerImpl.PlayerData();
 
     /** Data for BossBar */
-    public final BossBarManagerImpl.PlayerData bossbarData = new BossBarManagerImpl.PlayerData();
+    public final BossBarPlayerData bossbarData = new BossBarPlayerData();
 
     /** Data for Header/Footer */
-    public final HeaderFooter.PlayerData headerFooterData = new HeaderFooter.PlayerData();
+    public final HeaderFooterPlayerData headerFooterData = new HeaderFooterPlayerData();
 
     /** Data for Playerlist Objective */
-    public final PlayerlistObjectivePlayerData playerlistObjectiveData = new PlayerlistObjectivePlayerData();
+    public final PlayerListObjectivePlayerData playerlistObjectiveData = new PlayerListObjectivePlayerData();
 
     /** Data for Belowname Objective */
     public final BelowNamePlayerData belowNameData = new BelowNamePlayerData();
 
     /** Data for tablist formatting */
-    public final PlayerList.PlayerData tablistData = new PlayerList.PlayerData();
-
-    /** Data for global playerlist */
-    public final GlobalPlayerList.PlayerData globalPlayerListData = new GlobalPlayerList.PlayerData();
+    public final TablistFormattingPlayerData tablistData = new TablistFormattingPlayerData();
 
     /** Data for plugin's PlaceholderAPI expansion */
     public final Map<String, String> expansionValues = new HashMap<>();
@@ -171,9 +172,10 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
         this.player = player;
         this.uniqueId = uniqueId;
         this.name = name;
-        this.server = server;
-        this.world = world;
+        this.server = Server.byName(server);
+        this.world = World.byName(world);
         nickname = name;
+        versionId = protocolVersion;
         version = ProtocolVersion.fromNetworkId(protocolVersion);
         bedrockPlayer = FloodgateHook.getInstance().isFloodgatePlayer(uniqueId, name);
         permissionGroup = TAB.getInstance().getGroupManager().detectPermissionGroup(this);
@@ -222,6 +224,8 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
 
     @Override
     public void setExpectedProfileName(@NonNull String profileName) {
+        if (nickname.equals(profileName)) return;
+        TAB.getInstance().debug("Changing expected profile name of player " + name + " from " + nickname + " to " + profileName + " as a result of an API call.");
         nickname = profileName;
         NickCompatibility nick = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.NICK_COMPATIBILITY);
         nick.processNameChange(this);
@@ -337,6 +341,18 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
             }
         }
         return !target.isVanished() || hasPermission(TabConstants.Permission.SEE_VANISHED);
+    }
+
+    @Override
+    @NotNull
+    public String getServer() {
+        return server.getName();
+    }
+
+    @Override
+    @NotNull
+    public String getWorld() {
+        return world.getName();
     }
 
     /**

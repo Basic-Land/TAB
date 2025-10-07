@@ -6,7 +6,6 @@ import me.neznamy.tab.shared.config.file.ConfigurationSection;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Class for storing global playerlist configuration.
@@ -58,7 +57,7 @@ public class GlobalPlayerListConfiguration {
                 section.getBoolean("display-vanished-players-as-spectators", true),
                 section.getBoolean("isolate-unlisted-servers", false),
                 section.getBoolean("update-latency", false),
-                section.getStringList("spy-servers", Collections.singletonList("spyserver1")).stream().map(String::toLowerCase).collect(Collectors.toList()),
+                section.getStringList("spy-servers", Collections.singletonList("spyserver1")),
                 sharedServers
         );
     }

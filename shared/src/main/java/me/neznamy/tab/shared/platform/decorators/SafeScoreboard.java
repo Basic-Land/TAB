@@ -2,8 +2,8 @@ package me.neznamy.tab.shared.platform.decorators;
 
 import lombok.*;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.chat.component.TabComponent;
-import me.neznamy.chat.TextColor;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
@@ -134,7 +134,7 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
     @Override
     public synchronized void registerTeam(@NonNull String name, @NonNull TabComponent prefix, @NonNull TabComponent suffix,
                                    @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
-                                   @NonNull Collection<String> players, int options, @NonNull TextColor color) {
+                                   @NonNull Collection<String> players, int options, @NonNull EnumChatFormat color) {
         Team existing = teams.get(name);
         if (existing != null) {
             error("Tried to register duplicated team %s with entry %s, while this team already exists with entry %s to player ",
@@ -161,7 +161,7 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
     @Override
     public synchronized void updateTeam(@NonNull String name, @NonNull TabComponent prefix, @NonNull TabComponent suffix,
                                  @NonNull NameVisibility visibility, @NonNull CollisionRule collision,
-                                 int options, @NonNull TextColor color) {
+                                 int options, @NonNull EnumChatFormat color) {
         Team team = teams.get(name);
         if (team == null) {
             error("Tried to modify non-existing team %s for player ", name);
@@ -173,7 +173,7 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
     }
 
     @Override
-    public synchronized void updateTeam(@NonNull String name, @NonNull TabComponent prefix, @NonNull TabComponent suffix, @NonNull TextColor color) {
+    public synchronized void updateTeam(@NonNull String name, @NonNull TabComponent prefix, @NonNull TabComponent suffix, @NonNull EnumChatFormat color) {
         Team team = teams.get(name);
         if (team == null) return;
         team.update(prefix, suffix, color);
@@ -284,9 +284,11 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
      *
      * @param   packet
      *          Packet sent by the server
+     * @return  Packet to forward
      */
-    public void onPacketSend(@NonNull Object packet) {
-        // Implemented by platforms with pipeline injection
+    @NotNull
+    public Object onPacketSend(@NonNull Object packet) {
+        return packet;
     }
 
     /**
@@ -366,7 +368,22 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
      *          Expected team
      */
     public static void logTeamOverride(@NonNull String team, @NonNull String player, @NonNull Team expectedTeam) {
-        String message = "Blocked attempt to add player " + player + " into team " + team + " (expected team: " + expectedTeam.getName() + ")";
+        String source = null;
+        String fix = null;
+        if (team.startsWith("collideRule_")) {
+            source = "Paper";
+            fix = "set \"enable-player-collisions: true\" in paper config. To keep collisions disabled, set collision to false in TAB config.";
+        } else if (team.startsWith("CMINP")) {
+            source = "CMI";
+            fix = "set \"DisableTeamManagement: true\" in \"plugins/CMI/config.yml\".";
+        } else if (team.startsWith("CIT-")) {
+            source = "Citizens";
+            fix = "use NPC names that do not match names of online players.";
+        }
+        String message = "Blocked attempt to add player " + player + " into team " + team + " (expected team: " + expectedTeam.getName() + ").";
+        if (source != null) {
+            message += " Source of the team: " + source + ". To fix this, " + fix;
+        }
         //not logging the same message for every online player who received the packet
         if (!message.equals(lastTeamOverrideMessage)) {
             lastTeamOverrideMessage = message;
@@ -527,10 +544,10 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
         @NonNull private CollisionRule collision;
         @NonNull private Collection<String> players;
         private int options;
-        @NonNull private TextColor color;
+        @NonNull private EnumChatFormat color;
 
         private void update(@NonNull TabComponent prefix, @NonNull TabComponent suffix, @NonNull NameVisibility visibility,
-                            @NonNull CollisionRule collision, int options, @NonNull TextColor color) {
+                            @NonNull CollisionRule collision, int options, @NonNull EnumChatFormat color) {
             this.prefix = prefix;
             this.suffix = suffix;
             this.visibility = visibility;
@@ -539,7 +556,7 @@ public abstract class SafeScoreboard<T extends TabPlayer> implements Scoreboard 
             this.color = color;
         }
 
-        private void update(@NonNull TabComponent prefix, @NonNull TabComponent suffix, @NonNull TextColor color) {
+        private void update(@NonNull TabComponent prefix, @NonNull TabComponent suffix, @NonNull EnumChatFormat color) {
             this.prefix = prefix;
             this.suffix = suffix;
             this.color = color;

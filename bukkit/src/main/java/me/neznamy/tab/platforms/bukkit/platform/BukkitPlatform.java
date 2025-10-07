@@ -4,22 +4,27 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import me.clip.placeholderapi.PlaceholderAPI;
-import me.neznamy.chat.component.*;
-import me.neznamy.tab.platforms.bukkit.*;
+import me.neznamy.tab.platforms.bukkit.BukkitEventListener;
+import me.neznamy.tab.platforms.bukkit.BukkitPipelineInjector;
+import me.neznamy.tab.platforms.bukkit.BukkitTabCommand;
+import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.bossbar.BukkitBossBar;
 import me.neznamy.tab.platforms.bukkit.bossbar.ViaBossBar;
 import me.neznamy.tab.platforms.bukkit.features.BukkitTabExpansion;
 import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
 import me.neznamy.tab.platforms.bukkit.hook.BukkitPremiumVanishHook;
 import me.neznamy.tab.platforms.bukkit.provider.ImplementationProvider;
-import me.neznamy.tab.platforms.bukkit.provider.bukkit.BukkitImplementationProvider;
-import me.neznamy.tab.platforms.bukkit.provider.bukkit.PaperScoreboard;
-import me.neznamy.tab.platforms.bukkit.provider.reflection.ReflectionImplementationProvider;
 import me.neznamy.tab.shared.GroupManager;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
+import me.neznamy.tab.shared.chat.TabTextColor;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabKeybindComponent;
+import me.neznamy.tab.shared.chat.component.TabTextComponent;
+import me.neznamy.tab.shared.chat.component.TabTranslatableComponent;
+import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
@@ -34,7 +39,6 @@ import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
 import me.neznamy.tab.shared.platform.impl.DummyBossBar;
-import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.kyori.adventure.audience.Audience;
 import net.milkbowl.vault.chat.Chat;
@@ -51,10 +55,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Implementation of Platform interface for Bukkit platform
@@ -81,10 +83,14 @@ public class BukkitPlatform implements BackendPlatform {
     /** Detection for presence of Paper's MSPT getter */
     private final boolean paperMspt = ReflectionUtils.methodExists(Bukkit.class, "getAverageTickTime");
 
+    /** Package name of the server implementation, null on Paper 1.20.5+ */
+    @Nullable
+    private final String serverPackage;
+
     /** Implementation for creating new instances using content available on the server */
     @NotNull
     @Setter
-    private ImplementationProvider implementationProvider = findImplementationProvider();
+    private ImplementationProvider implementationProvider;
 
     private final boolean modernOnlinePlayers;
 
@@ -98,6 +104,10 @@ public class BukkitPlatform implements BackendPlatform {
     public BukkitPlatform(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
         modernOnlinePlayers = Bukkit.class.getMethod("getOnlinePlayers").getReturnType() == Collection.class;
+        String CRAFTBUKKIT_PACKAGE = Bukkit.getServer().getClass().getPackage().getName();
+        String[] array = CRAFTBUKKIT_PACKAGE.split("\\.");
+        serverPackage = array.length > 3 ? array[3] : null;
+        implementationProvider = findImplementationProvider();
         try {
             Object server = Bukkit.getServer().getClass().getMethod("getServer").invoke(Bukkit.getServer());
             recentTps = ((double[]) server.getClass().getField("recentTps").get(server));
@@ -112,53 +122,21 @@ public class BukkitPlatform implements BackendPlatform {
     @NotNull
     @SneakyThrows
     private ImplementationProvider findImplementationProvider() {
-        // Check for mojang-mapped paper (1.20.5+)
-        String paperModule = getPaperModule();
-        if (paperModule != null) {
-            return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.paper_" + paperModule + ".PaperImplementationProvider").getConstructor().newInstance();
-        }
-
-        // Check for direct NMS on some supported versions
-        String serverPackage = BukkitReflection.getServerVersion().getServerPackage();
-        if (Arrays.asList("v1_8_R3", "v1_12_R1", "v1_16_R3", "v1_17_R1", "v1_18_R2", "v1_19_R1").contains(serverPackage) && serverVersion != ProtocolVersion.V1_19) {
-            return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit." + serverPackage + ".NMSImplementationProvider").getConstructor().newInstance();
-        }
-
-        // Try reflection
-        try {
-            return new ReflectionImplementationProvider();
-        } catch (Throwable e) {
-            if (serverVersion.getMinorVersion() >= 8) {
-                List<String> missingFeatures = new ArrayList<>();
-
-                // Scoreboard
-                missingFeatures.add("Compatibility with other scoreboard plugins being reduced");
-                if (!PaperScoreboard.isAvailable()) {
-                    missingFeatures.add("Features receiving new artificial character limits");
-                    missingFeatures.add("1.20.3+ scoreboard visuals not working due to lack of API");
-                }
-                missingFeatures.add("Anti-override for nametags not working");
-
-                // Tablist
-                missingFeatures.add("Layout feature will not work");
-                missingFeatures.add("Prevent-spectator-effect feature will not work");
-                missingFeatures.add("Ping spoof feature will not work");
-                missingFeatures.add("Tablist formatting missing anti-override");
-                missingFeatures.add("Tablist formatting not supporting relational placeholders");
-                missingFeatures.add("Compatibility with nickname plugins changing player names will not work");
-                missingFeatures.add("Anti-override for tablist not working");
-                missingFeatures.add("Header/Footer may be limited or not work at all"); // Maybe add some checks for a more accurate message
-
-                Bukkit.getConsoleSender().sendMessage("§c[TAB] Your server version is not fully supported. This will result in:");
-                for (String message : missingFeatures) {
-                    Bukkit.getConsoleSender().sendMessage("§c[TAB] - " + message);
-                }
-                Bukkit.getConsoleSender().sendMessage("§c[TAB] Please use " +
-                        "a plugin version with full support for your server version for optimal experience. This plugin version " +
-                        "has full support for 1.8.8, 1.12.x, 1.16.5, 1.17.x, 1.18.2 and 1.19.1 - 1.21.7.");
+        if (serverPackage == null) {
+            // Paper 1.20.5+, check for available module
+            String paperModule = getPaperModule();
+            if (paperModule != null) {
+                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.paper_" + paperModule + ".PaperImplementationProvider").getConstructor().newInstance();
             }
-            return new BukkitImplementationProvider();
+        } else {
+            // Paper <1.20.5 or Spigot
+            try {
+                // Does not actually support flat 1.19, but whatever, no one is using it anyway
+                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit." + serverPackage + ".NMSImplementationProvider").getConstructor().newInstance();
+            } catch (ClassNotFoundException ignored) {
+            }
         }
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -184,7 +162,10 @@ public class BukkitPlatform implements BackendPlatform {
             case V1_21_5:
             case V1_21_6:
             case V1_21_7:
+            case V1_21_8:
                 return "1_21_4";
+            case V1_21_9:
+                return "1_21_9";
             default:
                 return null;
         }
@@ -210,8 +191,6 @@ public class BukkitPlatform implements BackendPlatform {
                 manager.registerInternalPlayerPlaceholder("%vault-suffix%", 1000, p -> chat.getPlayerSuffix((Player) p.getPlayer()));
             }
         }
-        // Override for the PAPI placeholder to prevent console errors on unsupported server versions when ping field changes
-        manager.registerPlayerPlaceholder("%player_ping%", p -> PerformanceUtil.toString(((TabPlayer) p).getPing()));
         BackendPlatform.super.registerPlaceholders();
     }
 
@@ -293,7 +272,7 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @NotNull
     public String getServerVersionInfo() {
-        return "[Bukkit] " + Bukkit.getName() + " - " + Bukkit.getBukkitVersion().split("-")[0];
+        return "[Bukkit] " + Bukkit.getName() + " - " + Bukkit.getBukkitVersion().split("-")[0] + " (" + serverPackage + ")";
     }
 
     @Override
@@ -309,7 +288,7 @@ public class BukkitPlatform implements BackendPlatform {
             command.setExecutor(cmd);
             command.setTabCompleter(cmd);
         } else {
-            logWarn(TabComponent.legacyText("Failed to register command, is it defined in plugin.yml?"));
+            logWarn(new TabTextComponent("Failed to register command, is it defined in plugin.yml?", TabTextColor.RED));
         }
     }
 
@@ -331,11 +310,7 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @NotNull
     public Object convertComponent(@NotNull TabComponent component) {
-        if (implementationProvider.getComponentConverter() != null) {
-            return implementationProvider.getComponentConverter().convert(component);
-        } else {
-            return component;
-        }
+        return implementationProvider.getComponentConverter().convert(component);
     }
 
     @Override
@@ -447,12 +422,14 @@ public class BukkitPlatform implements BackendPlatform {
             }
         }
         sb.append(component.getModifier().getMagicCodes());
-        if (component instanceof TextComponent) {
-            sb.append(((TextComponent) component).getText());
-        } else if (component instanceof TranslatableComponent) {
-            sb.append(((TranslatableComponent) component).getKey());
-        } else if (component instanceof KeybindComponent) {
-            sb.append(((KeybindComponent) component).getKeybind());
+        if (component instanceof TabTextComponent) {
+            sb.append(((TabTextComponent) component).getText());
+        } else if (component instanceof TabTranslatableComponent) {
+            sb.append(((TabTranslatableComponent) component).getKey());
+        } else if (component instanceof TabKeybindComponent) {
+            sb.append(((TabKeybindComponent) component).getKeybind());
+        } else if (component instanceof TabObjectComponent) {
+            sb.append(component.toLegacyText());
         } else {
             throw new IllegalStateException("Unexpected component type: " + component.getClass().getName());
         }

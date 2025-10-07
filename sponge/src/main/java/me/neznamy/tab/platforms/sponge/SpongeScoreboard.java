@@ -22,16 +22,20 @@ public class SpongeScoreboard extends SafeScoreboard<SpongeTabPlayer> {
     private static final org.spongepowered.api.scoreboard.CollisionRule[] collisionRules = {
             CollisionRules.ALWAYS.get(),
             CollisionRules.NEVER.get(),
-            CollisionRules.PUSH_OTHER_TEAMS.get(),
-            CollisionRules.PUSH_OWN_TEAM.get()
+            // Commenting these out to avoid 1.21.5+ error
+            // org.spongepowered.api.registry.ValueNotFoundException: No value was found for key 'sponge:hide_for_own_team'!
+            // They are not used by TAB anyway, so not a problem
+            // Also literally no one uses sponge anymore anyway
+            //CollisionRules.PUSH_OTHER_TEAMS.get(),
+            //CollisionRules.PUSH_OWN_TEAM.get()
     };
 
     /** Visibility array for fast access */
     private static final Visibility[] visibilities = {
             Visibilities.ALWAYS.get(),
             Visibilities.NEVER.get(),
-            Visibilities.HIDE_FOR_OTHER_TEAMS.get(),
-            Visibilities.HIDE_FOR_OWN_TEAM.get()
+            //Visibilities.HIDE_FOR_OTHER_TEAMS.get(),
+            //Visibilities.HIDE_FOR_OWN_TEAM.get()
     };
 
     /** DisplaySlot array for fast access */
@@ -117,7 +121,7 @@ public class SpongeScoreboard extends SafeScoreboard<SpongeTabPlayer> {
                 .displayName(Component.text(team.getName()))
                 .prefix(team.getPrefix().toAdventure())
                 .suffix(team.getSuffix().toAdventure())
-                .color(NamedTextColor.NAMES.valueOr(team.getColor().getLegacyColor().name(), NamedTextColor.WHITE))
+                .color(NamedTextColor.NAMES.valueOr(team.getColor().name(), NamedTextColor.WHITE))
                 .allowFriendlyFire((team.getOptions() & 0x01) != 0)
                 .canSeeFriendlyInvisibles((team.getOptions() & 0x02) != 0)
                 .collisionRule(collisionRules[team.getCollision().ordinal()])
@@ -141,7 +145,7 @@ public class SpongeScoreboard extends SafeScoreboard<SpongeTabPlayer> {
         spongeTeam.setDisplayName(Component.text(team.getName()));
         spongeTeam.setPrefix(team.getPrefix().toAdventure());
         spongeTeam.setSuffix(team.getSuffix().toAdventure());
-        spongeTeam.setColor(NamedTextColor.NAMES.valueOr(team.getColor().getLegacyColor().name(), NamedTextColor.WHITE));
+        spongeTeam.setColor(NamedTextColor.NAMES.valueOr(team.getColor().name(), NamedTextColor.WHITE));
         spongeTeam.setAllowFriendlyFire((team.getOptions() & 0x01) != 0);
         spongeTeam.setCanSeeFriendlyInvisibles((team.getOptions() & 0x02) != 0);
         spongeTeam.setCollisionRule(collisionRules[team.getCollision().ordinal()]);

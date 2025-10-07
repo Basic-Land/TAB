@@ -3,13 +3,11 @@ package me.neznamy.tab.platforms.paper_1_21_2;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import lombok.NonNull;
-import lombok.SneakyThrows;
-import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
-import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -20,7 +18,6 @@ import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
 import java.util.*;
 
 /**
@@ -34,8 +31,6 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     private static final EnumSet<ClientboundPlayerInfoUpdatePacket.Action> updateGameMode = EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE);
     private static final EnumSet<ClientboundPlayerInfoUpdatePacket.Action> updateListed = EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED);
     private static final EnumSet<ClientboundPlayerInfoUpdatePacket.Action> updateListOrder = EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER);
-
-    private static final Field entries = ReflectionUtils.getOnlyField(ClientboundPlayerInfoUpdatePacket.class, List.class);
 
     /**
      * Constructs new instance.
@@ -89,7 +84,7 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+    public void setPlayerListHeaderFooter0(@NonNull TabComponent header, @NonNull TabComponent footer) {
         sendPacket(new ClientboundTabListPacket(header.convert(), footer.convert()));
     }
 
@@ -108,8 +103,8 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    @SneakyThrows
-    public void onPacketSend(@NonNull Object packet) {
+    @NotNull
+    public Object onPacketSend(@NonNull Object packet) {
         if (packet instanceof ClientboundPlayerInfoUpdatePacket info) {
             EnumSet<ClientboundPlayerInfoUpdatePacket.Action> actions = info.actions();
             List<ClientboundPlayerInfoUpdatePacket.Entry> updatedList = new ArrayList<>();
@@ -118,17 +113,24 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 boolean rewriteEntry = false;
                 Component displayName = nmsData.displayName();
                 int latency = nmsData.latency();
+                int gameMode = nmsData.gameMode().getId();
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                    TabComponent expectedDisplayName = getExpectedDisplayNames().get(nmsData.profileId());
-                    if (expectedDisplayName != null && expectedDisplayName.convert() != displayName) {
-                        displayName = expectedDisplayName.convert();
+                    TabComponent forcedDisplayName = getForcedDisplayNames().get(nmsData.profileId());
+                    if (forcedDisplayName != null && forcedDisplayName.convert() != displayName) {
+                        displayName = forcedDisplayName.convert();
+                        rewriteEntry = rewritePacket = true;
+                    }
+                }
+                if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE)) {
+                    Integer forcedGameMode = getForcedGameModes().get(nmsData.profileId());
+                    if (forcedGameMode != null && forcedGameMode != gameMode) {
+                        gameMode = forcedGameMode;
                         rewriteEntry = rewritePacket = true;
                     }
                 }
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
-                    int newLatency = TAB.getInstance().getFeatureManager().onLatencyChange(player, nmsData.profileId(), latency);
-                    if (newLatency != latency) {
-                        latency = newLatency;
+                    if (getForcedLatency() != null) {
+                        latency = getForcedLatency();
                         rewriteEntry = rewritePacket = true;
                     }
                 }
@@ -136,12 +138,13 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                     TAB.getInstance().getFeatureManager().onEntryAdd(player, nmsData.profileId(), nmsData.profile().getName());
                 }
                 updatedList.add(rewriteEntry ? new ClientboundPlayerInfoUpdatePacket.Entry(
-                        nmsData.profileId(), nmsData.profile(), nmsData.listed(), latency, nmsData.gameMode(), displayName,
+                        nmsData.profileId(), nmsData.profile(), nmsData.listed(), latency, GameType.byId(gameMode), displayName,
                         nmsData.listOrder(), nmsData.chatSession()
                 ) : nmsData);
             }
-            if (rewritePacket) entries.set(info, updatedList);
+            if (rewritePacket) return new ClientboundPlayerInfoUpdatePacket(actions, updatedList);
         }
+        return packet;
     }
 
     private void sendPacket(@NonNull EnumSet<ClientboundPlayerInfoUpdatePacket.Action> action, @NonNull UUID id, @NonNull String name, @Nullable Skin skin,

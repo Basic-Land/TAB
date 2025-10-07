@@ -35,26 +35,26 @@ TAB's shared module is compiled with Java 8. For the platforms themselves, TAB d
         <tr>
             <td rowspan=2>Vanilla</td>
             <td rowspan=1><a href="https://getbukkit.org/">Bukkit</a> (+forge hybrids)</td>
-            <td>✔ (1.5 - 1.21.7)</td>
+            <td>✔ (1.5 - 1.21.8)</td>
         </tr>
         <tr>
             <td rowspan=1><a href="https://www.spongepowered.org/">Sponge</a></td>
-            <td>✔ (1.20.6 - 1.21.5)</td>
+            <td>✔ (1.20.6 - 1.21.8)</td>
         </tr>
     </tbody>
     <tbody>
         <tr>
             <td rowspan=3>Modded</td>
             <td rowspan=1><a href="https://fabricmc.net">Fabric</a></td>
-            <td>✔ (1.21.6 - 1.21.7)<sup>1</sup></td>
+            <td>✔ (1.21.6 - 1.21.8)<sup>1</sup></td>
         </tr>
         <tr>
             <td rowspan=1><a href="https://minecraftforge.net">Forge</a></td>
-            <td>✔ (1.21.6 - 1.21.7)<sup>1</sup></td>
+            <td>✔ (1.21.6 - 1.21.8)<sup>1</sup></td>
         </tr>
         <tr>
             <td rowspan=1><a href="https://neoforged.net/">NeoForge</a></td>
-            <td>✔ (1.21.6 - 1.21.7)<sup>1</sup></td>
+            <td>✔ (1.21.6 - 1.21.8)<sup>1</sup></td>
         </tr>
     </tbody>
     <tbody>
@@ -70,7 +70,7 @@ TAB's shared module is compiled with Java 8. For the platforms themselves, TAB d
     </tbody>
 </table>
 
-<sup>1</sup> Modded platforms only support the latest MC version(s). For older MC versions try [modrinth](https://modrinth.com/plugin/tab-was-taken)'s version download filter. If your desired version is not available, you may request it.
+<sup>1</sup> Modded platforms only support the latest MC version(s). For older MC versions try [modrinth](https://modrinth.com/plugin/tab-was-taken)'s version download filter. If TAB is not available for your desired Minecraft version or is very outdated, you may [request a backport](https://github.com/NEZNAMY/TAB/issues/new?template=backport.yml).
 
 <sup>2</sup> Latest only doesn't mean only the latest build will work,
 it means the plugin was made to be compatible with the latest version/build.
@@ -145,11 +145,11 @@ Sending scoreboard packets (scoreboard-teams, belowname-objective, playerlist-ob
 * **Waterfall**'s `disable_tab_list_rewrite: true` **may** cause tablist to use offline UUIDs while TAB expects online uuids, causing various problems (most notably tablist formatting not working). Checking for this option is not an option either, because tablist rewrite might still be enabled despite being disabled (don't ask how, I have no idea). Set the option to `false` if you are experiencing issues.
 * **ViaVersion on proxy and TAB on backend** acts like a client-sided protocol hack, making it impossible for TAB to know player's real version and causing issues related to it, see [Per-version experience](https://github.com/NEZNAMY/TAB/wiki/Additional-information#per-version-experience) for more info. Avoid this combination. Either install ViaVersion on all backend servers instead or install TAB on the proxy as well.
 * **Nexo**'s `hide_scoreboard_numbers` config option (may apply to ItemsAdder and Oraxen as well) makes [Belowname](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Belowname)'s `value` and [Playerlist objective](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Playerlist-Objective)'s `value` not visible. When using these features, you'll need to keep the option disabled.
+* **LimboAuth** may prevent TAB from applying tablist formatting in a way that is not detectable using Velocity API, resulting in the feature not working properly on join.
 * **Custom clients / resource packs** - Unofficially modified minecraft clients often tend to break things. Just Lunar client has tons of bugs that can be reproduced with TAB. Resource packs may also contain modifications you are not aware of, making things not look the way you want them to. If you are experiencing any visual issue and are using a custom client or resource pack, try it with a clean vanilla client. If it works there, it's an issue with the client / resource pack and TAB cannot do anything about it.  
   For example, here are a few bugs in LunarClient / FeatherClient that you may run into when using TAB:
   * They add their icon to players in tablist, but don't widen the entries. This results in player names overlapping with latency bar. You can avoid this by configuring some spaces in tabsuffix.
   * They don't support color field in chat components, which means they don't support RGB codes and will display bossbar without colors as well.
-  * Bossbar is not visible on 1.8.
   * Rendering belowname 3 times.
   * They don't respect nametag visibility rule, showing their own nametag using F5 even if set to invisible by the plugin.
   * When the scoreboard is set to use all 0s, lines are rendered in opposite order on 1.20.3+.

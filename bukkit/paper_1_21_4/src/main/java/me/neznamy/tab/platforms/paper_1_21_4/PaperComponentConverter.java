@@ -1,7 +1,10 @@
 package me.neznamy.tab.platforms.paper_1_21_4;
 
-import me.neznamy.chat.ChatModifier;
+import me.neznamy.tab.shared.chat.TabStyle;
+import me.neznamy.tab.shared.chat.component.object.TabAtlasSprite;
+import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
 import me.neznamy.tab.platforms.bukkit.provider.ComponentConverter;
+import me.neznamy.tab.shared.chat.component.object.TabPlayerSprite;
 import net.minecraft.network.chat.*;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
@@ -9,28 +12,40 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Component converter using direct mojang-mapped code.
  */
-public class PaperComponentConverter extends ComponentConverter {
+public class PaperComponentConverter extends ComponentConverter<Component> {
 
     @Override
     @NotNull
-    public Object newTextComponent(@NotNull String text) {
+    public Component newTextComponent(@NotNull String text) {
         return Component.literal(text);
     }
 
     @Override
     @NotNull
-    public Object newTranslatableComponent(@NotNull String key) {
+    public Component newTranslatableComponent(@NotNull String key) {
         return Component.translatable(key);
     }
 
     @Override
     @NotNull
-    public Object newKeybindComponent(@NotNull String keybind) {
+    public Component newKeybindComponent(@NotNull String keybind) {
         return Component.keybind(keybind);
     }
 
     @Override
-    public void applyStyle(@NotNull Object nmsComponent, @NotNull ChatModifier modifier) {
+    @NotNull
+    public Component newObjectComponent(@NotNull TabAtlasSprite sprite) {
+        return Component.literal(TabObjectComponent.ERROR_MESSAGE);
+    }
+
+    @Override
+    @NotNull
+    public Component newObjectComponent(@NotNull TabPlayerSprite sprite) {
+        return Component.literal(TabObjectComponent.ERROR_MESSAGE);
+    }
+
+    @Override
+    public void applyStyle(@NotNull Component nmsComponent, @NotNull TabStyle modifier) {
         Style style = Style.EMPTY
                 .withColor(modifier.getColor() == null ? null : TextColor.fromRgb(modifier.getColor().getRgb()))
                 .withBold(modifier.getBold())
@@ -44,7 +59,7 @@ public class PaperComponentConverter extends ComponentConverter {
     }
 
     @Override
-    public void addSibling(@NotNull Object parent, @NotNull Object child) {
-        ((MutableComponent)parent).append((Component) child);
+    public void addSibling(@NotNull Component parent, @NotNull Component child) {
+        ((MutableComponent)parent).append(child);
     }
 }

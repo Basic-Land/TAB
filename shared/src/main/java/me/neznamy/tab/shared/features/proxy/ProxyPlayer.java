@@ -2,9 +2,12 @@ package me.neznamy.tab.shared.features.proxy;
 
 import lombok.Getter;
 import lombok.Setter;
-import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.TabConstants.Permission;
-import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.data.Server;
+import me.neznamy.tab.shared.features.belowname.BelowNameProxyPlayerData;
+import me.neznamy.tab.shared.features.nametags.NameTagProxyPlayerData;
+import me.neznamy.tab.shared.features.playerlist.PlayerListProxyPlayerData;
+import me.neznamy.tab.shared.features.playerlistobjective.PlayerListObjectiveProxyPlayerData;
 import me.neznamy.tab.shared.platform.TabList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,7 +39,7 @@ public class ProxyPlayer {
 
     /** Name of server the player is connected to */
     @NotNull
-    public String server;
+    public Server server;
 
     /** Whether player is vanished or not */
     private boolean vanished;
@@ -44,12 +47,13 @@ public class ProxyPlayer {
     /** Whether player is staff or not */
     private final boolean staff;
 
-    /** Belowname number for 1.20.2- */
-    private int belowNameNumber;
-
-    /** Belowname NumberFormat for 1.20.3+ */
+    /** Belowname data */
     @Nullable
-    private TabComponent belowNameFancy;
+    private BelowNameProxyPlayerData belowname;
+
+    /** Playerlist objective data */
+    @Nullable
+    private PlayerListObjectiveProxyPlayerData playerlist;
 
     /** Player's skin for global playerlist */
     @Nullable
@@ -57,34 +61,11 @@ public class ProxyPlayer {
 
     /** Tablist display name */
     @Nullable
-    private TabComponent tabFormat;
+    private PlayerListProxyPlayerData tabFormat;
 
-    /** Scoreboard team name */
+    /** Nametag data */
     @Nullable
-    private String teamName;
-
-    /** Nametag prefix */
-    @Nullable
-    private TabComponent tagPrefix;
-
-    /** Nametag suffix */
-    @Nullable
-    private TabComponent tagSuffix;
-
-    /** Nametag visibility rule */
-    @Nullable
-    private Scoreboard.NameVisibility nameVisibility;
-
-    /** Playerlist objective number for 1.20.2- */
-    private int playerlistNumber;
-
-    /** Playerlist objective NumberFormat for 1.20.3+ */
-    @Nullable
-    private TabComponent playerlistFancy;
-
-    /** Global playerlist server group of server this player is on */
-    @Nullable
-    public Object serverGroup;
+    private NameTagProxyPlayerData nametag;
 
     /** Player's connection state */
     @NotNull
@@ -109,7 +90,7 @@ public class ProxyPlayer {
      *          Player's skin for global playerlist, null if not set
      */
     public ProxyPlayer(@NotNull UUID uniqueId, @NotNull UUID tablistId, @NotNull String name,
-                       @NotNull String server, boolean vanished, boolean staff, @Nullable TabList.Skin skin) {
+                       @NotNull Server server, boolean vanished, boolean staff, @Nullable TabList.Skin skin) {
         this.uniqueId = uniqueId;
         this.tablistId = tablistId;
         this.name = name;
@@ -127,7 +108,7 @@ public class ProxyPlayer {
      */
     @NotNull
     public TabList.Entry asEntry() {
-        return new TabList.Entry(uniqueId, nickname, skin, true, 0, 0, tabFormat, 0, true);
+        return new TabList.Entry(uniqueId, nickname, skin, true, 0, 0, tabFormat == null ? null : tabFormat.getFormatComponent(), 0, true);
     }
 
     /**

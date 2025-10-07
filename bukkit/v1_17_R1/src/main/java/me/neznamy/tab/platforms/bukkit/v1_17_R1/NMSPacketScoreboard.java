@@ -133,13 +133,13 @@ public class NMSPacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
         t.setCollisionRule(collisions[team.getCollision().ordinal()]);
         t.setPrefix(team.getPrefix().convert());
         t.setSuffix(team.getSuffix().convert());
-        t.setColor(EnumChatFormat.valueOf(team.getColor().getLegacyColor().name()));
+        t.setColor(EnumChatFormat.valueOf(team.getColor().name()));
     }
 
     @Override
     @SneakyThrows
-    @SuppressWarnings("unchecked")
-    public void onPacketSend(@NonNull Object packet) {
+    @NotNull
+    public Object onPacketSend(@NonNull Object packet) {
         if (packet instanceof PacketPlayOutScoreboardDisplayObjective) {
             TAB.getInstance().getFeatureManager().onDisplayObjective(
                     player,
@@ -156,11 +156,13 @@ public class NMSPacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
         }
         if (packet instanceof PacketPlayOutScoreboardTeam) {
             int action = getMethod((PacketPlayOutScoreboardTeam) packet);
-            if (action == TeamAction.UPDATE) return;
-            Collection<String> players = (Collection<String>) TeamPacket_PLAYERS.get(packet);
-            if (players == null) players = Collections.emptyList();
-            TeamPacket_PLAYERS.set(packet, onTeamPacket(action, ((PacketPlayOutScoreboardTeam)packet).d(), players));
+            if (action != TeamAction.UPDATE) {
+                Collection<String> players = ((PacketPlayOutScoreboardTeam) packet).e();
+                if (players == null) players = Collections.emptyList();
+                TeamPacket_PLAYERS.set(packet, onTeamPacket(action, ((PacketPlayOutScoreboardTeam)packet).d(), players));
+            }
         }
+        return packet;
     }
 
     private int getMethod(@NonNull PacketPlayOutScoreboardTeam team) {

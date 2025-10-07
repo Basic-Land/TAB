@@ -2,7 +2,7 @@ package me.neznamy.tab.shared.features.scoreboard;
 
 import lombok.Getter;
 import lombok.NonNull;
-import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.api.scoreboard.Line;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.ProtocolVersion;
@@ -68,7 +68,7 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
      */
     public ScoreboardImpl(@NonNull ScoreboardManagerImpl manager, @NonNull String name, @NonNull ScoreboardDefinition definition) {
         this(manager, name, definition, false, false);
-        displayCondition = Condition.getCondition(definition.getDisplayCondition());
+        displayCondition = TAB.getInstance().getPlaceholderManager().getConditionManager().getByNameOrExpression(definition.getDisplayCondition());
         if (displayCondition != null) {
             manager.addUsedPlaceholder(TabConstants.Placeholder.condition(displayCondition.getName()));
         }
@@ -155,7 +155,9 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
                 Scoreboard.HealthDisplay.INTEGER,
                 TabComponent.empty()
         );
-        p.getScoreboard().setDisplaySlot(ScoreboardManagerImpl.OBJECTIVE_NAME, Scoreboard.DisplaySlot.SIDEBAR);
+        if (p.scoreboardData.otherPluginScoreboard == null) {
+            p.getScoreboard().setDisplaySlot(ScoreboardManagerImpl.OBJECTIVE_NAME, Scoreboard.DisplaySlot.SIDEBAR);
+        }
         for (Line s : lines) {
             ((ScoreboardLine)s).register(p);
         }
@@ -163,7 +165,7 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
         p.scoreboardData.activeScoreboard = this;
         recalculateScores(p);
         TAB.getInstance().getPlaceholderManager().getTabExpansion().setScoreboardName(p, name);
-        if (containsNumberFormat && p.getVersion().getNetworkId() < ProtocolVersion.V1_20_3.getNetworkId()) {
+        if (containsNumberFormat && p.getVersionId() < ProtocolVersion.V1_20_3.getNetworkId()) {
             TAB.getInstance().getConfigHelper().runtime().error("Scoreboard \"" + name + "\" contains right-side text alignment (using ||), however, this feature " +
                     "was added in 1.20.3, but player \"" + p.getName() + "\" is using version " + p.getVersion().getFriendlyName() + ". Right-side text " +
                     "will not be visible for them.");

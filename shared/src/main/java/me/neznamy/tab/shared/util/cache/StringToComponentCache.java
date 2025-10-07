@@ -1,9 +1,9 @@
 package me.neznamy.tab.shared.util.cache;
 
-import me.neznamy.chat.TextColor;
-import me.neznamy.chat.component.TabComponent;
-import me.neznamy.chat.rgb.RGBUtils;
-import me.neznamy.chat.util.TriFunction;
+import me.neznamy.tab.shared.chat.TabTextColor;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.rgb.RGBUtils;
+import me.neznamy.tab.shared.util.function.TriFunction;
 import me.neznamy.tab.shared.hook.MiniMessageHook;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,11 +18,11 @@ import java.util.regex.Pattern;
 public class StringToComponentCache extends Cache<String, TabComponent> {
 
     /** Formatter to use Kyori's &lt;gradient:#RRGGBB:#RRGGBB>Text&lt;/gradient> */
-    private static final TriFunction<TextColor, String, TextColor, String> kyoriGradientFormatter =
+    private static final TriFunction<TabTextColor, String, TabTextColor, String> kyoriGradientFormatter =
             (start, text, end) -> String.format("<gradient:#%s:#%s>%s</gradient>", start.getHexCode(), end.getHexCode(), text);
 
     /** Formatter to convert RGB code to use Kyori's &lt;color:#RRGGBB>*/
-    private static final Function<TextColor, String> kyoriRGBFormatter = color -> String.format("<color:#%s>", color.getHexCode());
+    private static final Function<TabTextColor, String> kyoriRGBFormatter = color -> String.format("<color:#%s>", color.getHexCode());
 
     private static final Pattern tabToKyori = Pattern.compile("(?<!:)(#([0-9A-Fa-f]{6}))(?![:>])");
 
@@ -42,11 +42,21 @@ public class StringToComponentCache extends Cache<String, TabComponent> {
                 String mmFormatted = RGBUtils.getInstance().applyFormats(text, kyoriGradientFormatter, kyoriRGBFormatter);
 
                 // Convert legacy codes into kyori format
-                for (TextColor format : TextColor.LEGACY_COLORS.values()) {
-                    String sequence = "§" + format.getLegacyColor().getCharacter();
-                    if (mmFormatted.contains(sequence)) {
-                        String colorName = format == TextColor.UNDERLINE ? "underlined" : format.getLegacyColor().name().toLowerCase(Locale.US);
-                        mmFormatted = mmFormatted.replace(sequence, "<" + colorName + ">");
+                for (TabTextColor format : TabTextColor.LEGACY_COLORS.values()) {
+                    char legacyChar = format.getLegacyColor().getCharacter();
+                    String colorName = format == TabTextColor.UNDERLINE
+                            ? "underlined"
+                            : format.getLegacyColor().name().toLowerCase(Locale.US);
+
+                    for (char c : new char[]{legacyChar, Character.toUpperCase(legacyChar)}) {
+                        String sequence = "§" + c;
+                        if (mmFormatted.contains(sequence)) {
+                            if (format.getLegacyColor().isColor()) {
+                                mmFormatted = mmFormatted.replace(sequence, "<bold:false><italic:false><underlined:false><strikethrough:false><obfuscated:false><" + colorName + ">");
+                            } else {
+                                mmFormatted = mmFormatted.replace(sequence, "<" + colorName + ">");
+                            }
+                        }
                     }
                 }
 

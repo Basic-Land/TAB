@@ -5,6 +5,7 @@ import com.google.common.io.ByteArrayDataOutput;
 import lombok.ToString;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.features.proxy.QueuedData;
@@ -24,7 +25,7 @@ public class PlayerJoin extends ProxyMessage {
     @NotNull private final UUID uniqueId;
     @NotNull private final UUID tablistId;
     @NotNull private final String name;
-    @NotNull private final String server;
+    @NotNull private final Server server;
     private final boolean vanished;
     private final boolean staff;
     @Nullable private final TabList.Skin skin;
@@ -55,7 +56,7 @@ public class PlayerJoin extends ProxyMessage {
         uniqueId = readUUID(in);
         tablistId = readUUID(in);
         name = in.readUTF();
-        server = in.readUTF();
+        server = Server.byName(in.readUTF());
         vanished = in.readBoolean();
         staff = in.readBoolean();
         skin = readSkin(in);
@@ -66,7 +67,7 @@ public class PlayerJoin extends ProxyMessage {
         writeUUID(out, uniqueId);
         writeUUID(out, tablistId);
         out.writeUTF(name);
-        out.writeUTF(server);
+        out.writeUTF(server.getName());
         out.writeBoolean(vanished);
         out.writeBoolean(staff);
         writeSkin(out, skin);
@@ -82,15 +83,10 @@ public class PlayerJoin extends ProxyMessage {
         proxySupport.getProxyPlayers().put(decodedPlayer.getUniqueId(), decodedPlayer);
         QueuedData data = proxySupport.getQueuedData().remove(decodedPlayer.getUniqueId());
         if (data != null) {
-            decodedPlayer.setBelowNameNumber(data.getBelowNameNumber());
-            decodedPlayer.setBelowNameFancy(data.getBelowNameFancy());
+            decodedPlayer.setBelowname(data.getBelowname());
             decodedPlayer.setTabFormat(data.getTabFormat());
-            decodedPlayer.setTeamName(data.getTeamName());
-            decodedPlayer.setTagPrefix(data.getTagPrefix());
-            decodedPlayer.setTagSuffix(data.getTagSuffix());
-            decodedPlayer.setNameVisibility(data.getNameVisibility());
-            decodedPlayer.setPlayerlistNumber(data.getPlayerlistNumber());
-            decodedPlayer.setPlayerlistFancy(data.getPlayerlistFancy());
+            decodedPlayer.setNametag(data.getNametag());
+            decodedPlayer.setPlayerlist(data.getPlayerlist());
             decodedPlayer.setVanished(data.isVanished());
         }
         if (TAB.getInstance().getPlayer(decodedPlayer.getUniqueId()) == null) {

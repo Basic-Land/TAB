@@ -1,7 +1,7 @@
 package me.neznamy.tab.platforms.sponge;
 
 import lombok.NonNull;
-import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -56,7 +56,7 @@ public class SpongeTabList extends TrackedTabList<SpongeTabPlayer> {
 
     @Override
     public void updateListed(@NonNull UUID entry, boolean listed) {
-        // TODO
+        player.getPlayer().tabList().entry(entry).ifPresent(e -> e.setListed(listed));
     }
 
     @Override
@@ -74,19 +74,20 @@ public class SpongeTabList extends TrackedTabList<SpongeTabPlayer> {
         GameProfile profile = GameProfile.of(entry.getUniqueId(), entry.getName());
         if (entry.getSkin() != null) profile = profile.withProperty(ProfileProperty.of(
                 TEXTURES_PROPERTY, entry.getSkin().getValue(), entry.getSkin().getSignature()));
-        //TODO listed, listOrder, showHat
+        //TODO listOrder, showHat
         TabListEntry tabListEntry = TabListEntry.builder()
                 .list(player.getPlayer().tabList())
                 .profile(profile)
                 .latency(entry.getLatency())
                 .gameMode(gameModes[entry.getGameMode()])
                 .displayName(entry.getDisplayName() == null ? null : entry.getDisplayName().toAdventure())
+                .listed(entry.isListed())
                 .build();
         player.getPlayer().tabList().addEntry(tabListEntry);
     }
 
     @Override
-    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+    public void setPlayerListHeaderFooter0(@NonNull TabComponent header, @NonNull TabComponent footer) {
         player.getPlayer().tabList().setHeaderAndFooter(header.toAdventure(), footer.toAdventure());
     }
 
@@ -111,10 +112,27 @@ public class SpongeTabList extends TrackedTabList<SpongeTabPlayer> {
     @Override
     public void checkDisplayNames() {
         for (TabListEntry entry : player.getPlayer().tabList().entries()) {
-            TabComponent expectedComponent = getExpectedDisplayNames().get(entry.profile().uniqueId());
+            TabComponent expectedComponent = getForcedDisplayNames().get(entry.profile().uniqueId());
             if (expectedComponent != null && entry.displayName().orElse(null) != expectedComponent.toAdventure()) {
                 entry.setDisplayName(expectedComponent.toAdventure());
             }
         }
+    }
+
+    @Override
+    public void checkGameModes() {
+        for (TabListEntry entry : player.getPlayer().tabList().entries()) {
+            Integer forcedGameMode = getForcedGameModes().get(entry.profile().uniqueId());
+            if (forcedGameMode != null && getGamemode(entry.gameMode()) != forcedGameMode) {
+                entry.setGameMode(gameModes[forcedGameMode]);
+            }
+        }
+    }
+
+    private int getGamemode(@NonNull GameMode gameMode) {
+        if (gameMode == GameModes.CREATIVE.get()) return 1;
+        if (gameMode == GameModes.ADVENTURE.get()) return 2;
+        if (gameMode == GameModes.SPECTATOR.get()) return 3;
+        return 0;
     }
 }

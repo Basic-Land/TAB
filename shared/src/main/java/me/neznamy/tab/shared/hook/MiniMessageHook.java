@@ -1,7 +1,7 @@
 package me.neznamy.tab.shared.hook;
 
-import me.neznamy.chat.component.TabComponent;
-import me.neznamy.chat.hook.AdventureHook;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.hook.AdventureHook;
 import me.neznamy.tab.shared.TAB;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.NotNull;
@@ -31,7 +31,7 @@ public class MiniMessageHook {
      * @return  {@code true} if MiniMessage is available on the server, {@code false} if not
      */
     public static boolean isAvailable() {
-        return mm != null;
+        return mm != null && TAB.getInstance().getConfiguration().getConfig().getComponents().isMinimessageSupport();
     }
 
     /**
@@ -45,10 +45,6 @@ public class MiniMessageHook {
     @Nullable
     public static TabComponent parseText(@NotNull String text) {
         if (mm == null) return null;
-        if (text.contains("§")) {
-            TAB.getInstance().getErrorManager().printError("Cannot convert \"" + text + "\" into a MiniMessage component, because it contains legacy colors", null);
-            return null;
-        }
         try {
             return AdventureHook.convert(mm.deserialize(text));
         } catch (Throwable t) {

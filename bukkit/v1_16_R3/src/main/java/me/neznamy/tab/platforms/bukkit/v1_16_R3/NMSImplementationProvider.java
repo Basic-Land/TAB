@@ -12,13 +12,13 @@ import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Implementation provider using direct NMS code for 1.16.5.
+ * Implementation provider using direct NMS code for 1.16.4 - 1.16.5.
  */
 @Getter
 public class NMSImplementationProvider implements ImplementationProvider {
 
     @NotNull
-    private final ComponentConverter componentConverter = new NMSComponentConverter();
+    private final ComponentConverter<?> componentConverter = new NMSComponentConverter();
     
     @Override
     @NotNull

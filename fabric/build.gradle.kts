@@ -9,26 +9,30 @@ repositories {
     maven("https://repo.viaversion.com/")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
     maven("https://maven.nucleoid.xyz/")
+    maven("https://repo.papermc.io/repository/maven-public/") // Adventure
 }
 
-val minecraftVersion = "1.21.7"
+val minecraftVersion = "1.21.9"
 
 // Fabric API versions for each Minecraft version for easier backporting
+// Official website (for updating in the future): https://fabricmc.net/develop/
 val fabricApiVersions = mapOf(
-    "1.21.7" to "0.128.1+1.21.7",
-    "1.21.6" to "0.125.1+1.21.6",
-    "1.21.5" to "0.119.9+1.21.5",
-    "1.21.4" to "0.119.2+1.21.4",
-    "1.21.3" to "0.114.0+1.21.3",
+    "1.21.9" to "0.133.14+1.21.9",
+    "1.21.8" to "0.133.4+1.21.8",
+    "1.21.7" to "0.129.0+1.21.7",
+    "1.21.6" to "0.128.2+1.21.6",
+    "1.21.5" to "0.128.2+1.21.5",
+    "1.21.4" to "0.119.4+1.21.4",
+    "1.21.3" to "0.114.1+1.21.3",
     "1.21.2" to "0.106.1+1.21.2",
-    "1.21.1" to "0.115.4+1.21.1",
+    "1.21.1" to "0.116.6+1.21.1",
     "1.21" to "0.102.0+1.21",
     "1.20.6" to "0.100.8+1.20.6",
     "1.20.5" to "0.97.8+1.20.5",
-    "1.20.4" to "0.97.2+1.20.4",
+    "1.20.4" to "0.97.3+1.20.4",
     "1.20.3" to "0.91.1+1.20.3",
     "1.20.2" to "0.91.6+1.20.2",
-    "1.20.1" to "0.92.5+1.20.1",
+    "1.20.1" to "0.92.6+1.20.1",
     "1.20" to "0.83.0+1.20",
     "1.19.4" to "0.87.2+1.19.4",
     "1.19.3" to "0.76.1+1.19.3",
@@ -66,7 +70,7 @@ loom.accessWidenerPath.set(file("src/main/resources/resources/tab.accesswidener"
 
 tasks {
     compileJava {
-        options.release.set(17)
+        options.release.set(21)
     }
     validateAccessWidener {
         enabled = true

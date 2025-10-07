@@ -3,6 +3,8 @@ package me.neznamy.tab.shared.config;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.data.Server;
+import me.neznamy.tab.shared.data.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,7 +19,7 @@ public interface PropertyConfiguration {
 
     /** List of all valid properties for groups and users */
     @NotNull
-    List<String> VALID_PROPERTIES = Lists.newArrayList("tagprefix", "tagsuffix", "tabprefix", "customtabname", "tabsuffix", "header", "footer");
+    List<String> VALID_PROPERTIES = Lists.newArrayList("tagprefix", "tagsuffix", "tabprefix", "customtabname", "tabsuffix");
 
     /**
      * Sets property value of group or user to specified value. If {@code world} or
@@ -30,13 +32,13 @@ public interface PropertyConfiguration {
      * @param   property
      *          Name of property to set
      * @param   server
-     *          Name of server to apply setting to, {@code null} for global setting
+     *          Server to apply setting to, {@code null} for global setting
      * @param   world
-     *          Name of world to apply setting to, {@code null} for global setting
+     *          World to apply setting to, {@code null} for global setting
      * @param   value
      *          Value of the property
      */
-    void setProperty(@NonNull String groupOrUser, @NonNull String property, @Nullable String server, @Nullable String world, @Nullable String value);
+    void setProperty(@NonNull String groupOrUser, @NonNull String property, @Nullable Server server, @Nullable World world, @Nullable String value);
 
     /**
      * Gets property of group or user. If {@code server} or {@code world}
@@ -57,7 +59,7 @@ public interface PropertyConfiguration {
      *          empty array if nothing was found.
      */
     @NotNull
-    String[] getProperty(@NonNull String groupOrUser, @NonNull String property, @Nullable String server, @Nullable String world);
+    String[] getProperty(@NonNull String groupOrUser, @NonNull String property, @Nullable Server server, @Nullable World world);
 
     /**
      * Removes all data applied to specified group or user.

@@ -118,7 +118,7 @@ public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
         PlayerTeam t = (PlayerTeam) team.getPlatformTeam();
         t.setAllowFriendlyFire((team.getOptions() & 0x01) != 0);
         t.setSeeFriendlyInvisibles((team.getOptions() & 0x02) != 0);
-        t.setColor(formats[team.getColor().getLegacyColor().ordinal()]);
+        t.setColor(formats[team.getColor().ordinal()]);
         t.setCollisionRule(collisions[team.getCollision().ordinal()]);
         t.setNameTagVisibility(visibilities[team.getVisibility().ordinal()]);
         t.setPlayerPrefix(team.getPrefix().convert());
@@ -127,7 +127,8 @@ public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
 
     @Override
     @SneakyThrows
-    public void onPacketSend(@NonNull Object packet) {
+    @NotNull
+    public Object onPacketSend(@NonNull Object packet) {
         if (packet instanceof ClientboundSetDisplayObjectivePacket display) {
             TAB.getInstance().getFeatureManager().onDisplayObjective(player, display.getSlot().ordinal(), display.getObjectiveName());
         }
@@ -136,10 +137,11 @@ public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
         }
         if (packet instanceof ClientboundSetPlayerTeamPacket team) {
             int method = getMethod(team);
-            if (method == TeamAction.UPDATE) return;
-            team.getPlayers();
-            players.set(team, onTeamPacket(method, team.getName(), team.getPlayers()));
+            if (method != TeamAction.UPDATE) {
+                players.set(team, onTeamPacket(method, team.getName(), team.getPlayers()));
+            }
         }
+        return packet;
     }
 
     private int getMethod(@NonNull ClientboundSetPlayerTeamPacket team) {

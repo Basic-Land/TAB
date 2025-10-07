@@ -53,7 +53,7 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
     public BossBarManagerImpl(@NonNull BossBarConfiguration configuration) {
         this.configuration = configuration;
         if (configuration.isRememberToggleChoice()) {
-            toggleManager = new ToggleManager( TAB.getInstance().getConfiguration().getPlayerDataFile(), "bossbar-off");
+            toggleManager = new ToggleManager(TAB.getInstance().getConfiguration().getPlayerData(), "bossbar-off");
         }
         for (Map.Entry<String, BossBarDefinition> entry : configuration.getBars().entrySet()) {
             String name = entry.getKey();
@@ -286,34 +286,5 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
         return registeredBossBars.values().stream().filter(BossBarLine::isBeingAnnounced).collect(Collectors.toList());
     }
 
-    /**
-     * Class storing bossbar data for players.
-     */
-    public static class PlayerData {
 
-        /** Whether player wishes to see boss bars or not */
-        public boolean visible;
-
-        /** Boss bars this player can currently see */
-        public final Map<BossBarLine, BossBarProperties> visibleBossBars = new IdentityHashMap<>();
-    }
-
-    /**
-     * Class storing properties of a bossbar for player.
-     */
-    @RequiredArgsConstructor
-    public static class BossBarProperties {
-
-        /** Property holding BossBar title */
-        @NonNull public final Property textProperty;
-
-        /** Property holding BossBar progress */
-        @NonNull public final Property progressProperty;
-
-        /** Property holding BossBar color */
-        @NonNull public final Property colorProperty;
-
-        /** Property holding BossBar style */
-        @NonNull public final Property styleProperty;
-    }
 }

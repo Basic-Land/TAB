@@ -96,7 +96,6 @@ public interface TabPlayer {
     @NotNull
     String getExpectedProfileName();
 
-
     /**
      * Returns name of the server the player is connected to.
      * This requires TAB on proxy.

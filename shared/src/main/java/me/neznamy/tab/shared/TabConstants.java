@@ -11,18 +11,11 @@ import org.jetbrains.annotations.NotNull;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TabConstants {
 
-    public static final String PLUGIN_NAME = "@name@";
-    public static final String PLUGIN_ID = "@id@";
-    public static final String PLUGIN_VERSION = "@version@";
-    public static final String PLUGIN_DESCRIPTION = "@description@";
-    public static final String PLUGIN_WEBSITE = "@website@";
-    public static final String PLUGIN_AUTHOR = "@author@";
-
     public static final String NO_GROUP = "NONE";
     public static final String DEFAULT_GROUP = "_DEFAULT_";
     public static final String PLUGIN_MESSAGE_CHANNEL_NAME = "tab:bridge-6";
-    public static final String PROXY_CHANNEL_NAME = PLUGIN_NAME;
-    public static final String PIPELINE_HANDLER_NAME = PLUGIN_NAME;
+    public static final String PROXY_CHANNEL_NAME = ProjectVariables.PLUGIN_NAME + "-2";
+    public static final String PIPELINE_HANDLER_NAME = ProjectVariables.PLUGIN_NAME;
 
     public static final int BSTATS_PLUGIN_ID_BUKKIT = 5304;
     public static final int BSTATS_PLUGIN_ID_BUNGEE = 10535;
@@ -53,6 +46,8 @@ public class TabConstants {
 
         /** Periodic task checking for current and expected display names of all entries */
         public static final String ANTI_OVERRIDE_TABLIST_PERIODIC = "Tablist anti override (periodic task)";
+
+        public static final String PERIODIC_TASK = "Periodic task";
 
         public static final String PING_CHANGE = "Processing ping change";
         public static final String NICK_PLUGIN_COMPATIBILITY = "Compatibility with nick plugins";
@@ -169,6 +164,10 @@ public class TabConstants {
             return "scoreboard-score-" + scoreboard + "-" + index;
         }
 
+        public static String design(String name) {
+            return "design-" + name;
+        }
+
         public static String layout(String name) {
             return "layout-" + name;
         }
@@ -209,6 +208,7 @@ public class TabConstants {
         public static final String SERVER = "%server%";
         public static final String SERVER_ONLINE = "%serveronline%";
         public static final String PLAYER = "%player%";
+        public static final String UUID = "%uuid%";
         public static final String TIME = "%time%";
         public static final String DATE = "%date%";
         public static final String PING = "%ping%";
@@ -233,10 +233,11 @@ public class TabConstants {
         public static final String COLLISION = "%collision%";
         public static final String INVISIBLE = "%invisible%";
 
-        // Bukkit only
+        // Backend only
         public static final String TPS = "%tps%";
         public static final String MSPT = "%mspt%";
         public static final String HEALTH = "%health%";
+        public static final String DEATHS = "%deaths%";
 
         public static final int MINIMUM_REFRESH_INTERVAL = 50;
         public static final int RETURN_TIME_WARN_THRESHOLD = 50;

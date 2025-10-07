@@ -1,7 +1,7 @@
 package me.neznamy.tab.shared;
 
 import lombok.Getter;
-import me.neznamy.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
@@ -140,11 +140,6 @@ public class Property {
                 sb.insert(index+1, "%");
                 rawFormattedValue0 = sb.toString();
             }
-        }
-
-        // Make \n work even if used in '', which snakeyaml does not convert to newline
-        if (rawFormattedValue0.contains("\\n")) {
-            rawFormattedValue0 = rawFormattedValue0.replace("\\n", "\n");
         }
 
         // Apply static colors to not need to do it on every refresh

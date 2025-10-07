@@ -1,10 +1,12 @@
 package me.neznamy.tab.platforms.fabric;
 
+import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
@@ -88,7 +90,7 @@ public class FabricTabList extends TrackedTabList<FabricTabPlayer> {
     }
 
     @Override
-    public void setPlayerListHeaderFooter(@NonNull TabComponent header, @NonNull TabComponent footer) {
+    public void setPlayerListHeaderFooter0(@NonNull TabComponent header, @NonNull TabComponent footer) {
         sendPacket(new ClientboundTabListPacket(header.convert(), footer.convert()));
     }
 
@@ -100,7 +102,7 @@ public class FabricTabList extends TrackedTabList<FabricTabPlayer> {
     @Override
     @Nullable
     public Skin getSkin() {
-        Collection<Property> properties = player.getPlayer().getGameProfile().getProperties().get(TEXTURES_PROPERTY);
+        Collection<Property> properties = player.getPlayer().getGameProfile().properties().get(TEXTURES_PROPERTY);
         if (properties.isEmpty()) return null; // Offline mode
         Property property = properties.iterator().next();
         return new Skin(property.value(), property.signature());
@@ -108,7 +110,8 @@ public class FabricTabList extends TrackedTabList<FabricTabPlayer> {
 
     @Override
     @SneakyThrows
-    public void onPacketSend(@NonNull Object packet) {
+    @NotNull
+    public Object onPacketSend(@NonNull Object packet) {
         if (packet instanceof ClientboundPlayerInfoUpdatePacket info) {
             EnumSet<ClientboundPlayerInfoUpdatePacket.Action> actions = info.actions();
             List<ClientboundPlayerInfoUpdatePacket.Entry> updatedList = new ArrayList<>();
@@ -116,31 +119,43 @@ public class FabricTabList extends TrackedTabList<FabricTabPlayer> {
             for (ClientboundPlayerInfoUpdatePacket.Entry nmsData : info.entries()) {
                 boolean rewriteEntry = false;
                 Component displayName = nmsData.displayName();
+                int gameMode = nmsData.gameMode().getId();
                 int latency = nmsData.latency();
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                    TabComponent expectedDisplayName = getExpectedDisplayNames().get(nmsData.profileId());
-                    if (expectedDisplayName != null && expectedDisplayName.convert() != displayName) {
-                        displayName = expectedDisplayName.convert();
+                    TabComponent forcedDisplayName = getForcedDisplayNames().get(nmsData.profileId());
+                    if (forcedDisplayName != null && forcedDisplayName.convert() != displayName) {
+                        displayName = forcedDisplayName.convert();
+                        rewriteEntry = rewritePacket = true;
+                    }
+                }
+                if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE)) {
+                    Integer forcedGameMode = getForcedGameModes().get(nmsData.profileId());
+                    if (forcedGameMode != null && forcedGameMode != gameMode) {
+                        gameMode = forcedGameMode;
                         rewriteEntry = rewritePacket = true;
                     }
                 }
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
-                    int newLatency = TAB.getInstance().getFeatureManager().onLatencyChange(player, nmsData.profileId(), latency);
-                    if (newLatency != latency) {
-                        latency = newLatency;
+                    if (getForcedLatency() != null) {
+                        latency = getForcedLatency();
                         rewriteEntry = rewritePacket = true;
                     }
                 }
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER)) {
-                    TAB.getInstance().getFeatureManager().onEntryAdd(player, nmsData.profileId(), nmsData.profile().getName());
+                    TAB.getInstance().getFeatureManager().onEntryAdd(player, nmsData.profileId(), nmsData.profile().name());
                 }
                 updatedList.add(rewriteEntry ? new ClientboundPlayerInfoUpdatePacket.Entry(
-                        nmsData.profileId(), nmsData.profile(), nmsData.listed(), latency, nmsData.gameMode(), displayName,
+                        nmsData.profileId(), nmsData.profile(), nmsData.listed(), latency, GameType.byId(gameMode), displayName,
                         nmsData.showHat(), nmsData.listOrder(), nmsData.chatSession()
                 ) : nmsData);
             }
-            if (rewritePacket) entries.set(info, updatedList);
+            if (rewritePacket) {
+                ClientboundPlayerInfoUpdatePacket newPacket = new ClientboundPlayerInfoUpdatePacket(actions, Collections.emptyList());
+                entries.set(newPacket, updatedList);
+                return newPacket;
+            }
         }
+        return packet;
     }
 
     @SneakyThrows
@@ -174,12 +189,12 @@ public class FabricTabList extends TrackedTabList<FabricTabPlayer> {
      */
     @NotNull
     private GameProfile createProfile(@NonNull UUID id, @NonNull String name, @Nullable Skin skin) {
-        GameProfile profile = new GameProfile(id, name);
+        ImmutableMultimap.Builder<String, Property> builder = ImmutableMultimap.builder();
         if (skin != null) {
-            profile.getProperties().put(TabList.TEXTURES_PROPERTY,
+            builder.put(TabList.TEXTURES_PROPERTY,
                     new Property(TabList.TEXTURES_PROPERTY, skin.getValue(), skin.getSignature()));
         }
-        return profile;
+        return new GameProfile(id, name, new PropertyMap(builder.build()));
     }
 
     /**
