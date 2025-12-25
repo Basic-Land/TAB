@@ -35,6 +35,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     private static final EnumPlayerInfoAction UPDATE_GAME_MODE = EnumPlayerInfoAction.b;
     private static final EnumPlayerInfoAction UPDATE_LATENCY = EnumPlayerInfoAction.c;
     private static final EnumPlayerInfoAction UPDATE_DISPLAY_NAME = EnumPlayerInfoAction.d;
+    private static final EnumPlayerInfoAction REMOVE_PLAYER = EnumPlayerInfoAction.e;
 
     /**
      * Constructs new instance.
@@ -95,11 +96,6 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    public boolean containsEntry(@NonNull UUID entry) {
-        return true; // TODO?
-    }
-
-    @Override
     @Nullable
     public Skin getSkin() {
         Collection<Property> properties = ((CraftPlayer)player.getPlayer()).getProfile().getProperties().get(TEXTURES_PROPERTY);
@@ -112,6 +108,13 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     @SneakyThrows
     @NotNull
     public Object onPacketSend(@NonNull Object packet) {
+        if (packet instanceof PacketPlayOutPlayerListHeaderFooter) {
+            PacketPlayOutPlayerListHeaderFooter tablist = (PacketPlayOutPlayerListHeaderFooter) packet;
+            if (header == null || footer == null) return packet;
+            if (tablist.a != header.convert() || tablist.b != footer.convert()) {
+                return new PacketPlayOutPlayerListHeaderFooter(header.convert(), footer.convert());
+            }
+        }
         if (!(packet instanceof PacketPlayOutPlayerInfo)) return packet;
         PacketPlayOutPlayerInfo info = (PacketPlayOutPlayerInfo) packet;
         EnumPlayerInfoAction action = info.c();
@@ -132,9 +135,8 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 }
             }
             if (action == UPDATE_GAME_MODE || action == ADD_PLAYER) {
-                Integer forcedGameMode = getForcedGameModes().get(id);
-                if (forcedGameMode != null && forcedGameMode != gameMode) {
-                    gameMode = forcedGameMode;
+                if (getBlockedSpectators().contains(id) && gameMode == 3) {
+                    gameMode = 0;
                     rewriteEntry = rewritePacket = true;
                 }
             }
@@ -150,7 +152,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
             updatedList.add(rewriteEntry ? new PlayerInfoData(
                     profile,
                     latency,
-                    EnumGamemode.values()[gameMode],
+                    EnumGamemode.getById(gameMode),
                     displayName
             ) : nmsData);
         }
@@ -169,7 +171,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
         PLAYERS.set(packet, Collections.singletonList(new PlayerInfoData(
                 createProfile(id, name, skin),
                 latency,
-                EnumGamemode.values()[gameMode],
+                EnumGamemode.getById(gameMode),
                 displayName == null ? null : displayName.convert())
         ));
         sendPacket(packet);

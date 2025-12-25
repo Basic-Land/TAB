@@ -1,8 +1,6 @@
 package me.neznamy.tab.platforms.velocity;
 
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.command.CommandExecuteEvent;
-import com.velocitypowered.api.event.command.CommandExecuteEvent.CommandResult;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.PluginMessageEvent;
 import com.velocitypowered.api.event.player.ServerPostConnectEvent;
@@ -12,11 +10,10 @@ import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.data.Server;
-import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
-import me.neznamy.tab.shared.features.scoreboard.ScoreboardManagerImpl;
 import me.neznamy.tab.shared.platform.EventListener;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
+import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -28,8 +25,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class VelocityEventListener implements EventListener<Player> {
 
-    /** Whether plugin should be compensating for bossbar bug that may or may not be fixed soon (it was fixed in a fork) */
-    private static final boolean BOSSBAR_BUG_COMPENSATION = true;
+    /**
+     * Whether plugin should be compensating for bossbar bug that was fixed in build #546 or not.
+     * Compensating on builds #546+ will duplicate bossbars on server switch.
+     * Not compensating on builds #545- will cause player disconnects on 1.20.5+ clients on server switch.
+     * Not going to bump minimum required version just for this, we will wait for another opportunity to bump minimum build and then remove this.
+     * EDIT: Apparently there is one more bug, so this option does not control as much, because code is executed regardless.
+     */
+    private static final boolean BOSSBAR_BUG_COMPENSATION = !ReflectionUtils.classExists("com.velocitypowered.proxy.connection.player.bossbar.BossBarManager");
 
     /** Map for tracking online players */
     private final Map<Player, UUID> players = new ConcurrentHashMap<>();
@@ -58,7 +61,6 @@ public class VelocityEventListener implements EventListener<Player> {
      */
     @Subscribe
     public void preConnect(@NotNull ServerPreConnectEvent e) {
-        if (!BOSSBAR_BUG_COMPENSATION) return;
         if (TAB.getInstance().isPluginDisabled()) return;
         if (e.getResult().isAllowed()) {
             TabPlayer p = TAB.getInstance().getPlayer(e.getPlayer().getUniqueId());
@@ -91,32 +93,11 @@ public class VelocityEventListener implements EventListener<Player> {
                         Server.byName(e.getPlayer().getCurrentServer().map(s -> s.getServerInfo().getName()).orElse("null"))
                 );
                 tab.getFeatureManager().onTabListClear(player);
-                if (BOSSBAR_BUG_COMPENSATION && player.getVersionId() >= ProtocolVersion.V1_20_2.getNetworkId()) {
-                    ((SafeBossBar<?>)player.getBossBar()).unfreezeAndResend();
+                if (player.getVersionId() >= ProtocolVersion.V1_20_2.getNetworkId()) {
+                    ((SafeBossBar<?>)player.getBossBar()).unfreezeAndResend(!BOSSBAR_BUG_COMPENSATION);
                 }
             }
         });
-    }
-
-    /**
-     * Listens to command execute event to potentially cancel it.
-     *
-     * @param   e
-     *          Command execute event
-     */
-    @Subscribe
-    public void onCommand(@NotNull CommandExecuteEvent e) {
-        if (TAB.getInstance().isPluginDisabled()) return;
-        if (!e.getResult().isAllowed()) return;
-        String command = TAB.getInstance().getPlatform().getCommand();
-        BossBarManagerImpl bossBarManager = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.BOSS_BAR);
-        if (bossBarManager != null && bossBarManager.getCommand().substring(1).equals(e.getCommand())) {
-            e.setResult(CommandResult.command(command + " bossbar"));
-        }
-        ScoreboardManagerImpl scoreboard = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.SCOREBOARD);
-        if (scoreboard != null && scoreboard.getCommand().substring(1).equals(e.getCommand())) {
-            e.setResult(CommandResult.command(command + " scoreboard"));
-        }
     }
 
     /**

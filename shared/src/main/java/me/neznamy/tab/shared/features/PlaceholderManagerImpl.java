@@ -53,7 +53,7 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
     private final Map<String, Set<RefreshableFeature>> placeholderUsage = new ConcurrentHashMap<>();
     private Placeholder[] usedPlaceholders = new Placeholder[0];
 
-    private int loopTime;
+    private long loopTime;
 
     @NotNull private final TabExpansion tabExpansion;
 
@@ -458,7 +458,7 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
     @NotNull
     public synchronized TabPlaceholder getPlaceholder(@NonNull String identifier) {
         if (identifier.charAt(0) != '%' || identifier.charAt(identifier.length() - 1) != '%') {
-            throw new IllegalArgumentException("Placeholder identifier must start and end with %");
+            throw new IllegalArgumentException("Placeholder identifier must start and end with % (attempted to use \"" + identifier + "\")");
         }
         TabPlaceholder p = (TabPlaceholder) registeredPlaceholders.get(identifier);
         if (p == null) {

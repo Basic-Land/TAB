@@ -17,6 +17,7 @@
 * [#16 - Is MiniMessage supported?](#16---is-minimessage-supported)
 * [#17 - Is it possible to show the number of players in a specific group, similar to staffonline placeholder?](#17---is-it-possible-to-show-the-number-of-players-in-a-specific-group-similar-to-staffonline-placeholder)
 * [#18 - Why is the plugin flagged as a virus by Windows defender?](#18---why-is-the-plugin-flagged-as-a-virus-by-windows-defender)
+* [#19 - How can I show amount of online players on the entire network?](#19---how-can-i-show-amount-of-online-players-on-the-entire-network)
 
 ## #1 - Why are NPCs showing up in the tablist?
 See [Citizens FAQ](https://wiki.citizensnpcs.co/Frequently_Asked_Questions#Why_are_NPCs_showing_up_in_the_tablist.3F).
@@ -25,8 +26,8 @@ See [Citizens FAQ](https://wiki.citizensnpcs.co/Frequently_Asked_Questions#Why_a
 * If you want to take prefixes/suffixes, check [this guide](https://github.com/NEZNAMY/TAB/wiki/Mini-guides-collection#taking-prefixessuffixes-from-permission-plugin) and use `%luckperms-prefix%` & `%luckperms-suffix%`.
 * Sorting:
   First, configure weights correctly in LuckPerms. Then, you have 2 options:
-  * Configure [sorting by groups](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Sorting-players-in-tablist#groups) (recommended).
-  * Sorting by weights directly: `PLACEHOLDER_HIGH_TO_LOW:%luckperms_highest_group_weight%`.
+    * Configure [sorting by groups](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Sorting-players-in-tablist#groups) (recommended).
+    * Sorting by weights directly: `PLACEHOLDER_HIGH_TO_LOW:%luckperms_highest_group_weight%`.
 
 ## #3 - I enabled MySQL, and my prefix is now gone!
 When enabling [MySQL](https://github.com/NEZNAMY/TAB/wiki/MySQL), it will be used as a data storage and groups.yml / users.yml files will no longer be used.  
@@ -49,6 +50,8 @@ you can still display heads for players who bought the game by changing their co
 Most commonly used plugins for this are [FastLogin](https://www.spigotmc.org/resources/14153/) and [JPremium](https://www.spigotmc.org/resources/27766/),
 which change connections of premium players who enabled it to online connections.  
 The same goes for disabling heads - you cannot disable them if you have online mode enabled.
+
+Minecraft 1.21.9 has added [object components](https://github.com/NEZNAMY/TAB/wiki/How-to-use-Minecraft-components#object-components-1219), which allow you to display player heads. You can put for example `<head:name:%player%>` at the beginning of tabprefix to simulate this.
 
 ## #7 - Where can i find current default config files?
 You can do any of the following:
@@ -74,8 +77,8 @@ You will need a custom minecraft client or a resource pack.
 Most common reasons for a placeholder to not work include:
 * Using % symbol by itself, which breaks placeholder starts and ends and therefore breaks all placeholders after it (use %% to display the symbol)
 * Trying to use a PlaceholderAPI placeholder without downloading its expansion or not having PlaceholderAPI installed at all
-* Trying to use [TAB's internal bukkit-only placeholders](https://github.com/NEZNAMY/TAB/wiki/Placeholders#bukkit-only) on BungeeCord
-* Trying to use [PlaceholderAPI placeholders on BungeeCord](https://github.com/NEZNAMY/TAB/wiki/How-to-set-up-PlaceholderAPI-support-on-bungeecord) without installing [bridge plugin](https://github.com/NEZNAMY/TAB/wiki/TAB-Bridge)
+* Trying to use [TAB's internal backend-only placeholders](https://github.com/NEZNAMY/TAB/wiki/Placeholders#backend-only) on a proxy
+* Trying to use PlaceholderAPI placeholders on proxy without installing [bridge plugin](https://github.com/NEZNAMY/TAB/wiki/TAB-Bridge)
 
 The full list of reasons can be found on the [Placeholders](https://github.com/NEZNAMY/TAB/wiki/Placeholders#placeholder-is-not-working) page.
 
@@ -135,3 +138,7 @@ It also checks for CPU and OS types, which could be the reason for the false pos
 [Here](https://bstats.org/plugin/bukkit/TAB%20Reborn/5304) is one of TAB's pages as an example.
 
 Windows defender could be flagging it for the same reason.
+
+## #19 - How can I show amount of online players on the entire network?
+If you have TAB installed on the proxy, use `%online%` placeholder.  
+If you have TAB installed on the backend servers, use `%bungee_total%` from [PlaceholderAPI](https://github.com/NEZNAMY/TAB/wiki/Quick-PlaceholderAPI-startup-guide). This placeholder has an internal cooldown, which can be configured in `plugins/PlaceholderAPI/config.yml` under `expansions` -> `bungee` -> `check_interval`, default value is 30 (seconds).

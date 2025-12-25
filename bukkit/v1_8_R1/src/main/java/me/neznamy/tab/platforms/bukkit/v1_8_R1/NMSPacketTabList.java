@@ -25,6 +25,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
 
     private static final Field ACTION = ReflectionUtils.getOnlyField(PacketPlayOutPlayerInfo.class, EnumPlayerInfoAction.class);
     private static final Field PLAYERS = ReflectionUtils.getOnlyField(PacketPlayOutPlayerInfo.class, List.class);
+    private static final Field HEADER = ReflectionUtils.getFields(PacketPlayOutPlayerListHeaderFooter.class, IChatBaseComponent.class).get(0);
     private static final Field FOOTER = ReflectionUtils.getFields(PacketPlayOutPlayerListHeaderFooter.class, IChatBaseComponent.class).get(1);
 
     /**
@@ -80,16 +81,8 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    @SneakyThrows
     public void setPlayerListHeaderFooter0(@NonNull TabComponent header, @NonNull TabComponent footer) {
-        PacketPlayOutPlayerListHeaderFooter packet = new PacketPlayOutPlayerListHeaderFooter(header.convert());
-        FOOTER.set(packet, footer.convert());
-        sendPacket(packet);
-    }
-
-    @Override
-    public boolean containsEntry(@NonNull UUID entry) {
-        return true; // TODO?
+        sendPacket(newHeaderFooter(header, footer));
     }
 
     @Override
@@ -101,11 +94,28 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
         return new Skin(property.getValue(), property.getSignature());
     }
 
+    @NonNull
+    @SneakyThrows
+    private PacketPlayOutPlayerListHeaderFooter newHeaderFooter(@NotNull TabComponent header, @NonNull TabComponent footer) {
+        PacketPlayOutPlayerListHeaderFooter packet = new PacketPlayOutPlayerListHeaderFooter(header.convert());
+        FOOTER.set(packet, footer.convert());
+        return packet;
+    }
+
     @Override
     @SneakyThrows
     @NotNull
     @SuppressWarnings("unchecked")
     public Object onPacketSend(@NonNull Object packet) {
+        if (packet instanceof PacketPlayOutPlayerListHeaderFooter) {
+            PacketPlayOutPlayerListHeaderFooter tablist = (PacketPlayOutPlayerListHeaderFooter) packet;
+            if (header == null || footer == null) return packet;
+            IChatBaseComponent header = (IChatBaseComponent) HEADER.get(tablist);
+            IChatBaseComponent footer = (IChatBaseComponent) FOOTER.get(tablist);
+            if (header != this.header.convert() || footer != this.footer.convert()) {
+                return newHeaderFooter(this.header, this.footer);
+            }
+        }
         if (!(packet instanceof PacketPlayOutPlayerInfo)) return packet;
         PacketPlayOutPlayerInfo info = (PacketPlayOutPlayerInfo) packet;
         EnumPlayerInfoAction action = (EnumPlayerInfoAction) ACTION.get(info);
@@ -126,9 +136,8 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 }
             }
             if (action == EnumPlayerInfoAction.UPDATE_GAME_MODE || action == EnumPlayerInfoAction.ADD_PLAYER) {
-                Integer forcedGameMode = getForcedGameModes().get(id);
-                if (forcedGameMode != null && forcedGameMode != gameMode) {
-                    gameMode = forcedGameMode;
+                if (getBlockedSpectators().contains(id) && gameMode == 3) {
+                    gameMode = 0;
                     rewriteEntry = rewritePacket = true;
                 }
             }
@@ -145,7 +154,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                     info,
                     profile,
                     latency,
-                    EnumGamemode.values()[gameMode],
+                    EnumGamemode.getById(gameMode),
                     displayName
             ) : nmsData);
         }
@@ -165,7 +174,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 packet,
                 createProfile(id, name, skin),
                 latency,
-                EnumGamemode.values()[gameMode],
+                EnumGamemode.getById(gameMode),
                 displayName == null ? null : displayName.convert())
         ));
         sendPacket(packet);

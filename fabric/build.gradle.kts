@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     id("dev.architectury.loom")
 }
@@ -12,13 +14,15 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/") // Adventure
 }
 
-val minecraftVersion = "1.21.9"
+val minecraftVersion = "1.21.11"
 
 // Fabric API versions for each Minecraft version for easier backporting
 // Official website (for updating in the future): https://fabricmc.net/develop/
 val fabricApiVersions = mapOf(
-    "1.21.9" to "0.133.14+1.21.9",
-    "1.21.8" to "0.133.4+1.21.8",
+    "1.21.11" to "0.139.4+1.21.11",
+    "1.21.10" to "0.136.0+1.21.10",
+    "1.21.9" to "0.134.0+1.21.9",
+    "1.21.8" to "0.136.0+1.21.8",
     "1.21.7" to "0.129.0+1.21.7",
     "1.21.6" to "0.128.2+1.21.6",
     "1.21.5" to "0.128.2+1.21.5",
@@ -58,7 +62,7 @@ dependencies {
     api(projects.shared)
     modImplementation("me.lucko:fabric-permissions-api:0.2-SNAPSHOT")
     modImplementation("eu.pb4:placeholder-api:2.5.0+1.21.2")
-    modImplementation("net.fabricmc:fabric-loader:0.15.10")
+    modImplementation("net.fabricmc:fabric-loader:0.17.3")
     modImplementation(fabricApi.module("fabric-lifecycle-events-v1", fabricApiVersions[minecraftVersion]))
     modImplementation(fabricApi.module("fabric-networking-api-v1", fabricApiVersions[minecraftVersion]))
     modImplementation(fabricApi.module("fabric-entity-events-v1", fabricApiVersions[minecraftVersion]))
@@ -74,5 +78,8 @@ tasks {
     }
     validateAccessWidener {
         enabled = true
+    }
+    withType<ShadowJar>().configureEach {
+        enabled = false
     }
 }

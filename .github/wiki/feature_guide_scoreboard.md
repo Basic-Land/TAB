@@ -1,27 +1,28 @@
 # Content
 * [About](#about)
 * [Creating a scoreboard](#creating-a-scoreboard)
-  * [title](#title)
-  * [lines](#lines)
-    * [Alignment](#alignment)
-    * [Empty placeholder output](#empty-placeholder-output)
-  * [display-condition](#display-condition)
+    * [title](#title)
+    * [lines](#lines)
+        * [Alignment](#alignment)
+        * [Empty placeholder output](#empty-placeholder-output)
+    * [display-condition](#display-condition)
 * [Chaining scoreboards](#chaining-scoreboards)
 * [Announce command](#announce-command)
 * [Additional settings](#additional-settings)
 * [Limitations](#limitations)
 * [Longer lines](#longer-lines)
 * [Compatibility with other plugins](#compatibility-with-other-plugins)
+* [Geyser / Bedrock issues](#geyser--bedrock-issues)
 * [API](#api)
-  * [Creating custom scoreboards](#creating-custom-scoreboards)
-  * [Showing custom scoreboards](#showing-custom-scoreboards)
-  * [Toggling scoreboard visibility](#toggling-scoreboard-visibility)
-  * [Announcing a scoreboard](#announcing-a-scoreboard)
+    * [Creating custom scoreboards](#creating-custom-scoreboards)
+    * [Showing custom scoreboards](#showing-custom-scoreboards)
+    * [Toggling scoreboard visibility](#toggling-scoreboard-visibility)
+    * [Announcing a scoreboard](#announcing-a-scoreboard)
 * [Examples](#examples)
-  * [Example 1 - Per-world scoreboards](#example-1---per-world-scoreboards)
-  * [Example 2 - Periodical scoreboard switching](#example-2---periodical-scoreboard-switching)
-  * [Example 3 - Per-version scoreboards](#example-3---per-version-scoreboards)
-  * [Example 4 - Conditional lines](#example-4---conditional-lines)
+    * [Example 1 - Per-world scoreboards](#example-1---per-world-scoreboards)
+    * [Example 2 - Periodical scoreboard switching](#example-2---periodical-scoreboard-switching)
+    * [Example 3 - Per-version scoreboards](#example-3---per-version-scoreboards)
+    * [Example 4 - Conditional lines](#example-4---conditional-lines)
 
 # About
 Scoreboard objective with SIDEBAR display slot.
@@ -44,12 +45,35 @@ Up to 15 lines of text. You can define more, but the client won't display them.
 Since 1.20.3, you can also configure the value on the right side, which no longer has to be a red number. To set it, use `||` sequence and put right-side text after it. Example:
 ```
       lines:
-      - "Left side text 1||Right side text 1"
-      - "Left side text 2....||Right side text 2...."
-      - "Left side text 3.......||Right side text 3......."
+      - "Left 1---"
+      - "||---Right 1"
+      - "Left 2------"
+      - "||------Right 2"
+      - "Left 3---------"
+      - "||---------Right 3"
+      - "Left 4------------"
+      - "||------------Right 4"
+      - "Left 5---------------"
+      - "||---------------Right 5"
+      - "Left 6------------------"
+      - "||------------------Right 6"
 ```
 Will give you the following:  
-![image](https://github.com/NEZNAMY/TAB/assets/6338394/785e4e66-935c-4233-8a16-f3e34386cfd0)
+<img width="305" height="239" alt="image" src="https://github.com/user-attachments/assets/a712b5fb-21ea-4ee4-83ec-d962bd431a07" />
+
+Additionally, the following configuration:
+```
+      lines:
+      - "Left 1---||---Right 1"
+      - "Left 2------||------Right 2"
+      - "Left 3---------||---------Right 3"
+      - "Left 4------------||------------Right 4"
+      - "Left 5---------------||---------------Right 5"
+      - "Left 6------------------||------------------Right 6"
+```
+Will give you  
+<img width="583" height="131" alt="image" src="https://github.com/user-attachments/assets/15e809c6-4ecd-4234-a30e-744c2d413335" />
+
 
 The right side text will not be visible at 1.20.2 and lower, and numbers will be displayed instead.
 
@@ -189,6 +213,9 @@ so if you configured a fancy output for that placeholder, you'll need to use it 
 To see what exactly has placeholder returned, use `/tab parse <player> <placeholder>`.
 </details>
 
+# Geyser / Bedrock issues
+Currently, there is a great suspicion that there is a geyser bug causing scoreboard to not appear for Bedrock players ([Geyser #5304](https://github.com/GeyserMC/Geyser/issues/5304) and more). This affects other scoreboard plugins as well, not just TAB. If you are experiencing this issue, make sure it is not caused by TAB configuration (for example using %bedrock%=false as display condition). If that wasn't the case, consider making a high quality bug report on Geyser with steps to reproduce.
+
 # API
 *To get started with the API, see [Developer API](https://github.com/NEZNAMY/TAB/wiki/Developer-API) page.*
 
@@ -326,8 +353,8 @@ conditions:
   faction:
     conditions:
     - '%factionsuuid_faction_name%='
-    yes: "" # No faction, return empty string to hide the line
-    no: "Faction: %factionsuuid_faction_name%" # Player has a faction, show the static text before it as well
+    true: "" # No faction, return empty string to hide the line
+    false: "Faction: %factionsuuid_faction_name%" # Player has a faction, show the static text before it as well
 ```
 > [!WARNING]
 > DO NOT JUST RANDOMLY PASTE THIS ENTIRE "CONDITIONS" SECTION INTO YOUR CONFIG!

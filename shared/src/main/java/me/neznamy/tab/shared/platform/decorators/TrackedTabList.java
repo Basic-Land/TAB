@@ -4,16 +4,16 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
-import java.util.WeakHashMap;
+import java.util.*;
 
 /**
  * Decorated class for TabList that tracks entries and their expected values.
@@ -36,16 +36,19 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
     /** Forced display names based on configuration, saving to restore them if another plugin overrides them */
     private final Map<UUID, TabComponent> forcedDisplayNames = Collections.synchronizedMap(new WeakHashMap<>());
 
-    /** Forced game modes by spectator fix, saving to restore them on packet sends */
-    private final Map<UUID, Integer> forcedGameModes = Collections.synchronizedMap(new WeakHashMap<>());
+    /** Players to change to survival gamemode instead of spectator */
+    private final Set<UUID> blockedSpectators = Collections.synchronizedSet(new HashSet<>());
 
     /** Header sent by the plugin */
     @Nullable
-    private TabComponent header;
+    protected TabComponent header;
 
     /** Footer sent by the plugin */
     @Nullable
-    private TabComponent footer;
+    protected TabComponent footer;
+
+    /** Flag tracking whether all real players should be hidden or not */
+    protected boolean allPlayersHidden;
 
     @Override
     public void updateDisplayName(@NonNull UUID entry, @Nullable TabComponent displayName) {
@@ -67,28 +70,66 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
     }
 
     @Override
-    public void updateDisplayName(@NonNull TabPlayer player, @Nullable TabComponent displayName) {
-        forcedDisplayNames.put(player.getTablistId(), displayName);
-        if (player.getVersion().getMinorVersion() < 8) {
+    public void updateDisplayName(@NonNull TabPlayer target, @Nullable TabComponent displayName) {
+        forcedDisplayNames.put(target.getTablistId(), displayName);
+        if (target.getVersion().getMinorVersion() < 8) {
             return; // Display names are not supported on 1.7 and below
         }
-        if (containsEntry(player.getTablistId()) && this.player.canSee(player)) {
-            updateDisplayName0(player.getTablistId(), displayName);
+        if (containsEntry(target.getTablistId())) {
+            updateDisplayName0(target.getTablistId(), displayName);
+        } else {
+            // Entry is not in tablist. This could be on join. Delay and try again.
+            TAB.getInstance().getCpu().getTablistEntryCheckThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+                // If entry was added in the meantime and display name did not
+                if (containsEntry(target.getTablistId()) && Objects.equals(forcedDisplayNames.get(target.getTablistId()), displayName)) {
+                    updateDisplayName0(target.getTablistId(), displayName);
+                }
+            }, TabConstants.Feature.PLAYER_LIST, "Delayed format update"), 500);
         }
     }
 
     @Override
-    public void updateLatency(@NonNull TabPlayer player, int latency) {
-        if (containsEntry(player.getTablistId()) && this.player.canSee(player)) {
-            updateLatency(player.getTablistId(), latency);
+    public void updateLatency(@NonNull TabPlayer target, int latency) {
+        if (containsEntry(target.getTablistId())) {
+            updateLatency(target.getTablistId(), latency);
+        } else {
+            // Entry is not in tablist. This could be on join. Delay and try again.
+            TAB.getInstance().getCpu().getTablistEntryCheckThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+                // If entry was added in the meantime
+                if (containsEntry(target.getTablistId())) {
+                    updateLatency(target.getTablistId(), latency);
+                }
+            }, TabConstants.Feature.PING_SPOOF, "Delayed ping update"), 500);
         }
     }
 
     @Override
-    public void updateGameMode(@NonNull TabPlayer player, int gameMode) {
-        forcedGameModes.put(player.getTablistId(), gameMode);
-        if (containsEntry(player.getTablistId()) && this.player.canSee(player)) {
-            updateGameMode(player.getTablistId(), gameMode);
+    public void updateGameMode(@NonNull TabPlayer target, int gameMode) {
+        if (containsEntry(target.getTablistId())) {
+            updateGameMode(target.getTablistId(), gameMode);
+        } else {
+            // Entry is not in tablist. This could be on join. Delay and try again.
+            TAB.getInstance().getCpu().getTablistEntryCheckThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+                // If entry was added in the meantime
+                if (containsEntry(target.getTablistId())) {
+                    updateGameMode(target.getTablistId(), gameMode);
+                }
+            }, TabConstants.Feature.SPECTATOR_FIX, "Delayed gamemode update"), 500);
+        }
+    }
+
+    @Override
+    public void updateListed(@NonNull TabPlayer target, boolean listed) {
+        if (containsEntry(target.getTablistId())) {
+            updateListed(target.getTablistId(), listed);
+        } else {
+            // Entry is not in tablist. This could be on join. Delay and try again.
+            TAB.getInstance().getCpu().getTablistEntryCheckThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+                // If entry was added in the meantime
+                if (containsEntry(target.getTablistId())) {
+                    updateListed(target.getTablistId(), listed);
+                }
+            }, TabConstants.Feature.LAYOUT, "Delayed listed update"), 500);
         }
     }
 
@@ -111,22 +152,43 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
         }
     }
 
-    /**
-     * Checks if all entries have display names as configured and if not,
-     * they are forced. Only works on platforms with a full TabList API.
-     * Not needed for platforms which support pipeline injection.
-     */
-    public void checkDisplayNames() {
-        // Empty by default, overridden by Sponge and Velocity
+    @Override
+    public void blockSpectator(@NonNull TabPlayer player) {
+        blockedSpectators.add(player.getTablistId());
+        updateGameMode(player, 0);
+    }
+
+    @Override
+    public void unblockSpectator(@NonNull TabPlayer player) {
+        blockedSpectators.remove(player.getTablistId());
+        updateGameMode(player, player.getGamemode());
     }
 
     /**
-     * Checks if all entries have game modes as configured and if not,
-     * they are forced. Only works on platforms with a full TabList API.
-     * Not needed for platforms which support pipeline injection.
+     * Returns {@code true} if tablist contains specified entry, {@code false} if not.
+     *
+     * @param   entry
+     *          UUID of entry to check
+     * @return  {@code true} if tablist contains specified entry, {@code false} if not
      */
-    public void checkGameModes() {
-        // Empty by default, overridden by Sponge and Velocity
+    public boolean containsEntry(@NonNull UUID entry) {
+        return player.getTabListEntryTracker() == null || player.getTabListEntryTracker().containsEntry(entry);
+    }
+
+    @Override
+    public void hideAllPlayers() {
+        allPlayersHidden = true;
+        for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            updateListed(all, false);
+        }
+    }
+
+    @Override
+    public void showAllPlayers() {
+        allPlayersHidden = false;
+        for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            updateListed(all, true);
+        }
     }
 
     /**
@@ -137,9 +199,7 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
      * @return  Packet to forward
      */
     @NotNull
-    public Object onPacketSend(@NonNull Object packet) {
-        return packet;
-    }
+    public abstract Object onPacketSend(@NonNull Object packet);
 
     /**
      * Updates display name of an entry. Using {@code null} makes it undefined and

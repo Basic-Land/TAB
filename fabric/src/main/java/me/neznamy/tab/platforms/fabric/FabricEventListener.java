@@ -19,14 +19,19 @@ public class FabricEventListener implements EventListener<ServerPlayer> {
      */
     public void register() {
         ServerPlayConnectionEvents.DISCONNECT.register((connection, server) -> quit(connection.player.getUUID()));
-        ServerPlayConnectionEvents.JOIN.register((connection, sender, server) -> join(connection.player));
-        //TODO command preprocess
-        ServerPlayerEvents.AFTER_RESPAWN.register(
-                (oldPlayer, newPlayer, alive) -> {
-                    replacePlayer(newPlayer.getUUID(), newPlayer);
-                    // respawning from death & taking end portal in the end does not call world change event
-                    worldChange(newPlayer.getUUID(), FabricTAB.getLevelName(newPlayer.level()));
-                });
+        ServerPlayConnectionEvents.JOIN.register((connection, sender, server) -> {
+            TAB.getInstance().addTablistTracker(
+                    connection.player.getUUID(),
+                    connection.player.connection.connection.channel,
+                    new FabricTabListEntryTracker()
+            );
+            join(connection.player);
+        });
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            replacePlayer(newPlayer.getUUID(), newPlayer);
+            // respawning from death & taking end portal in the end does not call world change event
+            worldChange(newPlayer.getUUID(), FabricTAB.getLevelName(newPlayer.level()));
+        });
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
                 (player, origin, destination) -> worldChange(player.getUUID(), FabricTAB.getLevelName(destination)));
     }

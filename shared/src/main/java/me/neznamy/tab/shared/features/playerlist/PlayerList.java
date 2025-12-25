@@ -11,13 +11,11 @@ import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.data.World;
-import me.neznamy.tab.shared.features.layout.PlayerSlot;
+import me.neznamy.tab.shared.features.layout.impl.common.PlayerSlot;
 import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.features.types.*;
-import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import me.neznamy.tab.shared.util.cache.StringToComponentCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,11 +42,6 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         this.configuration = configuration;
         disableChecker = new DisableChecker(this, TAB.getInstance().getPlaceholderManager().getConditionManager().getByNameOrExpression(configuration.getDisableCondition()), this::onDisableConditionChange, p -> p.tablistData.disabled);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.PLAYER_LIST + "-Condition", disableChecker);
-        TAB.getInstance().getCpu().getTablistEntryCheckThread().repeatTask(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
-            for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
-                ((TrackedTabList<?>)p.getTabList()).checkDisplayNames();
-            }
-        }, getFeatureName(), CpuUsageCategory.ANTI_OVERRIDE_TABLIST_PERIODIC), 500);
         if (proxy != null) {
             proxy.registerMessage(PlayerListProxyPlayerData.class, in -> new PlayerListProxyPlayerData(in, this));
         }
@@ -103,7 +96,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
     public void formatPlayerForEveryone(@NotNull TabPlayer player, boolean format) {
         if (player.tablistData.disabled.get()) return;
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
-            if (!viewer.server.canSee(player.server) || !viewer.canSee(player)) continue;
+            if (!viewer.server.canSee(player.server)) continue;
             // TODO This probably needs some layout check to make sure it does not use layout entry names for player names
             updateDisplayName(viewer, player, format ? getTabFormat(player, viewer) : null);
         }
@@ -157,9 +150,9 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
         if (TAB.getInstance().getFeatureManager().isFeatureEnabled(TabConstants.Feature.PIPELINE_INJECTION)) return;
         TAB.getInstance().getCpu().getProcessingThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
             for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
-                if (!all.tablistData.disabled.get() && p.server.canSee(all.server) && p.canSee(all))
+                if (!all.tablistData.disabled.get() && p.server.canSee(all.server))
                     updateDisplayName(p, all, getTabFormat(all, p));
-                if (all != p && !p.tablistData.disabled.get() && all.server.canSee(p.server) && all.canSee(p))
+                if (all != p && !p.tablistData.disabled.get() && all.server.canSee(p.server))
                     updateDisplayName(all, p, getTabFormat(p, all));
             }
             if (proxy != null) {
@@ -187,7 +180,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
     public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
         if (disabledNow) {
             for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
-                if (!viewer.server.canSee(p.server) || !viewer.canSee(p)) continue;
+                if (!viewer.server.canSee(p.server)) continue;
                 updateDisplayName(viewer, p, null);
             }
             sendProxyMessage(p);
@@ -239,7 +232,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
             for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
                 if (all == connectedPlayer) continue; // Already updated above
                 if (all.tablistData.disabled.get()) continue;
-                if (!connectedPlayer.server.canSee(all.server) || !connectedPlayer.canSee(all)) continue;
+                if (!connectedPlayer.server.canSee(all.server)) continue;
                 updateDisplayName(connectedPlayer, all, getTabFormat(all, connectedPlayer));
             }
             if (proxy != null) {

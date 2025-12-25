@@ -4,10 +4,8 @@ import lombok.Getter;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
-import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.types.*;
 import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -35,10 +33,18 @@ public class SpectatorFix extends TabFeature implements JoinListener, Loadable, 
         for (TabPlayer target : TAB.getInstance().getOnlinePlayers()) {
             if (viewer == target) continue;
             if (!viewer.hasPermission(TabConstants.Permission.SPECTATOR_BYPASS)) {
-                viewer.getTabList().updateGameMode(target, realGameMode ? target.getGamemode() : 0);
+                if (realGameMode) {
+                    viewer.getTabList().unblockSpectator(target);
+                } else {
+                    viewer.getTabList().blockSpectator(target);
+                }
             }
             if (mutually && !target.hasPermission(TabConstants.Permission.SPECTATOR_BYPASS)) {
-                target.getTabList().updateGameMode(viewer, realGameMode ? viewer.getGamemode() : 0);
+                if (realGameMode) {
+                    target.getTabList().unblockSpectator(viewer);
+                } else {
+                    target.getTabList().blockSpectator(viewer);
+                }
             }
         }
     }
@@ -50,11 +56,6 @@ public class SpectatorFix extends TabFeature implements JoinListener, Loadable, 
 
     @Override
     public void load() {
-        TAB.getInstance().getCpu().getTablistEntryCheckThread().repeatTask(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
-            for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
-                ((TrackedTabList<?>)p.getTabList()).checkGameModes();
-            }
-        }, getFeatureName(), TabConstants.CpuUsageCategory.PERIODIC_TASK), 500);
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
             updatePlayer(viewer, false, false);
         }

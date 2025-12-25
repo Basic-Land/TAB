@@ -4,7 +4,8 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.cpu.ThreadExecutor;
+import me.neznamy.tab.shared.features.types.CustomThreaded;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -15,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
  */
 @RequiredArgsConstructor
 @Getter
-public class HeaderFooterDesign extends RefreshableFeature {
+public class HeaderFooterDesign extends RefreshableFeature implements CustomThreaded {
 
     private final HeaderFooter feature;
     private final String name;
@@ -38,7 +39,7 @@ public class HeaderFooterDesign extends RefreshableFeature {
         this.definition = definition;
         displayCondition = TAB.getInstance().getPlaceholderManager().getConditionManager().getByNameOrExpression(definition.getDisplayCondition());
         if (displayCondition != null) {
-            feature.addUsedPlaceholder(TabConstants.Placeholder.condition(displayCondition.getName()));
+            feature.addUsedPlaceholder(displayCondition.getPlaceholderIdentifier());
         }
     }
 
@@ -70,5 +71,11 @@ public class HeaderFooterDesign extends RefreshableFeature {
      */
     public boolean isConditionMet(@NonNull TabPlayer p) {
         return displayCondition == null || displayCondition.isMet(p);
+    }
+
+    @Override
+    @NotNull
+    public ThreadExecutor getCustomThread() {
+        return feature.getCustomThread();
     }
 }

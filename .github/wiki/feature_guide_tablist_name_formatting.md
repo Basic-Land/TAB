@@ -1,12 +1,12 @@
 # Content
 * [About](#about)
 * [Configuration](#configuration)
-  * [Introduction](#introduction)
-  * [Groups and users](#groups-and-users)
-  * [Per-world / per-server](#per-world--per-server)
-  * [Priority system](#priority-system)
-  * [Placeholder support](#placeholder-support)
-  * [Additional settings](#additional-settings)
+    * [Introduction](#introduction)
+    * [Groups and users](#groups-and-users)
+    * [Per-world / per-server](#per-world--per-server)
+    * [Priority system](#priority-system)
+    * [Placeholder support](#placeholder-support)
+    * [Additional settings](#additional-settings)
 * [Tips & Tricks](#tips--tricks)
 * [API](#api)
 
@@ -73,7 +73,7 @@ _DEFAULT_:
 ```
 
 ## Per-world / per-server
-Values can also be applied per-world (and per-server on bungeecord), where they can be defined per group/user. These values take priority over global settings. Example:  
+Values can also be applied per-world (and per-server on a proxy), where they can be defined per group/user. These values take priority over global settings. Example:  
 **groups.yml**
 ```
 per-world:

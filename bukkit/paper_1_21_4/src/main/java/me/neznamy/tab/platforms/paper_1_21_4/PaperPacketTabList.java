@@ -90,11 +90,6 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    public boolean containsEntry(@NonNull UUID entry) {
-        return true; // TODO?
-    }
-
-    @Override
     @Nullable
     public Skin getSkin() {
         Collection<Property> properties = ((CraftPlayer)player.getPlayer()).getProfile().getProperties().get(TEXTURES_PROPERTY);
@@ -106,6 +101,12 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     @Override
     @NotNull
     public Object onPacketSend(@NonNull Object packet) {
+        if (packet instanceof ClientboundTabListPacket tablist) {
+            if (header == null || footer == null) return packet;
+            if (tablist.header() != header.convert() || tablist.footer() != footer.convert()) {
+                return new ClientboundTabListPacket(header.convert(), footer.convert());
+            }
+        }
         if (packet instanceof ClientboundPlayerInfoUpdatePacket info) {
             EnumSet<ClientboundPlayerInfoUpdatePacket.Action> actions = info.actions();
             List<ClientboundPlayerInfoUpdatePacket.Entry> updatedList = new ArrayList<>();
@@ -115,6 +116,7 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 Component displayName = nmsData.displayName();
                 int latency = nmsData.latency();
                 int gameMode = nmsData.gameMode().getId();
+                boolean listed = nmsData.listed();
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
                     TabComponent forcedDisplayName = getForcedDisplayNames().get(nmsData.profileId());
                     if (forcedDisplayName != null && forcedDisplayName.convert() != displayName) {
@@ -123,9 +125,8 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                     }
                 }
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE)) {
-                    Integer forcedGameMode = getForcedGameModes().get(nmsData.profileId());
-                    if (forcedGameMode != null && forcedGameMode != gameMode) {
-                        gameMode = forcedGameMode;
+                    if (getBlockedSpectators().contains(nmsData.profileId()) && gameMode == 3) {
+                        gameMode = 0;
                         rewriteEntry = rewritePacket = true;
                     }
                 }
@@ -135,11 +136,17 @@ public class PaperPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                         rewriteEntry = rewritePacket = true;
                     }
                 }
+                if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED)) {
+                    if (allPlayersHidden && nmsData.profileId().getMostSignificantBits() != 0) { // Filter out layout entries
+                        listed = false;
+                        rewriteEntry = rewritePacket = true;
+                    }
+                }
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER)) {
                     TAB.getInstance().getFeatureManager().onEntryAdd(player, nmsData.profileId(), nmsData.profile().getName());
                 }
                 updatedList.add(rewriteEntry ? new ClientboundPlayerInfoUpdatePacket.Entry(
-                        nmsData.profileId(), nmsData.profile(), nmsData.listed(), latency, GameType.byId(gameMode), displayName,
+                        nmsData.profileId(), nmsData.profile(), listed, latency, GameType.byId(gameMode), displayName,
                         nmsData.showHat(), nmsData.listOrder(), nmsData.chatSession()
                 ) : nmsData);
             }

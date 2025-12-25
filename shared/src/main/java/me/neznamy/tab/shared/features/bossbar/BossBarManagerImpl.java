@@ -2,13 +2,12 @@ package me.neznamy.tab.shared.features.bossbar;
 
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
 import me.neznamy.tab.api.bossbar.BossBar;
 import me.neznamy.tab.api.bossbar.BossBarManager;
-import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.ToggleManager;
@@ -25,7 +24,7 @@ import java.util.stream.Collectors;
 /**
  * Class for handling BossBar feature
  */
-public class BossBarManagerImpl extends RefreshableFeature implements BossBarManager, JoinListener, CommandListener, Loadable,
+public class BossBarManagerImpl extends RefreshableFeature implements BossBarManager, JoinListener, Loadable,
         QuitListener, CustomThreaded {
 
     @Getter private final StringToComponentCache cache = new StringToComponentCache("BossBar", 1000);
@@ -64,6 +63,14 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
 
     @Override
     public void load() {
+        TAB.getInstance().getPlatform().registerCustomCommand(configuration.getToggleCommand().replaceFirst("/", ""), p -> {
+            if (!isActive()) return;
+            if (p.hasPermission(TabConstants.Permission.COMMAND_BOSSBAR_TOGGLE)) {
+                toggleBossBar(p, true);
+            } else {
+                p.sendMessage(TAB.getInstance().getConfiguration().getMessages().getNoPermission());
+            }
+        });
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
             onJoin(p);
         }
@@ -96,21 +103,6 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
         TAB.getInstance().getPlaceholderManager().getTabExpansion().setBossBarVisible(connectedPlayer, false);
         if (toggleManager != null) toggleManager.convert(connectedPlayer);
         setBossBarVisible(connectedPlayer, configuration.isHiddenByDefault() == (toggleManager != null && toggleManager.contains(connectedPlayer)), false);
-    }
-
-    @Override
-    public boolean onCommand(@NotNull TabPlayer sender, @NotNull String message) {
-        if (message.equals(configuration.getToggleCommand())) {
-            TAB.getInstance().getCommand().execute(sender, new String[] {"bossbar"});
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    @NotNull
-    public String getCommand() {
-        return configuration.getToggleCommand();
     }
 
     /**

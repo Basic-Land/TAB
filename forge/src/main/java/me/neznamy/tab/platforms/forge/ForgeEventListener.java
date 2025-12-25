@@ -16,12 +16,19 @@ public class ForgeEventListener implements EventListener<ServerPlayer> {
      * Registers all event listeners.
      */
     public void register() {
-        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(event -> join((ServerPlayer) event.getEntity()));
+        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(event -> {
+            TAB.getInstance().addTablistTracker(
+                    event.getEntity().getUUID(),
+                    ((ServerPlayer) event.getEntity()).connection.getConnection().channel(),
+                    new ForgeTabListEntryTracker()
+            );
+            join((ServerPlayer) event.getEntity());
+        });
         PlayerEvent.PlayerLoggedOutEvent.BUS.addListener(event -> quit(event.getEntity().getUUID()));
         PlayerEvent.PlayerRespawnEvent.BUS.addListener(event -> {
             ServerPlayer player = (ServerPlayer) event.getEntity();
-          replacePlayer(player.getUUID(), player);
-          worldChange(player.getUUID(), ForgeTAB.getLevelName(player.level()));
+            replacePlayer(player.getUUID(), player);
+            worldChange(player.getUUID(), ForgeTAB.getLevelName(player.level()));
         });
         PlayerEvent.PlayerChangedDimensionEvent.BUS.addListener(event -> worldChange(event.getEntity().getUUID(), ForgeTAB.getLevelName(event.getEntity().level())));
     }

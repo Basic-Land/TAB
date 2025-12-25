@@ -1,21 +1,21 @@
 # Content
 * [About](#about)
 * [Condition types](#condition-types)
-  * [Number comparisons](#number-comparisons)
-  * [Text operations](#text-operations)
-  * [Permission](#permission)
+    * [Number comparisons](#number-comparisons)
+    * [Text operations](#text-operations)
+    * [Permission](#permission)
 * [Multiple condition requirements](#multiple-condition-requirements)
 * [Condition output](#condition-output)
 * [Configuration](#configuration)
 * [Usage](#usage)
-  * [Displaying text](#displaying-text)
-  * [Display condition of a feature](#display-condition-of-a-feature)
-    * [Short format](#short-format)
+    * [Displaying text](#displaying-text)
+    * [Display condition of a feature](#display-condition-of-a-feature)
+        * [Short format](#short-format)
 * [Refresh interval](#refresh-interval)
 * [Examples](#examples)
-  * [Example 1 - Chaining conditional placeholders](#example-1---chaining-conditional-placeholders)
-  * [Example 2 - Conditions in conditions](#example-2---conditions-in-conditions)
-  * [Example 3 - Negating expressions](#example-3---negating-expressions)
+    * [Example 1 - Chaining conditional placeholders](#example-1---chaining-conditional-placeholders)
+    * [Example 2 - Combining AND and OR](#example-2---combining-and-and-or)
+    * [Example 3 - Negating expressions](#example-3---negating-expressions)
 
 # About
 Conditions / conditional placeholders allow you
@@ -34,13 +34,16 @@ They have 2 main uses in the plugin:
 | `<`       | Less than                | `%ping%<100` will pass if the player's ping is less than `100`                 |
 
 ## Text operations
-| Operation | Description                                                          | Example                                                                                                      |
-|-----------|----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `=`       | Equal to                                                             | `%world%=world` will pass if player is in world `world`                                                      |
-| `!=`      | Not equal to                                                         | `%world%!=world` will pass if player is in any world except `world`                                          |
-| `<-`      | Contains (left side for full text, right side text to contain)       | `%world%<-lobby-` will pass if player is in any world that contains `lobby-` (such as `lobby-1` etc.)        |
-| `\|-`     | Starts with (left side for full text, right side text to start with) | `%world%\|-lobby-` will pass if player is in any world that starts with `lobby-` (such as `lobby-1` etc.)    |
-| `-\|`     | Ends with (left side for full text, right side text to end with)     | `%world%-\|nether` will pass if player is in any world that ends with `nether` (such as `world_nether` etc.) |
+| Operation | Description                                                                  | Example                                                                                                               |
+|-----------|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| `=`       | Equal to                                                                     | `%world%=world` will pass if player is in world `world`                                                               |
+| `!=`      | Not equal to                                                                 | `%world%!=world` will pass if player is in any world except `world`                                                   |
+| `<-`      | Contains (left side for full text, right side text to contain)               | `%world%<-lobby-` will pass if player is in any world that contains `lobby-` (such as `lobby-1` etc.)                 |
+| `!<-`     | Not Contains (left side for full text, right side text to not contain)       | `%world%!<-lobby-` will pass if player is in any world that does not contain `lobby-` (such as `lobby-1` etc.)        |
+| `\|-`     | Starts with (left side for full text, right side text to start with)         | `%world%\|-lobby-` will pass if player is in any world that starts with `lobby-` (such as `lobby-1` etc.)             |
+| `!\|-`    | Not Starts with (left side for full text, right side text to not start with) | `%world%!\|-lobby-` will pass if player is in any world that does not start with `lobby-` (such as `lobby-1` etc.)    |
+| `-\|`     | Ends with (left side for full text, right side text to end with)             | `%world%-\|nether` will pass if player is in any world that ends with `nether` (such as `world_nether` etc.)          |
+| `!-\|`    | Not Ends with (left side for full text, right side text to not end with)     | `%world%!-\|nether` will pass if player is in any world that does not end with `nether` (such as `world_nether` etc.) |
 
 > [!NOTE]
 > For `=` and `!=` you can check for empty output of a placeholder using `%my_placeholder%=` and `%my_placeholder%!=`.
@@ -66,7 +69,7 @@ This value can be found under `type` field. Types are:
 If you only defined one subcondition, you don't need to define the type at all, since it's not used for anything.
 
 # Condition output
-If using condition as a placeholder, you can specify output in both cases using `yes` and `no` values. `yes` is used when condition passes, `no` if not. If using condition only as a view requirement, you can leave these values empty / not specify them at all.
+If using condition as a placeholder, you can specify output in both cases using `true` and `false` values. `true` is used when condition passes, `false` if not. If using condition only as a view requirement, you can leave these values empty / not specify them at all.
 
 # Configuration
 Open **config.yml** and find this section:
@@ -77,21 +80,21 @@ conditions:
     - '%health%<21'
     - '%health%>15'
     type: AND
-    yes: Healthy!
-    no: Damaged!
+    true: Healthy!
+    false: Damaged!
 ```
 `health` is name of our condition in this case.  
 `conditions` is a list of subconditions that must be met for this condition to pass.  
 `type` defines whether all subconditions must be met or at least one.  
-`yes` & `no` define output in both cases.
+`true` & `false` define output in both cases.
 
 # Usage
 You have 2 ways to use conditions.
 
 ## Displaying text
 The first way is to use conditions to display text.
-Configure outputs in `yes` and `no` values and then use `%condition:<name>%`,
-which will output text defined in `yes` or `no` depending on if condition is met or not.
+Configure outputs in `true` and `false` values and then use `%condition:<name>%`,
+which will output text defined in `true` or `false` depending on if condition is met or not.
 <details>
   <summary>Example</summary>
 
@@ -100,8 +103,8 @@ conditions:
   serverName:
     conditions:
       - "%server%=lobby"
-    yes: "You are in the lobby"
-    no: "You are not in lobby"
+    true: "You are in the lobby"
+    false: "You are not in lobby"
 ```
 
 Use with `%condition:serverName%`
@@ -110,7 +113,7 @@ Use with `%condition:serverName%`
 ## Display condition of a feature
 The second way is to use condition's name in places where a condition is accepted.
 This includes display conditions for bossbar, scoreboard and layout.
-In these cases, yes/no texts are unused; therefore, they do not need to be defined.
+In these cases, true/false texts are unused; therefore, they do not need to be defined.
 <details>
   <summary>Example</summary>
 
@@ -130,7 +133,7 @@ In this example, scoreboard will only be displayed to players with `tab.admin` p
 </details>
 
 ### Short format
-If trying to use a condition on place where it's available (bossbar display condition, scoreboard display condition) where you don't need the yes/no values, you can use a short format instead.
+If trying to use a condition on place where it's available (bossbar display condition, scoreboard display condition) where you don't need the true/false values, you can use a short format instead.
 
 This can be used by simply creating all subconditions and separating them with `;` for `AND` condition type. For `OR` type, use `|`.  
 **Single condition example**:
@@ -151,7 +154,7 @@ display-condition: "%server%=lobby|%server%=lobby2"
 # Refresh interval
 Conditions are just placeholders after all, and, as such, they must be refreshed periodically.
 Refresh intervals of conditions are not directly configurable.
-They are based on placeholders used inside (subconditions, yes/no values).  
+They are based on placeholders used inside (subconditions, true/false values).  
 Permission checks count as 1000ms.  
 To configure refresh intervals of placeholders,
 check out the [Optimization guide](https://github.com/NEZNAMY/TAB/wiki/Optimizing-the-plugin#2---all-platforms-placeholder-refresh-intervals).
@@ -184,9 +187,8 @@ conditions:
 Finally, we can use this ping placeholder using `%condition:ping%`.  
 This example chained 2 conditions, but more can be used. There is no limit.
 
-## Example 2 - Conditions in conditions
-If you want to use a condition in another one,
-for example, to use both "AND" and "OR" types, create 2 conditions and use one in the other one.  
+## Example 2 - Combining AND and OR
+If you want to combine both "AND" and "OR" types, create 2 conditions and use first one in the second one.  
 For example, if we want to check that player is in server `lobby` **and** in worlds **either** `world1` or `world2`,
 it can be achieved in the following way:
 ```
@@ -202,7 +204,7 @@ conditions:
       - "%server%=lobby"
     type: AND
 ```
-Then, use condition `main` as the display condition. Note that `yes`/`no` values were not defined, as such, they default to `true` and `false`, respectively. Therefore, we use the placeholder from the condition and check if the result is `true`. Then, check if player is also in the specified server.
+Then, use condition `main` as the display condition (or as a placeholder - `%condition:main%`). Note that `true`/`false` values were not defined, as such, they default to `true` and `false`, respectively. Therefore, we use the placeholder from the condition and check if the result is `true`. Then, check if player is also in the specified server.
 
 ## Example 3 - Negating expressions
 Most condition types contain their opposites, such as:
@@ -210,11 +212,9 @@ Most condition types contain their opposites, such as:
 * `permission:` -> `!permission:`
 * `>=` -> `<`
 * `>` -> `<=`
-
-However, some of them don't, as things could get too complicated. This includes:
-* `|-` starts with
-* `-|` ends with
-* `<-` contains
+* `|-` -> `!|-`
+* `-|` -> `!-|`
+* `<-` -> `!<-`
 
 You can achieve this by creating a full condition and check if it returned false.  
 **Example:**  

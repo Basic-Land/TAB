@@ -1,7 +1,7 @@
 package me.neznamy.tab.shared.platform;
 
-import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.GroupManager;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.util.function.Consumer;
 
 /**
  * An interface with methods that are called in universal code,
@@ -66,9 +67,12 @@ public interface Platform {
      *
      * @param   plugin
      *          Proxy plugin to use
+     * @param   channelName
+     *          Channel name to use
      * @return  Created instance
      */
-    @Nullable ProxySupport getProxySupport(@NotNull String plugin);
+    @Nullable
+    ProxySupport getProxySupport(@NotNull String plugin, @NotNull String channelName);
 
     /**
      * Returns per world player list feature handler.
@@ -181,6 +185,15 @@ public interface Platform {
     boolean supportsScoreboards();
 
     /**
+     * Returns {@code true} if server supports listed option (1.19.3+), {@code false} if not.
+     *
+     * @return   {@code true} if server supports listed option (1.19.3+), {@code false} if not
+     */
+    default boolean supportsListed() {
+        return true;
+    }
+
+    /**
      * Returns {@code true} if server supports list order option (1.21.2+), {@code false} if not.
      *
      * @return   {@code true} if server supports list order option (1.21.2+), {@code false} if not
@@ -206,4 +219,20 @@ public interface Platform {
      */
     @NotNull
     String getCommand();
+
+    /**
+     * Registers a custom command that executes the given function
+     * when a player uses it.
+     *
+     * @param   commandName
+     *          Name of the command without "/" prefix
+     * @param   function
+     *          Function to execute when a player uses the command
+     */
+    void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function);
+
+    /**
+     * Unregisters all custom commands registered by features.
+     */
+    void unregisterAllCustomCommands();
 }

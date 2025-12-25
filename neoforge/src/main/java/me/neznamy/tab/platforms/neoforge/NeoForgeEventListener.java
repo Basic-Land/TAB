@@ -19,12 +19,19 @@ public class NeoForgeEventListener implements EventListener<ServerPlayer> {
      */
     public void register() {
         IEventBus eventBus = NeoForge.EVENT_BUS;
-        eventBus.addListener((PlayerEvent.PlayerLoggedInEvent event) -> join((ServerPlayer) event.getEntity()));
+        eventBus.addListener((PlayerEvent.PlayerLoggedInEvent event) -> {
+            TAB.getInstance().addTablistTracker(
+                    event.getEntity().getUUID(),
+                    ((ServerPlayer) event.getEntity()).connection.getConnection().channel(),
+                    new NeoForgeTabListEntryTracker()
+            );
+            join((ServerPlayer) event.getEntity());
+        });
         eventBus.addListener((PlayerEvent.PlayerLoggedOutEvent event) -> quit(event.getEntity().getUUID()));
         eventBus.addListener((PlayerEvent.PlayerRespawnEvent event) -> {
             ServerPlayer player = (ServerPlayer) event.getEntity();
-          replacePlayer(player.getUUID(), player);
-          worldChange(player.getUUID(), NeoForgeTAB.getLevelName(player.level()));
+            replacePlayer(player.getUUID(), player);
+            worldChange(player.getUUID(), NeoForgeTAB.getLevelName(player.level()));
         });
         eventBus.addListener((PlayerEvent.PlayerChangedDimensionEvent event) -> worldChange(event.getEntity().getUUID(), NeoForgeTAB.getLevelName(event.getEntity().level())));
     }

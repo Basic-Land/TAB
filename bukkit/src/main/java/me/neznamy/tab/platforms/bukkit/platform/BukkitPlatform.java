@@ -46,7 +46,8 @@ import net.milkbowl.vault.permission.Permission;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
-import org.bukkit.command.PluginCommand;
+import org.bukkit.command.*;
+import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -55,8 +56,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collection;
+import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * Implementation of Platform interface for Bukkit platform
@@ -94,6 +95,13 @@ public class BukkitPlatform implements BackendPlatform {
 
     private final boolean modernOnlinePlayers;
 
+    /** Command map for dynamic command registering */
+    private final SimpleCommandMap commandMap;
+    private final Map<String, Command> knownCommands;
+
+    /** List of custom commands registered to be able to unregister them on reload */
+    private final List<Command> customCommands = new ArrayList<>();
+
     /**
      * Constructs new instance with given plugin.
      *
@@ -101,6 +109,7 @@ public class BukkitPlatform implements BackendPlatform {
      *          Plugin
      */
     @SneakyThrows
+    @SuppressWarnings("unchecked")
     public BukkitPlatform(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
         modernOnlinePlayers = Bukkit.class.getMethod("getOnlinePlayers").getReturnType() == Collection.class;
@@ -117,6 +126,8 @@ public class BukkitPlatform implements BackendPlatform {
         if (Bukkit.getPluginManager().isPluginEnabled("PremiumVanish")) {
             new BukkitPremiumVanishHook().register();
         }
+        commandMap = (SimpleCommandMap) Bukkit.getServer().getClass().getMethod("getCommandMap").invoke(Bukkit.getServer());
+        knownCommands = (Map<String, Command>) ReflectionUtils.getField(SimpleCommandMap.class, "knownCommands").get(commandMap);
     }
 
     @NotNull
@@ -127,6 +138,8 @@ public class BukkitPlatform implements BackendPlatform {
             String paperModule = getPaperModule();
             if (paperModule != null) {
                 return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.paper_" + paperModule + ".PaperImplementationProvider").getConstructor().newInstance();
+            } else {
+                throw new UnsupportedOperationException();
             }
         } else {
             // Paper <1.20.5 or Spigot
@@ -134,9 +147,9 @@ public class BukkitPlatform implements BackendPlatform {
                 // Does not actually support flat 1.19, but whatever, no one is using it anyway
                 return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit." + serverPackage + ".NMSImplementationProvider").getConstructor().newInstance();
             } catch (ClassNotFoundException ignored) {
+                throw new UnsupportedOperationException();
             }
         }
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -165,7 +178,10 @@ public class BukkitPlatform implements BackendPlatform {
             case V1_21_8:
                 return "1_21_4";
             case V1_21_9:
+            case V1_21_10:
                 return "1_21_9";
+            case V1_21_11:
+                return "1_21_11";
             default:
                 return null;
         }
@@ -197,7 +213,7 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @Nullable
     public PipelineInjector createPipelineInjector() {
-        return implementationProvider.getChannelFunction() != null ? new BukkitPipelineInjector() : null;
+        return serverVersion.getMinorVersion() >= 8 ? new BukkitPipelineInjector() : null;
     }
 
     @Override
@@ -277,7 +293,7 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     public void registerListener() {
-        Bukkit.getPluginManager().registerEvents(new BukkitEventListener(), plugin);
+        Bukkit.getPluginManager().registerEvents(new BukkitEventListener(this), plugin);
     }
 
     @Override
@@ -347,6 +363,11 @@ public class BukkitPlatform implements BackendPlatform {
     }
 
     @Override
+    public boolean supportsListed() {
+        return serverVersion.getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId();
+    }
+
+    @Override
     public boolean supportsListOrder() {
         return serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId();
     }
@@ -354,6 +375,37 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     public boolean isSafeFromPacketEventsBug() {
         return serverVersion.getMinorVersion() >= 13;
+    }
+
+    @Override
+    public void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function) {
+        Command cmd = new BukkitCommand(commandName) {
+
+            @Override
+            public boolean execute(@NotNull CommandSender commandSender, @NotNull String alias, @NotNull String[] args) {
+                if (commandSender instanceof Player) {
+                    TabPlayer p = TAB.getInstance().getPlayer(((Player) commandSender).getUniqueId());
+                    if (p == null) return false; //player not loaded correctly
+                    function.accept(p);
+                } else {
+                    commandSender.sendMessage(toBukkitFormat(
+                            TabComponent.fromColoredText(TAB.getInstance().getConfiguration().getMessages().getCommandOnlyFromGame())
+                    ));
+                }
+                return false;
+            }
+        };
+        commandMap.register(commandName, cmd);
+        customCommands.add(cmd);
+    }
+
+    @Override
+    public void unregisterAllCustomCommands() {
+        for (Command command : customCommands) {
+            knownCommands.remove(command.getName());
+            knownCommands.remove(command.getName() + ":" + command.getName());
+            command.unregister(commandMap);
+        }
     }
 
     @Override

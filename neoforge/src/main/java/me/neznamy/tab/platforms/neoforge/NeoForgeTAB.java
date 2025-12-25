@@ -1,6 +1,8 @@
 package me.neznamy.tab.platforms.neoforge;
 
+import com.mojang.brigadier.CommandDispatcher;
 import me.neznamy.tab.shared.TAB;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.neoforged.api.distmarker.Dist;
@@ -18,12 +20,15 @@ import org.jetbrains.annotations.NotNull;
 @Mod(value = "tab", dist = Dist.DEDICATED_SERVER)
 public class NeoForgeTAB {
 
+	/** Command dispatcher instance for later command registration. */
+	public static CommandDispatcher<CommandSourceStack> COMMAND_DISPATCHER;
+
 	/**
 	 * Constructs new instance and registers necessary events.
 	 */
 	public NeoForgeTAB() {
 		IEventBus EVENT_BUS = NeoForge.EVENT_BUS;
-		EVENT_BUS.addListener((RegisterCommandsEvent event) -> new NeoForgeTabCommand().onRegisterCommands(event.getDispatcher()));
+		EVENT_BUS.addListener((RegisterCommandsEvent event) -> COMMAND_DISPATCHER = event.getDispatcher());
 		EVENT_BUS.addListener((ServerStartingEvent event) -> TAB.create(new NeoForgePlatform(event.getServer())));
 		EVENT_BUS.addListener((ServerStoppingEvent event) -> TAB.getInstance().unload());
 	}
@@ -37,7 +42,7 @@ public class NeoForgeTAB {
 	 */
 	@NotNull
 	public static String getLevelName(@NotNull Level level) {
-		String path = level.dimension().location().getPath();
+		String path = level.dimension().identifier().getPath();
 		return ((ServerLevelData)level.getLevelData()).getLevelName() + switch (path) {
 			case "overworld" -> ""; // No suffix for overworld
 			case "the_nether" -> "_nether";

@@ -14,12 +14,10 @@ public class TabConstants {
     public static final String NO_GROUP = "NONE";
     public static final String DEFAULT_GROUP = "_DEFAULT_";
     public static final String PLUGIN_MESSAGE_CHANNEL_NAME = "tab:bridge-6";
-    public static final String PROXY_CHANNEL_NAME = ProjectVariables.PLUGIN_NAME + "-2";
     public static final String PIPELINE_HANDLER_NAME = ProjectVariables.PLUGIN_NAME;
 
     public static final int BSTATS_PLUGIN_ID_BUKKIT = 5304;
     public static final int BSTATS_PLUGIN_ID_BUNGEE = 10535;
-    public static final int BSTATS_PLUGIN_ID_SPONGE = 17732;
     public static final int BSTATS_PLUGIN_ID_VELOCITY = 10533;
 
     public static final int MAX_LOG_SIZE = 16 * 1024 * 1024;
@@ -36,7 +34,6 @@ public class TabConstants {
         public static final String PLAYER_QUIT = "Player Quit";
         public static final String WORLD_SWITCH = "World Switch";
         public static final String SERVER_SWITCH = "Server Switch";
-        public static final String COMMAND_PREPROCESS = "Command Preprocess";
         public static final String PROXY_MESSAGE = "Proxy Message processing";
 
         public static final String PLUGIN_MESSAGE_DECODE = "Decoding message";
@@ -44,12 +41,6 @@ public class TabConstants {
         public static final String PLUGIN_MESSAGE_ENCODE = "Encoding message";
         public static final String PLUGIN_MESSAGE_SEND = "Sending message";
 
-        /** Periodic task checking for current and expected display names of all entries */
-        public static final String ANTI_OVERRIDE_TABLIST_PERIODIC = "Tablist anti override (periodic task)";
-
-        public static final String PERIODIC_TASK = "Periodic task";
-
-        public static final String PING_CHANGE = "Processing ping change";
         public static final String NICK_PLUGIN_COMPATIBILITY = "Compatibility with nick plugins";
         public static final String BYTE_BUF = "ByteBuf";
         public static final String PACKET_LOGIN = "Login packet";
@@ -241,10 +232,6 @@ public class TabConstants {
 
         public static final int MINIMUM_REFRESH_INTERVAL = 50;
         public static final int RETURN_TIME_WARN_THRESHOLD = 50;
-
-        public static String condition(String name) {
-            return "%condition:" + name + "%";
-        }
 
         public static String animation(String name) {
             return "%animation:" + name + "%";

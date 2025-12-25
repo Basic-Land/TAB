@@ -55,9 +55,9 @@ playerlist-objective:
 belowname-objective:
   enabled: false
   value: "%health%"
-  title: "&cHealth"
   fancy-value: "&c%health%"
   fancy-value-default: "NPC"
+  title: "&cHealth"
   disable-condition: '%world%=disabledworld'
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Spectator-fix
@@ -83,8 +83,6 @@ scoreboard:
   toggle-command: /sb
   remember-toggle-choice: false
   hidden-by-default: false
-  use-numbers: true
-  static-number: 0
   delay-on-join-milliseconds: 0
   scoreboards:
     scoreboard-1.20.3+:
@@ -129,6 +127,7 @@ layout:
   empty-slot-ping-value: 1000
   layouts:
     default:
+      slot-count: 80
       fixed-slots:
         - '1|&3Website&f:'
         - '2|&bmyserver.net'
@@ -196,8 +195,8 @@ conditions:
   nick: # use it with %condition:nick%
     conditions:
       - "%player%=%essentials_nickname%"
-    yes: "%player%"
-    no: "~%essentials_nickname%"
+    true: "%player%"
+    false: "~%essentials_nickname%"
 
 placeholder-refresh-intervals:
   default-refresh-interval: 500
@@ -243,6 +242,7 @@ mysql:
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Multi-server-support
 proxy-support:
   enabled: true
+  channel-name-suffix: "TAB"
   # Supported types: PLUGIN, REDIS, RABBITMQ
   type: PLUGIN
   plugin:
@@ -260,7 +260,7 @@ components:
   disable-shadow-for-heads: true
 
 # Internal value, do not change this
-config-version: 2
+config-version: 4
 
 ########################################################################
 # BUKKIT ONLY - THE FOLLOWING SECTION IS ONLY FOR BACKEND INSTALLATION #

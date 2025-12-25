@@ -21,6 +21,7 @@ import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
 import me.neznamy.tab.shared.chat.component.object.TabPlayerSprite;
 import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
+import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
@@ -31,6 +32,7 @@ import me.neznamy.tab.shared.proxy.ProxyPlatform;
 import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -39,6 +41,7 @@ import net.md_5.bungee.api.chat.objects.SpriteObject;
 import net.md_5.bungee.api.chat.player.Profile;
 import net.md_5.bungee.api.chat.player.Property;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.plugin.Command;
 import org.bstats.bungeecord.Metrics;
 import org.bstats.charts.SimplePie;
 import org.jetbrains.annotations.NotNull;
@@ -46,6 +49,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * BungeeCord implementation of Platform
@@ -54,6 +60,9 @@ public class BungeePlatform extends ProxyPlatform {
 
     @NotNull
     private final BungeeTAB plugin;
+
+    /** List of custom commands registered to be able to unregister them on reload */
+    private final List<Command> customCommands = new ArrayList<>();
 
     /**
      * Constructs new instance with given plugin instance.
@@ -85,6 +94,12 @@ public class BungeePlatform extends ProxyPlatform {
                 for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
                     if (player.server == server && !player.isVanished()) count++;
                 }
+                ProxySupport proxySupport = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PROXY_SUPPORT);
+                if (proxySupport != null) {
+                    for (ProxyPlayer player : proxySupport.getProxyPlayers().values()) {
+                        if (player.server == server && !player.isVanished()) count++;
+                    }
+                }
                 return PerformanceUtil.toString(count);
             });
         }
@@ -92,11 +107,11 @@ public class BungeePlatform extends ProxyPlatform {
 
     @Override
     @Nullable
-    public ProxySupport getProxySupport(@NotNull String plugin) {
+    public ProxySupport getProxySupport(@NotNull String plugin, @NotNull String channelName) {
         if (plugin.equalsIgnoreCase("RedisBungee")) {
             if (ReflectionUtils.classExists("com.imaginarycode.minecraft.redisbungee.RedisBungeeAPI") &&
                     RedisBungeeAPI.getRedisBungeeApi() != null) {
-                return new BungeeRedisSupport(this.plugin);
+                return new BungeeRedisSupport(this.plugin, channelName);
             }
         }
         return null;
@@ -304,5 +319,34 @@ public class BungeePlatform extends ProxyPlatform {
     @NotNull
     public String getCommand() {
         return "btab";
+    }
+
+    @Override
+    public void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function) {
+        Command cmd = new Command(commandName) {
+
+            @Override
+            public void execute(CommandSender commandSender, String[] strings) {
+                if (commandSender instanceof ProxiedPlayer) {
+                    TabPlayer p = TAB.getInstance().getPlayer(((ProxiedPlayer) commandSender).getUniqueId());
+                    if (p == null) return; //player not loaded correctly
+                    function.accept(p);
+                } else {
+                    commandSender.sendMessage(createComponent(
+                            TabComponent.fromColoredText(TAB.getInstance().getConfiguration().getMessages().getCommandOnlyFromGame()),
+                            ProtocolVersion.values()[1]
+                    ));
+                }
+            }
+        };
+        customCommands.add(cmd);
+        ProxyServer.getInstance().getPluginManager().registerCommand(plugin, cmd);
+    }
+
+    @Override
+    public void unregisterAllCustomCommands() {
+        for (Command cmd : customCommands) {
+            ProxyServer.getInstance().getPluginManager().unregisterCommand(cmd);
+        }
     }
 }
