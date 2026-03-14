@@ -58,7 +58,9 @@ public class FeatureManager {
     public void load() {
         for (TabFeature f : values) {
             if (!(f instanceof Loadable)) continue;
+            long time = System.currentTimeMillis();
             ((Loadable) f).load();
+            TAB.getInstance().debug("Loaded feature " + f.getClass().getSimpleName() + " in " + (System.currentTimeMillis()-time) + "ms");
         }
         if (TAB.getInstance().getConfiguration().getUsers() instanceof MySQLUserConfiguration) {
             MySQLUserConfiguration users = (MySQLUserConfiguration) TAB.getInstance().getConfiguration().getUsers();
@@ -74,10 +76,14 @@ public class FeatureManager {
         // Shut down and then unload sync to prevent load running before old unload ends on reloads
         for (TabFeature f : values) {
             if (f instanceof CustomThreaded) {
+                long time = System.currentTimeMillis();
                 ((CustomThreaded) f).getCustomThread().shutdown();
+                TAB.getInstance().debug("Shut down custom thread of " + f.getClass().getSimpleName() + " in " + (System.currentTimeMillis()-time) + "ms");
             }
             if (f instanceof UnLoadable) {
+                long time = System.currentTimeMillis();
                 ((UnLoadable) f).unload();
+                TAB.getInstance().debug("Unloaded feature " + f.getClass().getSimpleName() + " in " + (System.currentTimeMillis()-time) + "ms");
             }
         }
         for (TabFeature f : values) {
@@ -531,7 +537,6 @@ public class FeatureManager {
      */
     public void loadFeaturesFromConfig() {
         Config config = TAB.getInstance().getConfiguration().getConfig();
-        FeatureManager featureManager = TAB.getInstance().getFeatureManager();
 
         // Load the feature first, because it will be processed in main thread (to make it run before feature threads)
         if (config.getProxySupport() != null) {
@@ -550,56 +555,56 @@ public class FeatureManager {
 
         if (config.isPipelineInjection()) {
             PipelineInjector inj = TAB.getInstance().getPlatform().createPipelineInjector();
-            if (inj != null) featureManager.registerFeature(TabConstants.Feature.PIPELINE_INJECTION, inj);
+            if (inj != null) registerFeature(TabConstants.Feature.PIPELINE_INJECTION, inj);
         }
 
         if (config.getPerWorldPlayerList() != null) {
             TabFeature pwp = TAB.getInstance().getPlatform().getPerWorldPlayerList(config.getPerWorldPlayerList());
-            if (pwp != null) featureManager.registerFeature(TabConstants.Feature.PER_WORLD_PLAYER_LIST, pwp);
+            if (pwp != null) registerFeature(TabConstants.Feature.PER_WORLD_PLAYER_LIST, pwp);
         }
         if (config.getBossbar() != null) {
-            featureManager.registerFeature(TabConstants.Feature.BOSS_BAR, new BossBarManagerImpl(config.getBossbar()));
+            registerFeature(TabConstants.Feature.BOSS_BAR, new BossBarManagerImpl(config.getBossbar()));
         }
         if (config.getPingSpoof() != null) {
-            featureManager.registerFeature(TabConstants.Feature.PING_SPOOF, new PingSpoof(config.getPingSpoof()));
+            registerFeature(TabConstants.Feature.PING_SPOOF, new PingSpoof(config.getPingSpoof()));
         }
         if (config.getHeaderFooter() != null) {
-            featureManager.registerFeature(TabConstants.Feature.HEADER_FOOTER, new HeaderFooter(config.getHeaderFooter()));
+            registerFeature(TabConstants.Feature.HEADER_FOOTER, new HeaderFooter(config.getHeaderFooter()));
         }
         if (config.isPreventSpectatorEffect()) {
-            featureManager.registerFeature(TabConstants.Feature.SPECTATOR_FIX, new SpectatorFix());
+            registerFeature(TabConstants.Feature.SPECTATOR_FIX, new SpectatorFix());
         }
         if (config.getScoreboard() != null) {
-            featureManager.registerFeature(TabConstants.Feature.SCOREBOARD, new ScoreboardManagerImpl(config.getScoreboard()));
+            registerFeature(TabConstants.Feature.SCOREBOARD, new ScoreboardManagerImpl(config.getScoreboard()));
         }
         if (config.getPlayerlistObjective() != null) {
-            featureManager.registerFeature(TabConstants.Feature.YELLOW_NUMBER, new YellowNumber(config.getPlayerlistObjective()));
+            registerFeature(TabConstants.Feature.YELLOW_NUMBER, new YellowNumber(config.getPlayerlistObjective()));
         }
         if (config.getBelowname() != null) {
-            featureManager.registerFeature(TabConstants.Feature.BELOW_NAME, new BelowName(config.getBelowname()));
+            registerFeature(TabConstants.Feature.BELOW_NAME, new BelowName(config.getBelowname()));
         }
         if (config.getSorting() != null) {
-            featureManager.registerFeature(TabConstants.Feature.SORTING, new Sorting(config.getSorting()));
+            registerFeature(TabConstants.Feature.SORTING, new Sorting(config.getSorting()));
         }
         if (config.getTablistFormatting() != null) {
-            featureManager.registerFeature(TabConstants.Feature.PLAYER_LIST, new PlayerList(config.getTablistFormatting()));
+            registerFeature(TabConstants.Feature.PLAYER_LIST, new PlayerList(config.getTablistFormatting()));
         }
 
         // Must be loaded after: Sorting
         if (config.getTeams() != null) {
-            featureManager.registerFeature(TabConstants.Feature.NAME_TAGS, new NameTag(config.getTeams()));
+            registerFeature(TabConstants.Feature.NAME_TAGS, new NameTag(config.getTeams()));
         }
 
         // Must be loaded after: Sorting, PlayerList
         if (config.getLayout() != null) {
-            featureManager.registerFeature(TabConstants.Feature.LAYOUT, new LayoutManagerImpl(config.getLayout()));
+            registerFeature(TabConstants.Feature.LAYOUT, new LayoutManagerImpl(config.getLayout()));
         }
 
         // Must be loaded after: PlayerList
         if (config.getGlobalPlayerList() != null) {
-            featureManager.registerFeature(TabConstants.Feature.GLOBAL_PLAYER_LIST, new GlobalPlayerList(config.getGlobalPlayerList()));
+            registerFeature(TabConstants.Feature.GLOBAL_PLAYER_LIST, new GlobalPlayerList(config.getGlobalPlayerList()));
         }
 
-        featureManager.registerFeature(TabConstants.Feature.NICK_COMPATIBILITY, new NickCompatibility());
+        registerFeature(TabConstants.Feature.NICK_COMPATIBILITY, new NickCompatibility());
     }
 }

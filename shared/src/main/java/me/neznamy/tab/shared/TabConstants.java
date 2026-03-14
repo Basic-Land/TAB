@@ -4,6 +4,9 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * A class containing various constants used everywhere in the plugin
  * to allow easier overview and modification to prevent inconsistencies.
@@ -70,7 +73,7 @@ public class TabConstants {
         public static final String COMMAND_ALL                      = "tab.admin";
         public static final String COMMAND_RELOAD                   = "tab.reload";
         public static final String COMMAND_CPU                      = "tab.cpu";
-        public static final String COMMAND_DEBUG                    = "tab.debug";
+        public static final String COMMAND_DUMP                     = "tab.dump";
         public static final String COMMAND_GROUP_INFO               = "tab.groupinfo";
         public static final String COMMAND_GROUP_LIST               = "tab.grouplist";
         public static final String COMMAND_PARSE                    = "tab.parse";
@@ -114,30 +117,28 @@ public class TabConstants {
 
         //universal features
         public static final String HEADER_FOOTER = "HeaderFooter";
-        public static final String PLAYER_LIST = "PlayerList";
+        public static final String PLAYER_LIST = "TablistFormatting";
         public static final String SPECTATOR_FIX = "SpectatorFix";
-        public static final String YELLOW_NUMBER = "YellowNumber";
+        public static final String YELLOW_NUMBER = "PlayerlistObjective";
         public static final String YELLOW_NUMBER_TEXT = "YellowNumberText";
         public static final String BELOW_NAME = "BelowName";
         public static final String BELOW_NAME_TEXT = "BelowNameText";
-        public static final String SCOREBOARD = "ScoreBoard";
-        public static final String SORTING = "sorting";
-        public static final String LAYOUT = "layout";
+        public static final String SCOREBOARD = "Scoreboard";
+        public static final String SORTING = "Sorting";
+        public static final String LAYOUT = "Layout";
         public static final String LAYOUT_LATENCY = "layout-latency";
         public static final String PIPELINE_INJECTION = "injection";
         public static final String BOSS_BAR = "BossBar";
-        public static final String NAME_TAGS = "NameTag16";
+        public static final String NAME_TAGS = "NameTags";
         public static final String NAME_TAGS_COLLISION = "NameTagCollision";
         public static final String NAME_TAGS_VISIBILITY = "NameTagVisibility";
         public static final String PLACEHOLDER_MANAGER = "PlaceholderManager";
         public static final String PING_SPOOF = "PingSpoof";
         public static final String PROXY_SUPPORT = "ProxySupport";
+        public static final String GLOBAL_PLAYER_LIST = "GlobalPlayerList";
 
         //Bukkit only
         public static final String PER_WORLD_PLAYER_LIST = "PerWorldPlayerList";
-
-        //BungeeCord only
-        public static final String GLOBAL_PLAYER_LIST = "GlobalPlayerList";
 
         //additional info displayed in cpu command
         public static final String PACKET_DESERIALIZING = "Packet deserializing";
@@ -230,6 +231,44 @@ public class TabConstants {
         public static final String HEALTH = "%health%";
         public static final String DEATHS = "%deaths%";
 
+        public static final Map<String, Integer> REFRESH_INTERVALS = new HashMap<String, Integer>() {{
+            put(DISPLAY_NAME, 500);
+            put(GROUP, -1);
+            put(VANISHED, 1000);
+            put(WORLD, -1);
+            put(WORLD_ONLINE, 1000);
+            put(SERVER, -1);
+            put(SERVER_ONLINE, 1000);
+            put(PLAYER, -1);
+            put(UUID, -1);
+            put(TIME, 1000);
+            put(DATE, 60000);
+            put(PING, 500);
+            put(PLAYER_VERSION, -1);
+            put(PLAYER_VERSION_ID, -1);
+            put(MEMORY_USED, 200);
+            put(MEMORY_MAX, -1);
+            put(MEMORY_USED_GB, 200);
+            put(MEMORY_MAX_GB, -1);
+            put(ONLINE, 1000);
+            put(STAFF_ONLINE, 2000);
+            put(NON_STAFF_ONLINE, 2000);
+            put(LUCKPERMS_PREFIX, 1000);
+            put(LUCKPERMS_PREFIXES, 1000);
+            put(LUCKPERMS_SUFFIX, 1000);
+            put(LUCKPERMS_SUFFIXES, 1000);
+            put(LUCKPERMS_WEIGHT, 1000);
+            put(GAMEMODE, 100);
+            put(BEDROCK, -1);
+            put(COLLISION, 500);
+            put(INVISIBLE, 500);
+            put(TPS, 1000);
+            put(MSPT, 1000);
+            put(HEALTH, 100);
+            put(DEATHS, 1000);
+            put("%%", -1);
+        }};
+
         public static final int MINIMUM_REFRESH_INTERVAL = 50;
         public static final int RETURN_TIME_WARN_THRESHOLD = 50;
 
@@ -258,7 +297,6 @@ public class TabConstants {
 
         public static final String PERMISSION_SYSTEM = "permission_system";
         public static final String GLOBAL_PLAYER_LIST_ENABLED = "global_playerlist_enabled";
-        public static final String SERVER_VERSION = "server_version";
 
     }
 }

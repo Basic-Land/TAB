@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * An interface with methods that are called in universal code,
@@ -100,13 +100,6 @@ public interface Platform {
      *          Message to send
      */
     void logWarn(@NotNull TabComponent message);
-
-    /**
-     * Returns information about server version, which is displayed in debug command
-     *
-     * @return  Server version information
-     */
-    String getServerVersionInfo();
 
     /**
      * Registers event listener for platform's events
@@ -229,10 +222,18 @@ public interface Platform {
      * @param   function
      *          Function to execute when a player uses the command
      */
-    void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function);
+    void registerCustomCommand(@NotNull String commandName, @NotNull BiConsumer<TabPlayer, String[]> function);
 
     /**
      * Unregisters all custom commands registered by features.
      */
     void unregisterAllCustomCommands();
+
+    /**
+     * Dumps data of the platform.
+     *
+     * @return  Dumped data
+     */
+    @NotNull
+    Object dump();
 }

@@ -16,16 +16,20 @@ import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.features.types.*;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.util.DumpUtils;
 import me.neznamy.tab.shared.util.cache.StringToComponentCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Feature handler for TabList display names
  */
 @Getter
 public class PlayerList extends RefreshableFeature implements TabListFormatManager, JoinListener, Loadable,
-        UnLoadable, WorldSwitchListener, ServerSwitchListener, VanishListener, ProxyFeature, GroupListener {
+        UnLoadable, WorldSwitchListener, ServerSwitchListener, VanishListener, ProxyFeature, GroupListener, Dumpable {
 
     @NotNull private final StringToComponentCache cache = new StringToComponentCache("Tablist name formatting", 1000);
     @NotNull private final TablistFormattingConfiguration configuration;
@@ -96,7 +100,6 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
     public void formatPlayerForEveryone(@NotNull TabPlayer player, boolean format) {
         if (player.tablistData.disabled.get()) return;
         for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
-            if (!viewer.server.canSee(player.server)) continue;
             // TODO This probably needs some layout check to make sure it does not use layout entry names for player names
             updateDisplayName(viewer, player, format ? getTabFormat(player, viewer) : null);
         }
@@ -161,7 +164,7 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
                     p.getTabList().updateDisplayName(proxied.getTablistId(), proxied.getTabFormat().getFormatComponent());
                 }
             }
-        }, getFeatureName(), CpuUsageCategory.PLAYER_JOIN), 300);
+        }, getFeatureName(), CpuUsageCategory.SERVER_SWITCH), 300);
     }
 
     @Override
@@ -180,7 +183,6 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
     public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
         if (disabledNow) {
             for (TabPlayer viewer : TAB.getInstance().getOnlinePlayers()) {
-                if (!viewer.server.canSee(p.server)) continue;
                 updateDisplayName(viewer, p, null);
             }
             sendProxyMessage(p);
@@ -232,7 +234,6 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
             for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
                 if (all == connectedPlayer) continue; // Already updated above
                 if (all.tablistData.disabled.get()) continue;
-                if (!connectedPlayer.server.canSee(all.server)) continue;
                 updateDisplayName(connectedPlayer, all, getTabFormat(all, connectedPlayer));
             }
             if (proxy != null) {
@@ -255,6 +256,43 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
     public void onVanishStatusChange(@NotNull TabPlayer player) {
         if (player.isVanished()) return;
         formatPlayerForEveryone(player, true);
+    }
+
+    @Override
+    @NotNull
+    public Object dump(@NotNull TabPlayer player) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("configuration", configuration.getSection().getMap());
+        map.put("disabled with condition", player.tablistData.disabled.get());
+        for (Property property : Arrays.asList(player.tablistData.prefix, player.tablistData.name, player.tablistData.suffix)) {
+            Map<String, Object> propertyMap = new LinkedHashMap<>();
+            propertyMap.put("configured-raw-value", property.getOriginalRawValue());
+            propertyMap.put("api-forced-raw-value", property.getTemporaryValue());
+            propertyMap.put("current-source", property.getSource());
+            propertyMap.put("replaced-value", property.get());
+            map.put(property.getName(), propertyMap);
+        }
+        List<String> header = Arrays.asList("Player", "tabprefix", "(custom)tabname", "tabsuffix", "Disabled with condition");
+        List<List<String>> players = Arrays.stream(TAB.getInstance().getOnlinePlayers()).map(p -> Arrays.asList(
+                p.getName(),
+                "\"" + p.tablistData.prefix.get() + "\"",
+                "\"" + p.tablistData.name.get() + "\"",
+                "\"" + p.tablistData.suffix.get() + "\"",
+                String.valueOf(p.tablistData.disabled.get())
+        )).collect(Collectors.toList());
+        if (proxy != null) {
+            for (ProxyPlayer proxied : proxy.getProxyPlayers().values()) {
+                players.add(Arrays.asList(
+                        "[Proxy] " + proxied.getName(),
+                        proxied.getTabFormat() == null ? "null" : "\"" + proxied.getTabFormat().getPrefix() + "\"",
+                        proxied.getTabFormat() == null ? "null" : "\"" + proxied.getTabFormat().getName() + "\"",
+                        proxied.getTabFormat() == null ? "null" : "\"" + proxied.getTabFormat().getSuffix() + "\"",
+                        "N/A"
+                ));
+            }
+        }
+        map.put("current values for all players (without applying relational placeholders)", DumpUtils.tableToLines(header, players));
+        return map;
     }
 
     // ------------------
@@ -383,7 +421,9 @@ public class PlayerList extends RefreshableFeature implements TabListFormatManag
                     proxy.getIdCounter().incrementAndGet(),
                     player.getUniqueId(),
                     player.getName(),
-                    player.tablistData.prefix.get() + player.tablistData.name.get() + player.tablistData.suffix.get(),
+                    player.tablistData.prefix.get(),
+                    player.tablistData.name.get(),
+                    player.tablistData.suffix.get(),
                     TabComponent.empty() // This instance is for writing, parsed is not needed on this side
             ));
         }

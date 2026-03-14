@@ -3,6 +3,8 @@ package me.neznamy.tab.shared.features.nametags;
 import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.api.nametag.NameTagManager;
+import me.neznamy.tab.shared.Property;
+import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.config.MessageFile;
@@ -18,6 +20,7 @@ import me.neznamy.tab.shared.platform.Scoreboard.CollisionRule;
 import me.neznamy.tab.shared.platform.Scoreboard.NameVisibility;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
+import me.neznamy.tab.shared.util.DumpUtils;
 import me.neznamy.tab.shared.util.OnlinePlayers;
 import me.neznamy.tab.shared.util.cache.LastColorCache;
 import me.neznamy.tab.shared.util.cache.StringToComponentCache;
@@ -25,10 +28,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Getter
 public class NameTag extends RefreshableFeature implements NameTagManager, JoinListener, QuitListener,
-        Loadable, WorldSwitchListener, ServerSwitchListener, VanishListener, CustomThreaded, ProxyFeature, GroupListener {
+        Loadable, WorldSwitchListener, ServerSwitchListener, VanishListener, CustomThreaded, ProxyFeature, GroupListener, Dumpable {
 
     private final ThreadExecutor customThread = new ThreadExecutor("TAB NameTag Thread");
     private OnlinePlayers onlinePlayers;
@@ -72,7 +76,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                 all.teamData.disabled.set(true);
                 continue;
             }
-            TAB.getInstance().getPlaceholderManager().getTabExpansion().setNameTagVisibility(all, true);
+            all.expansionData.setNameTagVisibility(true);
             sendProxyMessage(all);
         }
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
@@ -132,7 +136,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                 registerTeam(all, connectedPlayer);
             }
         }
-        TAB.getInstance().getPlaceholderManager().getTabExpansion().setNameTagVisibility(connectedPlayer, true);
+        connectedPlayer.expansionData.setNameTagVisibility(true);
         if (proxy != null) {
             ProxyPlayer proxyPlayer = proxy.getProxyPlayers().get(connectedPlayer.getUniqueId());
             if (proxyPlayer != null && proxyPlayer.getNametag() != null) {
@@ -346,7 +350,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         if (p.teamData.hasHiddenNametag()) return false; // At least 1 reason for invisible nametag exists
         if (p.teamData.hasHiddenNametag(viewer)) return false; // At least 1 reason for invisible nametag for this viewer exists
         if (viewer.teamData.invisibleNameTagView) return false; // Viewer does not want to see nametags
-        if (viewer.getVersion().getMinorVersion() == 8 && p.hasInvisibilityPotion()) return false;
+        if (viewer.getVersion() == ProtocolVersion.V1_8 && p.hasInvisibilityPotion()) return false;
         return true;
     }
 
@@ -500,6 +504,54 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                     lastColorCache.get(player.getNametag().getPrefix()).getLastStyle().toEnumChatFormat()
             );
         }
+    }
+
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "NameTags";
+    }
+
+    @Override
+    @NotNull
+    public Object dump(@NotNull TabPlayer player) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("configuration", configuration.getSection().getMap());
+        map.put("disabled with condition", player.teamData.disabled.get());
+        map.put("team name", player.teamData.teamName.replaceAll("\\p{C}", ""));
+        map.put("team handling paused with API", player.teamData.teamHandlingPaused);
+        map.put("invisible nametag view", player.teamData.invisibleNameTagView);
+        map.put("collision", player.teamData.getCollisionRule());
+        map.put("invisible nametag", visibilityRefresher.getInvisibleCondition().isMet(player));
+        for (Property property : Arrays.asList(player.teamData.prefix, player.teamData.suffix)) {
+            Map<String, Object> propertyMap = new LinkedHashMap<>();
+            propertyMap.put("configured-raw-value", property.getOriginalRawValue());
+            propertyMap.put("api-forced-raw-value", property.getTemporaryValue());
+            propertyMap.put("current-source", property.getSource());
+            propertyMap.put("replaced-value", property.get());
+            map.put(property.getName(), propertyMap);
+        }
+
+        // Table of all players
+        List<String> header = Arrays.asList("Player", "tagprefix", "team color", "tagsuffix", "Disabled with condition");
+        List<List<String>> players = Arrays.stream(TAB.getInstance().getOnlinePlayers()).map(p -> Arrays.asList(
+                p.getName(),
+                "\"" + p.teamData.prefix.get() + "\"",
+                lastColorCache.get(p.teamData.prefix.getFormat(p)).getLastStyle().toEnumChatFormat().name(),
+                "\"" + p.teamData.suffix.get() + "\"",
+                String.valueOf(p.teamData.disabled.get())
+        )).collect(Collectors.toList());
+        if (proxy != null) {
+            players.addAll(proxy.getProxyPlayers().values().stream().map(p -> Arrays.asList(
+                    "[Proxy] " + p.getName(),
+                    p.getNametag() == null ? "NULL" : "\"" + p.getNametag().getPrefix() + "\"",
+                    p.getNametag() == null ? "NULL" : lastColorCache.get(p.getNametag().getPrefix()).getLastStyle().toEnumChatFormat().name(),
+                    p.getNametag() == null ? "NULL" : "\"" + p.getNametag().getSuffix() + "\"",
+                    "N/A"
+            )).collect(Collectors.toList()));
+        }
+        map.put("current values for all players (without applying relational placeholders)", DumpUtils.tableToLines(header, players));
+        return map;
     }
 
     // ------------------
@@ -696,7 +748,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
             MessageFile messageFile = TAB.getInstance().getConfiguration().getMessages();
             player.sendMessage(visible ? messageFile.getNameTagViewShown() :messageFile.getNameTagViewHidden());
         }
-        TAB.getInstance().getPlaceholderManager().getTabExpansion().setNameTagVisibility(player, visible);
+        player.expansionData.setNameTagVisibility(visible);
         for (TabPlayer all : onlinePlayers.getPlayers()) {
             updateVisibility(all, player);
         }
@@ -706,11 +758,5 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     public boolean hasHiddenNameTagVisibilityView(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
         return ((TabPlayer)player).teamData.invisibleNameTagView;
-    }
-
-    @NotNull
-    @Override
-    public String getFeatureName() {
-        return "NameTags";
     }
 }

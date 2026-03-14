@@ -11,21 +11,22 @@ import me.neznamy.tab.shared.features.nametags.NameTag;
 import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.features.sorting.types.*;
+import me.neznamy.tab.shared.features.types.Dumpable;
 import me.neznamy.tab.shared.features.types.JoinListener;
 import me.neznamy.tab.shared.features.types.Loadable;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.util.DumpUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 /**
  * Class for handling player sorting rules
  */
-public class Sorting extends RefreshableFeature implements SortingManager, JoinListener, Loadable {
+public class Sorting extends RefreshableFeature implements SortingManager, JoinListener, Loadable, Dumpable {
 
     private NameTag nameTags;
     private LayoutManagerImpl layout;
@@ -123,7 +124,6 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
      *          player to build team name for
      */
     public void constructTeamNames(@NotNull TabPlayer p) {
-        p.sortingData.teamNameNote = "";
         StringBuilder shortName = new StringBuilder();
         for (SortingType type : usedSortingTypes) {
             shortName.append(type.getChars(p));
@@ -140,11 +140,6 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
         String finalShortName = checkTeamName(p, shortName);
         p.sortingData.shortTeamName = finalShortName;
         p.sortingData.fullTeamName = fullName.append(finalShortName.charAt(finalShortName.length() - 1)).toString();
-
-        // Do not randomly override note
-        if (p.sortingData.forcedTeamName != null) {
-            p.sortingData.teamNameNote = "Set using API";
-        }
     }
 
     /**
@@ -183,21 +178,46 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
             id++;
         }
     }
-    
-    /**
-     * Converts sorting types into user-friendly sorting types into /tab debug
-     *
-     * @return  user-friendly representation of sorting types
-     */
-    @NotNull
-    public String typesToString() {
-        return Arrays.stream(usedSortingTypes).map(SortingType::getDisplayName).collect(Collectors.joining(" -> "));
-    }
 
     @NotNull
     @Override
     public String getFeatureName() {
         return "Sorting";
+    }
+
+    @Override
+    @NotNull
+    public Object dump(@NotNull TabPlayer player) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("configuration", configuration.getSection().getMap());
+        map.put("short-team-name", player.sortingData.shortTeamName.replaceAll("\\p{C}", ""));
+        map.put("full-team-name", player.sortingData.fullTeamName.replaceAll("\\p{C}", ""));
+        map.put("forced-team-name", player.sortingData.forcedTeamName);
+
+        List<List<String>> sortedPlayersTable = new ArrayList<>();
+        List<String> header = new ArrayList<>();
+        header.add("Player");
+        for (SortingType type : usedSortingTypes) {
+            header.add(type.getDisplayName());
+        }
+        Map<String, TabPlayer> players = new HashMap<>();
+        for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
+            players.put(p.sortingData.shortTeamName, p);
+        }
+
+        Map<String, TabPlayer> sorted = new TreeMap<>(players);
+        for (TabPlayer p : sorted.values()) {
+            List<String> row = new ArrayList<>();
+            row.add(p.getName());
+            for (SortingType type : usedSortingTypes) {
+                row.add(type.getReturnedValue(p));
+            }
+            sortedPlayersTable.add(row);
+        }
+
+        map.put("players in the order they appear in tablist along with returned values of sorting types", DumpUtils.tableToLines(header, sortedPlayersTable));
+
+        return map;
     }
 
     // ------------------
@@ -212,7 +232,6 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
         if (Objects.equals(p.sortingData.forcedTeamName, name)) return;
         if (name != null) {
             if (name.length() > Limitations.TEAM_NAME_LENGTH) throw new IllegalArgumentException("Team name cannot be more than 16 characters long.");
-            p.sortingData.teamNameNote = "Set using API";
         }
         p.sortingData.forcedTeamName = name;
         if (layout != null) layout.updateTeamName(p, p.sortingData.getFullTeamName());

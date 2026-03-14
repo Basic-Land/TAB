@@ -16,6 +16,7 @@ import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.PerformanceUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,8 @@ public class BossBarLine implements BossBar {
     @Getter private final String name;
 
     //display condition
+    @Getter
+    @Nullable
     private final Condition displayCondition;
 
     //uuid
@@ -95,9 +98,9 @@ public class BossBarLine implements BossBar {
                 colorRefresher = new ColorRefresher());
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.bossBarStyle(name),
                 styleRefresher = new StyleRefresher());
-        announceEndPlaceholder = TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder(
+        announceEndPlaceholder = TAB.getInstance().getPlaceholderManager().registerServerPlaceholder(
                 TabConstants.Placeholder.bossbarAnnounceTotal(name), -1, () -> PerformanceUtil.toString(announceTimeTotalSeconds));
-        TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder(
+        TAB.getInstance().getPlaceholderManager().registerServerPlaceholder(
                 TabConstants.Placeholder.bossbarAnnounceLeft(name), 100, () -> {
             long seconds = TimeUnit.MILLISECONDS.toSeconds(announceEndSystemTime - System.currentTimeMillis());
             if (seconds < 0) return "0";

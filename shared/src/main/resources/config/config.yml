@@ -148,7 +148,7 @@ layout:
         - '43|&8&m                       '
       groups:
         staff:
-          condition: permission:tab.staff
+          display-condition: permission:tab.staff
           slots:
             - 24-40
         players:
@@ -183,6 +183,7 @@ placeholders:
   time-format: "[HH:mm:ss / h:mm a]"
   time-offset: 0
   register-tab-expansion: false
+  locale: en-US
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements
 placeholder-output-replacements:
@@ -223,7 +224,6 @@ primary-group-finding-list:
 # Refresh interval (in milliseconds) of:
 # - Permission checks in conditions / sorting
 # - Group retrieving from permission plugin for sorting / per-group properties
-# - Prefix/suffix placeholders taking data from permission plugin
 permission-refresh-interval: 1000
 
 # Unlocks extra console messages
@@ -260,7 +260,7 @@ components:
   disable-shadow-for-heads: true
 
 # Internal value, do not change this
-config-version: 4
+config-version: 6
 
 ########################################################################
 # BUKKIT ONLY - THE FOLLOWING SECTION IS ONLY FOR BACKEND INSTALLATION #

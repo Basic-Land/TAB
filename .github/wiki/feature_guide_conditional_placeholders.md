@@ -1,28 +1,25 @@
 # Content
 * [About](#about)
 * [Condition types](#condition-types)
-    * [Number comparisons](#number-comparisons)
-    * [Text operations](#text-operations)
-    * [Permission](#permission)
-* [Multiple condition requirements](#multiple-condition-requirements)
-* [Condition output](#condition-output)
-* [Configuration](#configuration)
+  * [Number comparisons](#number-comparisons)
+  * [Text operations](#text-operations)
+  * [Permission](#permission)
 * [Usage](#usage)
-    * [Displaying text](#displaying-text)
-    * [Display condition of a feature](#display-condition-of-a-feature)
-        * [Short format](#short-format)
+  * [Conditional text](#conditional-text)
+  * [Using in a field where condition is expected](#using-in-a-field-where-condition-is-expected)
+  * [Using in a field where condition is expected (short format)](#using-in-a-field-where-condition-is-expected-short-format)
+  * [Relational conditions](#relational-conditions)
 * [Refresh interval](#refresh-interval)
 * [Examples](#examples)
-    * [Example 1 - Chaining conditional placeholders](#example-1---chaining-conditional-placeholders)
-    * [Example 2 - Combining AND and OR](#example-2---combining-and-and-or)
-    * [Example 3 - Negating expressions](#example-3---negating-expressions)
+  * [Example 1 - Chaining conditional placeholders](#example-1---chaining-conditional-placeholders)
+  * [Example 2 - Combining AND and OR](#example-2---combining-and-and-or)
 
 # About
 Conditions / conditional placeholders allow you
 to create output which depends on the output of other placeholders or permission requirement.  
 They have 2 main uses in the plugin:
-* Display condition which must be met to be able to see something (bossbar, scoreboard, layout)
-* Conditional placeholders which return defined outputs in both cases if the condition passes or fails
+* `display-condition` which must be met to be able to see something (bossbar, scoreboard, layout) or `disable-condition` for disabling a feature (scoreboard-teams, tablist-name-formatting, ...)
+* Conditional placeholders which return defined outputs based on if the condition passes or fails
 
 # Condition types
 ## Number comparisons
@@ -49,7 +46,7 @@ They have 2 main uses in the plugin:
 > For `=` and `!=` you can check for empty output of a placeholder using `%my_placeholder%=` and `%my_placeholder%!=`.
 
 > [!NOTE]
-> For string operations, the text must match placeholder's output exactly, including color codes.
+> For string operations, the text must match placeholder's output exactly, including color codes, as well as lower/UPPER case letters.
 If you are using [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements),
 condition must contain the altered output.  
 To see the exact output of a placeholder including color codes, use `/tab parse <player> <placeholder>`.
@@ -60,82 +57,65 @@ To see the exact output of a placeholder including color codes, use `/tab parse 
 | `permission:<value>`  | Permission requirement          | `permission:my.permission` will pass if player has `my.permission` permission                |
 | `!permission:<value>` | Negative permission requirement | `!permission:my.permission` will pass if player **does not have** `my.permission` permission |
 
-# Multiple condition requirements
-Each condition has a `conditions` parameter, which a list of conditions. If you define more than 1 condition, you must specify the condition type.  
-This value can be found under `type` field. Types are:
-* `AND` - all sub-conditions must be met for the final condition to pass
-* `OR` - at least one sub-condition must be met for the final condition to pass
-
-If you only defined one subcondition, you don't need to define the type at all, since it's not used for anything.
-
-# Condition output
-If using condition as a placeholder, you can specify output in both cases using `true` and `false` values. `true` is used when condition passes, `false` if not. If using condition only as a view requirement, you can leave these values empty / not specify them at all.
-
-# Configuration
-Open **config.yml** and find this section:
-```
-conditions:
-  health:
-    conditions:
-    - '%health%<21'
-    - '%health%>15'
-    type: AND
-    true: Healthy!
-    false: Damaged!
-```
-`health` is name of our condition in this case.  
-`conditions` is a list of subconditions that must be met for this condition to pass.  
-`type` defines whether all subconditions must be met or at least one.  
-`true` & `false` define output in both cases.
-
 # Usage
-You have 2 ways to use conditions.
+There are multiple different ways you can use conditions, all of which are described below.
 
-## Displaying text
-The first way is to use conditions to display text.
-Configure outputs in `true` and `false` values and then use `%condition:<name>%`,
-which will output text defined in `true` or `false` depending on if condition is met or not.
-<details>
-  <summary>Example</summary>
+## Conditional text
+This way allows you to create conditional text that depends on other placeholders.
 
+First, find the `conditions` section in your config and create a new condition like this one:
 ```
 conditions:
-  serverName:
+  lobby:
     conditions:
-      - "%server%=lobby"
-    true: "You are in the lobby"
+    - '%server%=lobby'
+    true: "You are in lobby"
     false: "You are not in lobby"
 ```
+This condition checks if player is in server `lobby` and if yes, displays `"You are in lobby"`, otherwise displays `"Your are not in lobby"`.  
+To check for more than just 1 condition, add more to the list. Additionally, you will now need to specify `type`, which is either `AND` or `OR`.
 
-Use with `%condition:serverName%`
-</details>
-
-## Display condition of a feature
-The second way is to use condition's name in places where a condition is accepted.
-This includes display conditions for bossbar, scoreboard and layout.
-In these cases, true/false texts are unused; therefore, they do not need to be defined.
-<details>
-  <summary>Example</summary>
-
+For example,
 ```
 conditions:
-  MyCondition:
+  lobby:
     conditions:
-      - "permission:tab.admin"
+    - '%server%=lobby'
+    - '%server%=lobby2'
+    type: OR
+    true: "You are in lobby"
+    false: "You are not in lobby"
 ```
+will return the lobby text if player is in server `lobby` **OR** in server `lobby2`. If you want both of those conditions to be required to display text, use `type: AND`.  
+It is not possible to combine both `AND` and `OR` in a single condition. To do that, create multiple conditions and use one inside another (see Example 2 below).
+
+Now that the condition is created, we can use it using `%condition:lobby%`. This placeholder will return the texts configured in `true` and `false` values based on whether the condition was met or not.
+
+## Using in a field where condition is expected
+A lot of the features support either `display-condition` or `disable-condition`. The value configured is expected to be a condition. Let's say we want to use it as a display condition somewhere, for example when player is in server `lobby`. First, create the condition:
 ```
-scoreboards:
-  MyScoreboard:
-    display-condition: MyCondition
+conditions:
+  lobby:
+    conditions:
+    - '%server%=lobby'
 ```
+As you can see, `true` and `false` were not configured. This is because we are not trying to display any text, we are passing the condition as an object to evaluate.  
+Then, use `display-condition: lobby` in the feature. This will evaluate the condition named `lobby` and either display or not display the visual based on player's server. To check for 2 servers, use
+```
+conditions:
+  lobby:
+    conditions:
+    - '%server%=lobby'
+    - '%server%=lobby2'
+    type: OR
+```
+Now, the condition `lobby` will pass if player is in server `lobby` **OR** in server `lobby2`. To require both of the conditions to be met instead of at least 1, use `type: AND`.  
+It is not possible to combine both `AND` and `OR` in a single condition. To do that, create multiple conditions and use one inside another (see Example 2 below).
 
-In this example, scoreboard will only be displayed to players with `tab.admin` permission.
-</details>
+## Using in a field where condition is expected (short format)
+When using condition as a `display-condition` or `disable-condition`, you don't need to specify `true` / `false` texts. In fact, you only need the list of conditions and separator (AND / OR).  
+For this purpose, short format was created. Instead of having to create a condition and using it, you can specify the expression directly.
 
-### Short format
-If trying to use a condition on place where it's available (bossbar display condition, scoreboard display condition) where you don't need the true/false values, you can use a short format instead.
-
-This can be used by simply creating all subconditions and separating them with `;` for `AND` condition type. For `OR` type, use `|`.  
 **Single condition example**:
 ```
 display-condition: "%server%=lobby"
@@ -150,6 +130,24 @@ display-condition: "%server%=lobby;%world%=world"
 ```
 display-condition: "%server%=lobby|%server%=lobby2"
 ```
+It is not possible to combine both `AND` (`;`) and `OR` (`|`) in a single condition. To do that, create multiple conditions and use one inside another (see Example 2 below).
+
+## Relational conditions
+> [!NOTE]
+> This section only describes differences from standard conditions. For more information about those, see sections above.
+
+Relational conditions allow you to check placeholder outputs for the player who is looking instead of only the target player.
+
+To make placeholder check for viewer instead of the target player, use `%viewer:<placeholder>%` instead of just `%placeholder%`.  
+You can still check for target player using `%placeholder%` or `%target:<placeholder>%` (if you want to make it more clear for the reader).  
+Example: `%viewer:server%=%server%` will pass if viewer is in the same server as the target player.
+
+There are 2 ways to use it:
+* display-condition of layout player groups (which is currently the only feature supporting it as it would not make sense elsewhere)
+* A placeholder using `%rel_condition:<condition>%` syntax
+
+If trying to use relational condition in `%condition:name%` syntax, it will return a warning text instead of evaluating the condition.
+Same the other way around, if trying to use standard condition in `%rel_condition:name%` syntax, it will return a warning text.
 
 # Refresh interval
 Conditions are just placeholders after all, and, as such, they must be refreshed periodically.
@@ -205,32 +203,3 @@ conditions:
     type: AND
 ```
 Then, use condition `main` as the display condition (or as a placeholder - `%condition:main%`). Note that `true`/`false` values were not defined, as such, they default to `true` and `false`, respectively. Therefore, we use the placeholder from the condition and check if the result is `true`. Then, check if player is also in the specified server.
-
-## Example 3 - Negating expressions
-Most condition types contain their opposites, such as:
-* `=` -> `!=`
-* `permission:` -> `!permission:`
-* `>=` -> `<`
-* `>` -> `<=`
-* `|-` -> `!|-`
-* `-|` -> `!-|`
-* `<-` -> `!<-`
-
-You can achieve this by creating a full condition and check if it returned false.  
-**Example:**  
-Original:
-```
-display-condition: "%server%|-lobby"
-```
-Negated:
-```
-conditions:
-  lobby:
-    conditions:
-      - "%server%|-lobby"
-```
-...
-```
-display-condition: "%condition:lobby%=false"
-```
-This way, the display condition will pass if the nested condition returned `false` (player is not in any lobby).

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.component.TabComponent;
@@ -14,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Decorated class for TabList that tracks entries and their expected values.
@@ -34,7 +36,7 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
     protected final P player;
 
     /** Forced display names based on configuration, saving to restore them if another plugin overrides them */
-    private final Map<UUID, TabComponent> forcedDisplayNames = Collections.synchronizedMap(new WeakHashMap<>());
+    private final Map<UUID, TabComponent> forcedDisplayNames = new ConcurrentHashMap<>();
 
     /** Players to change to survival gamemode instead of spectator */
     private final Set<UUID> blockedSpectators = Collections.synchronizedSet(new HashSet<>());
@@ -52,8 +54,12 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
 
     @Override
     public void updateDisplayName(@NonNull UUID entry, @Nullable TabComponent displayName) {
-        forcedDisplayNames.put(entry, displayName);
-        if (player.getVersion().getMinorVersion() < 8) {
+        if (displayName != null) {
+            forcedDisplayNames.put(entry, displayName);
+        } else {
+            forcedDisplayNames.remove(entry);
+        }
+        if (player.getVersion().getNetworkId() < ProtocolVersion.V1_8.getNetworkId()) {
             return; // Display names are not supported on 1.7 and below
         }
         updateDisplayName0(entry, displayName);
@@ -61,9 +67,13 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
 
     @Override
     public void addEntry(@NonNull Entry entry) {
-        forcedDisplayNames.put(entry.getUniqueId(), entry.getDisplayName());
+        if (entry.getDisplayName() != null) {
+            forcedDisplayNames.put(entry.getUniqueId(), entry.getDisplayName());
+        } else {
+            forcedDisplayNames.remove(entry.getUniqueId());
+        }
         addEntry0(entry);
-        if (player.getVersion().getMinorVersion() == 8) {
+        if (player.getVersion() == ProtocolVersion.V1_8) {
             // Compensation for 1.8.0 client sided bug
             updateDisplayName0(entry.getUniqueId(), entry.getDisplayName());
         }
@@ -71,8 +81,12 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
 
     @Override
     public void updateDisplayName(@NonNull TabPlayer target, @Nullable TabComponent displayName) {
-        forcedDisplayNames.put(target.getTablistId(), displayName);
-        if (target.getVersion().getMinorVersion() < 8) {
+        if (displayName != null) {
+            forcedDisplayNames.put(target.getTablistId(), displayName);
+        } else {
+            forcedDisplayNames.remove(target.getTablistId());
+        }
+        if (target.getVersion().getNetworkId() < ProtocolVersion.V1_8.getNetworkId()) {
             return; // Display names are not supported on 1.7 and below
         }
         if (containsEntry(target.getTablistId())) {
@@ -164,13 +178,7 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
         updateGameMode(player, player.getGamemode());
     }
 
-    /**
-     * Returns {@code true} if tablist contains specified entry, {@code false} if not.
-     *
-     * @param   entry
-     *          UUID of entry to check
-     * @return  {@code true} if tablist contains specified entry, {@code false} if not
-     */
+    @Override
     public boolean containsEntry(@NonNull UUID entry) {
         return player.getTabListEntryTracker() == null || player.getTabListEntryTracker().containsEntry(entry);
     }
@@ -189,6 +197,49 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
             updateListed(all, true);
         }
+    }
+
+    @Override
+    @NotNull
+    public Collection<UUID> getEntries() {
+        if (player.getTabListEntryTracker() == null) return Collections.emptyList(); // This method is overridden in these cases anyway
+        return player.getTabListEntryTracker().getEntries();
+    }
+
+    @Override
+    @NotNull
+    public Object dump() {
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        // Expected display names
+        Map<String, Object> forcedDisplayNames = new LinkedHashMap<>();
+        for (Map.Entry<UUID, TabComponent> entry : this.forcedDisplayNames.entrySet()) {
+            forcedDisplayNames.put(entry.getKey().toString(), entry.getValue() == null ? null : entry.getValue().toLegacyText());
+        }
+        data.put("expected display names (using legacy text)", forcedDisplayNames);
+
+        // All entries
+        List<String> entries = new ArrayList<>();
+        for (UUID entry : getEntries()) {
+            StringBuilder string = new StringBuilder(entry.toString());
+            TabPlayer byInternalId = TAB.getInstance().getPlayer(entry);
+            List<String> matches = new ArrayList<>();
+            if (byInternalId != null) {
+                matches.add("internal UUID of " + byInternalId.getName());
+            }
+            TabPlayer byTablistId = TAB.getInstance().getPlayerByTabListUUID(entry);
+            if (byTablistId != null) {
+                matches.add("tablist UUID of " + byTablistId.getName());
+            }
+            if (!matches.isEmpty()) {
+                string.append(" (").append(String.join(", ", matches)).append(")");
+            }
+
+            entries.add(string.toString());
+        }
+        data.put("entries", entries);
+
+        return data;
     }
 
     /**

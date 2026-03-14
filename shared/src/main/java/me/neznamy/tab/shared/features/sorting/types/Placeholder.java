@@ -30,7 +30,7 @@ public class Placeholder extends SortingType {
      *          Result of splitting the options string containing the placeholder and its values
      */
     public Placeholder(Sorting sorting, PlaceholderSplitResult result) {
-        super(sorting, "PLACEHOLDER", result.placeholder);
+        super(sorting, "PLACEHOLDER:" + result.placeholder, result.placeholder);
         sortingMap = convertSortingElements(result.values);
     }
 
@@ -58,20 +58,30 @@ public class Placeholder extends SortingType {
 
     @Override
     public String getChars(@NotNull TabPlayer p) {
-        if (!valid) return "";
+        if (sortingPlaceholder == null) return "";
         String output = EnumChatFormat.color(setPlaceholders(p));
-        p.sortingData.teamNameNote += "\n-> " + sortingPlaceholder + " returned \"&e" + output + "&r\"";
         int position;
         String cleanOutput = output.trim().toLowerCase(Locale.US);
         if (!sortingMap.containsKey(cleanOutput)) {
-            TAB.getInstance().getConfigHelper().runtime().valueNotInPredefinedValues(sortingPlaceholder, sortingMap.keySet(), cleanOutput, p);
+            TAB.getInstance().getConfigHelper().runtime().valueNotInPredefinedValues(sortingPlaceholder.getIdentifier(), sortingMap.keySet(), cleanOutput, p);
             position = sortingMap.size()+1;
-            p.sortingData.teamNameNote += "&c (not in list)&r. ";
         } else {
             position = sortingMap.get(cleanOutput);
-            p.sortingData.teamNameNote += "&r &a(#" + position + " in list). &r";
         }
         return String.valueOf((char) (position + 47));
+    }
+
+    @Override
+    @NotNull
+    public String getReturnedValue(@NotNull TabPlayer p) {
+        if (sortingPlaceholder == null) return "<INVALID>";
+        String output = EnumChatFormat.color(setPlaceholders(p));
+        String cleanOutput = output.trim().toLowerCase(Locale.US);
+        if (!sortingMap.containsKey(cleanOutput)) {
+            return output + " (not in list)";
+        } else {
+            return output + " (#" + sortingMap.get(cleanOutput) + " in list)";
+        }
     }
 
     @AllArgsConstructor

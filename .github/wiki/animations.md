@@ -44,6 +44,7 @@ That includes header/footer, prefix/suffix, belowname, playerlist objective, bos
 # Tips & Tricks
 * Animations don't need to be fast. You can use them as a changing text in general.
 * Animations can also be used as a short alias to a long text. You can do this by creating an animation with one frame.
+* Adding to the previous point, animations can be used as a way to wrap a placeholder, having two different identifiers return the same value, allowing to use both original and replaced output from [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements).
 
 # External tools
 If you want an animation too complicated to be done manually, you can check out these websites:
@@ -56,5 +57,5 @@ If you want an animation too complicated to be done manually, you can check out 
 All animations start at the same time, which is time of plugin being (re)loaded.
 Thanks to this, all animations with the same number of frames and the same change interval will be synchronized.  
 If you want to synchronize multiple animations with a different change interval and different number of frames,
-you need to make sure `(frame count)*(change interval)` is same for both animations,
-for example one animation with 10 frames and 1000ms and second animation with 2 frames and 5000ms.
+you need to make sure `(frame count)*(change interval)` is same for both animations.
+For example, one animation with 10 frames and 1000ms and second animation with 2 frames and 5000ms.

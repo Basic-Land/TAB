@@ -18,14 +18,18 @@ public class PlaceholderLowToHigh extends SortingType {
      *          Placeholder to sort by
      */
     public PlaceholderLowToHigh(Sorting sorting, String sortingPlaceholder) {
-        super(sorting, "PLACEHOLDER_LOW_TO_HIGH", sortingPlaceholder);
+        super(sorting, "PLACEHOLDER_LOW_TO_HIGH:" + sortingPlaceholder, sortingPlaceholder);
     }
 
     @Override
     public String getChars(@NotNull TabPlayer p) {
-        if (!valid) return "";
-        String output = setPlaceholders(p);
-        p.sortingData.teamNameNote += "\n-> " + sortingPlaceholder + " returned \"&e" + output + "&r\". &r";
-        return compressNumber(DEFAULT_NUMBER + parseDouble(sortingPlaceholder, output, 0, p));
+        if (sortingPlaceholder == null) return "";
+        return compressNumber(DEFAULT_NUMBER + parseDouble(setPlaceholders(p), 0, p));
+    }
+
+    @Override
+    @NotNull
+    public String getReturnedValue(@NotNull TabPlayer p) {
+        return setPlaceholders(p);
     }
 }

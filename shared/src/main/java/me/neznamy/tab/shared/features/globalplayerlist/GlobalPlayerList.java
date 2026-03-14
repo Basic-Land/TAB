@@ -1,6 +1,7 @@
 package me.neznamy.tab.shared.features.globalplayerlist;
 
 import lombok.Getter;
+import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
@@ -42,15 +43,15 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
         this.configuration = configuration;
         TAB.getInstance().getDataManager().applyConfiguration(configuration);
         for (Map.Entry<String, List<String>> entry : configuration.getSharedServers().entrySet()) {
-            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder(TabConstants.Placeholder.globalPlayerListGroup(entry.getKey()), 1000, () -> {
+            TAB.getInstance().getPlaceholderManager().registerServerPlaceholder(TabConstants.Placeholder.globalPlayerListGroup(entry.getKey()), 1000, () -> {
                 if (onlinePlayers == null) return "0"; // Not loaded yet
                 int count = 0;
                 for (TabPlayer player : onlinePlayers.getPlayers()) {
-                    if (entry.getValue().contains(player.server.getName()) && !player.isVanished()) count++;
+                    if (matchesAnyPattern(player.server.getName(), entry.getValue()) && !player.isVanished()) count++;
                 }
                 if (proxy != null) {
                     for (ProxyPlayer player : proxy.getProxyPlayers().values()) {
-                        if (entry.getValue().contains(player.server.getName()) && !player.isVanished()) count++;
+                        if (matchesAnyPattern(player.server.getName(), entry.getValue()) && !player.isVanished()) count++;
                     }
                 }
                 return PerformanceUtil.toString(count);
@@ -119,6 +120,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     public void onQuit(@NotNull TabPlayer disconnectedPlayer) {
         onlinePlayers.removePlayer(disconnectedPlayer);
         for (TabPlayer all : onlinePlayers.getPlayers()) {
+            if (disconnectedPlayer.server == all.server) continue; // Already removed by server itself
             all.getTabList().removeEntry(disconnectedPlayer.getTablistId());
         }
     }
@@ -181,7 +183,7 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
                 true,
                 configuration.isUpdateLatency() ? p.getPing() : 0,
                 configuration.isOthersAsSpectators() || (configuration.isVanishedAsSpectators() && p.isVanished()) ? 3 : p.getGamemode(),
-                viewer.getVersion().getMinorVersion() >= 8 ? format : null,
+                viewer.getVersion().getNetworkId() >= ProtocolVersion.V1_8.getNetworkId() ? format : null,
                 0,
                 true
         );
@@ -294,5 +296,27 @@ public class GlobalPlayerList extends RefreshableFeature implements JoinListener
     @Override
     public String getFeatureName() {
         return "Global PlayerList";
+    }
+
+    /**
+     * Checks if a server name matches any of the given patterns. Supports:
+     * - Exact match: "lobby"
+     * - Prefix wildcard: "lobby*"
+     * - Suffix wildcard: "*lobby"
+     * - Regex pattern: "regex:lobby-[0-9]+"
+     *
+     * @param   serverName
+     *          Server name to check
+     * @param   patterns
+     *          List of patterns to match against
+     * @return  {@code true} if server name matches any pattern, {@code false} otherwise
+     */
+    private boolean matchesAnyPattern(@NotNull String serverName, @NotNull List<String> patterns) {
+        for (String pattern : patterns) {
+            if (TAB.getInstance().getDataManager().matchesServerPattern(serverName, pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

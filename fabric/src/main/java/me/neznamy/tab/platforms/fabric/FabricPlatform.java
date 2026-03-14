@@ -8,10 +8,12 @@ import com.mojang.logging.LogUtils;
 import eu.pb4.placeholders.api.PlaceholderContext;
 import eu.pb4.placeholders.api.Placeholders;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.fabric.hook.FabricTabExpansion;
 import me.neznamy.tab.shared.ProjectVariables;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.backend.BackendPlatform;
+import me.neznamy.tab.shared.chat.TabClickEvent;
 import me.neznamy.tab.shared.chat.TabStyle;
 import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.chat.component.TabKeybindComponent;
@@ -31,6 +33,7 @@ import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.*;
@@ -44,10 +47,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.UUID;
-import java.util.function.Consumer;
+import java.net.URI;
+import java.util.*;
+import java.util.function.BiConsumer;
 
 /**
  * Platform implementation for Fabric
@@ -118,12 +120,6 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
     }
 
     @Override
-    @NotNull
-    public String getServerVersionInfo() {
-        return "[Fabric] " + SharedConstants.getCurrentVersion().name();
-    }
-
-    @Override
     public void registerListener() {
         new FabricEventListener().register();
     }
@@ -171,6 +167,10 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
                 .withObfuscated(modifier.getObfuscated())
                 .withFont(modifier.getFont() == null ? null : new FontDescription.Resource(Identifier.parse(modifier.getFont())));
         if (modifier.getShadowColor() != null) style = style.withShadowColor(modifier.getShadowColor());
+
+        if (modifier.getClickEvent() != null) {
+            style = style.withClickEvent(convertClickEvent(modifier.getClickEvent()));
+        }
         nmsComponent.setStyle(style);
 
         // Extra
@@ -194,6 +194,27 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
         } else {
             throw new IllegalStateException("Player head component does not have id, name or skin set");
         }
+    }
+
+    @SneakyThrows
+    @Nullable
+    private ClickEvent convertClickEvent(@NotNull TabClickEvent event) {
+        String value = event.getValue();
+        switch (event.getAction()) {
+            case OPEN_URL:
+                return new ClickEvent.OpenUrl(new URI(value));
+            case OPEN_FILE:
+                return new ClickEvent.OpenFile(value);
+            case RUN_COMMAND:
+                return new ClickEvent.RunCommand(value);
+            case SUGGEST_COMMAND:
+                return new ClickEvent.SuggestCommand(value);
+            case CHANGE_PAGE:
+                return new ClickEvent.ChangePage(Integer.parseInt(value));
+            case COPY_TO_CLIPBOARD:
+                return new ClickEvent.CopyToClipboard(value);
+        }
+        return null;
     }
 
     @Override
@@ -220,7 +241,7 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
     }
 
     @Override
-    public void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function) {
+    public void registerCustomCommand(@NotNull String commandName, @NotNull BiConsumer<TabPlayer, String[]> function) {
         FabricCommand command = new FabricCommand(commandName) {
 
             @Override
@@ -228,7 +249,7 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
                 if (source.getEntity() != null) {
                     TabPlayer p = TAB.getInstance().getPlayer(source.getEntity().getUUID());
                     if (p == null) return 0; //player not loaded correctly
-                    function.accept(p);
+                    function.accept(p, args);
                     return 0;
                 }
                 source.sendSystemMessage(TabComponent.fromColoredText(
@@ -254,5 +275,21 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
     @Override
     public double getMSPT() {
         return (float) server.getAverageTickTimeNanos() / 1000000;
+    }
+
+    @Override
+    @NotNull
+    public Object dump() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("server-type", "Fabric");
+        map.put("server-name", "Fabric");
+        map.put("server-version", SharedConstants.getCurrentVersion().name());
+        map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
+        Map<String, Object> mods = new LinkedHashMap<>();
+        for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
+            mods.put(mod.getMetadata().getId(), mod.getMetadata().getVersion().getFriendlyString());
+        }
+        map.put("mods", mods);
+        return map;
     }
 }

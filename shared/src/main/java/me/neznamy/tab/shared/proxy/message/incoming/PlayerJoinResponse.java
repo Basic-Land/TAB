@@ -1,11 +1,11 @@
 package me.neznamy.tab.shared.proxy.message.incoming;
 
 import com.google.common.io.ByteArrayDataInput;
-import me.neznamy.tab.api.placeholder.Placeholder;
 import me.neznamy.tab.api.placeholder.RelationalPlaceholder;
 import me.neznamy.tab.api.placeholder.ServerPlaceholder;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.data.World;
+import me.neznamy.tab.shared.placeholders.PlaceholderReference;
 import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
@@ -61,6 +61,7 @@ public class PlayerJoinResponse implements IncomingMessage {
         player.setInvisibilityPotion(false);
         Map<PlayerPlaceholderImpl, String> playerPlaceholderUpdates = new HashMap<>();
         for (Map.Entry<String, Object> entry : placeholders.entrySet()) {
+            player.getPlaceholders().put(entry.getKey(), entry.getValue().toString());
             String identifier = entry.getKey();
 
             // Ignore placeholders that were not registered with this reload
@@ -68,10 +69,10 @@ public class PlayerJoinResponse implements IncomingMessage {
             // It is also in bridge memory, but bridge will not return the correct value, so ignore it.
             if (!TAB.getInstance().getPlaceholderManager().getBridgePlaceholders().containsKey(identifier)) continue;
 
-            Placeholder pl = TAB.getInstance().getPlaceholderManager().getPlaceholderRaw(identifier);
+            PlaceholderReference pl = TAB.getInstance().getPlaceholderManager().getPlaceholderRaw(identifier);
             if (pl == null) continue;
             if (identifier.startsWith("%rel_")) {
-                RelationalPlaceholder rel = (RelationalPlaceholder) pl;
+                RelationalPlaceholder rel = (RelationalPlaceholder) pl.getHandle();
                 Map<String, String> map = (Map<String, String>) entry.getValue();
                 for (Map.Entry<String, String> entry2 : map.entrySet()) {
                     TabPlayer other = TAB.getInstance().getPlayer(entry2.getKey());
@@ -80,10 +81,10 @@ public class PlayerJoinResponse implements IncomingMessage {
                     }
                 }
             } else {
-                if (pl instanceof PlayerPlaceholderImpl) {
-                    playerPlaceholderUpdates.put((PlayerPlaceholderImpl) pl, (String) entry.getValue());
+                if (pl.getHandle() instanceof PlayerPlaceholderImpl) {
+                    playerPlaceholderUpdates.put((PlayerPlaceholderImpl) pl.getHandle(), (String) entry.getValue());
                 } else {
-                    ((ServerPlaceholder) pl).updateValue((String) entry.getValue());
+                    ((ServerPlaceholder) pl.getHandle()).updateValue((String) entry.getValue());
                 }
             }
         }

@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import me.clip.placeholderapi.PlaceholderAPI;
+import me.clip.placeholderapi.PlaceholderAPIPlugin;
+import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import me.neznamy.tab.platforms.bukkit.BukkitEventListener;
 import me.neznamy.tab.platforms.bukkit.BukkitPipelineInjector;
 import me.neznamy.tab.platforms.bukkit.BukkitTabCommand;
@@ -14,10 +16,7 @@ import me.neznamy.tab.platforms.bukkit.features.BukkitTabExpansion;
 import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
 import me.neznamy.tab.platforms.bukkit.hook.BukkitPremiumVanishHook;
 import me.neznamy.tab.platforms.bukkit.provider.ImplementationProvider;
-import me.neznamy.tab.shared.GroupManager;
-import me.neznamy.tab.shared.ProtocolVersion;
-import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.*;
 import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.tab.shared.chat.TabTextColor;
 import me.neznamy.tab.shared.chat.component.TabComponent;
@@ -46,10 +45,14 @@ import net.milkbowl.vault.permission.Permission;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
-import org.bukkit.command.*;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
+import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -57,7 +60,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Implementation of Platform interface for Bukkit platform
@@ -137,7 +140,7 @@ public class BukkitPlatform implements BackendPlatform {
             // Paper 1.20.5+, check for available module
             String paperModule = getPaperModule();
             if (paperModule != null) {
-                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.paper_" + paperModule + ".PaperImplementationProvider").getConstructor().newInstance();
+                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit.paper_" + paperModule + ".PaperImplementationProvider").getConstructor().newInstance();
             } else {
                 throw new UnsupportedOperationException();
             }
@@ -197,14 +200,14 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     public void registerPlaceholders() {
         PlaceholderManagerImpl manager = TAB.getInstance().getPlaceholderManager();
-        manager.registerInternalServerPlaceholder("%vault-prefix%", -1, () -> "");
-        manager.registerInternalServerPlaceholder("%vault-suffix%", -1, () -> "");
+        manager.registerServerPlaceholder("%vault-prefix%", -1, () -> "");
+        manager.registerServerPlaceholder("%vault-suffix%", -1, () -> "");
         if (Bukkit.getPluginManager().isPluginEnabled("Vault")) {
             RegisteredServiceProvider<Chat> rspChat = Bukkit.getServicesManager().getRegistration(Chat.class);
             if (rspChat != null) {
                 Chat chat = rspChat.getProvider();
-                manager.registerInternalPlayerPlaceholder("%vault-prefix%", 1000, p -> chat.getPlayerPrefix((Player) p.getPlayer()));
-                manager.registerInternalPlayerPlaceholder("%vault-suffix%", 1000, p -> chat.getPlayerSuffix((Player) p.getPlayer()));
+                manager.registerPlayerPlaceholder("%vault-prefix%", p -> chat.getPlayerPrefix((Player) p.getPlayer()));
+                manager.registerPlayerPlaceholder("%vault-suffix%", p -> chat.getPlayerSuffix((Player) p.getPlayer()));
             }
         }
         BackendPlatform.super.registerPlaceholders();
@@ -213,7 +216,7 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @Nullable
     public PipelineInjector createPipelineInjector() {
-        return serverVersion.getMinorVersion() >= 8 ? new BukkitPipelineInjector() : null;
+        return ReflectionUtils.classExists("io.netty.channel.Channel") ? new BukkitPipelineInjector() : null;
     }
 
     @Override
@@ -286,12 +289,6 @@ public class BukkitPlatform implements BackendPlatform {
     }
 
     @Override
-    @NotNull
-    public String getServerVersionInfo() {
-        return "[Bukkit] " + Bukkit.getName() + " - " + Bukkit.getBukkitVersion().split("-")[0] + " (" + serverPackage + ")";
-    }
-
-    @Override
     public void registerListener() {
         Bukkit.getPluginManager().registerEvents(new BukkitEventListener(this), plugin);
     }
@@ -313,8 +310,7 @@ public class BukkitPlatform implements BackendPlatform {
         Metrics metrics = new Metrics(plugin, TabConstants.BSTATS_PLUGIN_ID_BUKKIT);
         metrics.addCustomChart(new SimplePie(TabConstants.MetricsChart.PERMISSION_SYSTEM,
                 () -> TAB.getInstance().getGroupManager().getPermissionPlugin()));
-        String version = serverVersion == ProtocolVersion.UNKNOWN ? "Unknown" : "1." + serverVersion.getMinorVersion() + ".x";
-        metrics.addCustomChart(new SimplePie(TabConstants.MetricsChart.SERVER_VERSION, () -> version));
+        metrics.addCustomChart(new SimplePie("tab_5_5_0_servers", serverVersion::getFriendlyName));
     }
 
     @Override
@@ -345,7 +341,7 @@ public class BukkitPlatform implements BackendPlatform {
         if (BukkitBossBar.isAvailable()) return new BukkitBossBar((BukkitTabPlayer) player);
 
         // 1.9+ player on 1.8 server, handle using ViaVersion API
-        if (player.getVersion().getMinorVersion() >= 9) return new ViaBossBar((BukkitTabPlayer) player);
+        if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_9.getNetworkId()) return new ViaBossBar((BukkitTabPlayer) player);
 
         // 1.8- server and player, no implementation
         return new DummyBossBar();
@@ -378,7 +374,7 @@ public class BukkitPlatform implements BackendPlatform {
     }
 
     @Override
-    public void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function) {
+    public void registerCustomCommand(@NotNull String commandName, @NotNull BiConsumer<TabPlayer, String[]> function) {
         Command cmd = new BukkitCommand(commandName) {
 
             @Override
@@ -386,7 +382,7 @@ public class BukkitPlatform implements BackendPlatform {
                 if (commandSender instanceof Player) {
                     TabPlayer p = TAB.getInstance().getPlayer(((Player) commandSender).getUniqueId());
                     if (p == null) return false; //player not loaded correctly
-                    function.accept(p);
+                    function.accept(p, args);
                 } else {
                     commandSender.sendMessage(toBukkitFormat(
                             TabComponent.fromColoredText(TAB.getInstance().getConfiguration().getMessages().getCommandOnlyFromGame())
@@ -464,7 +460,7 @@ public class BukkitPlatform implements BackendPlatform {
     public String toBukkitFormat(@NotNull TabComponent component) {
         StringBuilder sb = new StringBuilder();
         if (component.getModifier().getColor() != null) {
-            if (serverVersion.supportsRGB()) {
+            if (serverVersion.getNetworkId() >= ProtocolVersion.V1_16.getNetworkId()) {
                 String hexCode = component.getModifier().getColor().getHexCode();
                 sb.append('§').append("x").append('§').append(hexCode.charAt(0)).append('§').append(hexCode.charAt(1))
                         .append('§').append(hexCode.charAt(2)).append('§').append(hexCode.charAt(3))
@@ -505,5 +501,29 @@ public class BukkitPlatform implements BackendPlatform {
             return Bukkit.getOnlinePlayers();
         }
         return Arrays.asList((Player[]) Bukkit.class.getMethod("getOnlinePlayers").invoke(null));
+    }
+
+    @Override
+    @NotNull
+    public Object dump() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("server-type", "Bukkit");
+        map.put("server-name", Bukkit.getName());
+        map.put("server-version", Bukkit.getBukkitVersion().split("-")[0]);
+        map.put("craftbukkit-package", serverPackage);
+        map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
+        Map<String, Object> plugins = new LinkedHashMap<>();
+        for (Plugin p : Bukkit.getPluginManager().getPlugins()) {
+            plugins.put(p.getDescription().getName(), p.getDescription().getVersion());
+        }
+        map.put("plugins", plugins);
+        if (placeholderAPI) {
+            Map<String, String> expansions = new LinkedHashMap<>();
+            for (PlaceholderExpansion p : PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansions()) {
+                expansions.put(p.getIdentifier(), p.getVersion());
+            }
+            map.put("placeholderapi-expansions", expansions);
+        }
+        return map;
     }
 }

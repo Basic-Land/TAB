@@ -1,14 +1,12 @@
 package me.neznamy.tab.shared.features.sorting.types;
 
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.features.sorting.Sorting;
+import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 /**
  * Sorting by permission nodes
@@ -27,17 +25,13 @@ public class Permissions extends SortingType {
      *          Permission nodes separated with ","
      */
     public Permissions(Sorting sorting, String options) {
-        super(sorting, "PERMISSIONS", true);
+        super(sorting, "PERMISSIONS");
         sortedGroups = convertSortingElements(options.split(","));
-        List<String> placeholders = new ArrayList<>();
         for (String permission : sortedGroups.keySet()) {
-            String placeholder = "%permission:" + permission + "%";
-            placeholders.add(placeholder);
-            TAB.getInstance().getPlaceholderManager().registerInternalPlayerPlaceholder(placeholder,
-                    TAB.getInstance().getConfiguration().getConfig().getPermissionRefreshInterval(),
+            PlayerPlaceholderImpl pl = TAB.getInstance().getPlaceholderManager().registerPlayerPlaceholder("%permission:" + permission + "%",
                     p -> Boolean.toString(((TabPlayer)p).hasPermission(permission)));
+            sorting.addUsedPlaceholder(pl.getIdentifier());
         }
-        sorting.addUsedPlaceholders(placeholders);
     }
 
     @Override
@@ -46,18 +40,24 @@ public class Permissions extends SortingType {
         for (String permission : sortedGroups.keySet()) {
             if (p.hasPermission(permission)) {
                 position = sortedGroups.get(permission.toLowerCase());
-                p.sortingData.teamNameNote += "\n-> Highest sorting permission: &e" + permission + " &a(#" + position + " in list). &r";
-                if (p.hasPermission(TabConstants.Permission.TEST_PERMISSION)) {
-                    p.sortingData.teamNameNote += "&cThis user appears to have all permissions. Are they OP? &r";
-                }
                 break;
             }
         }
         if (position == 0) {
             TAB.getInstance().getConfigHelper().runtime().noPermissionFromSortingList(sortedGroups.keySet(), p);
             position = sortedGroups.size()+1;
-            p.sortingData.teamNameNote += "\n-> &cPlayer does not have any of the defined permissions. &r";
         }
         return String.valueOf((char) (position + 47));
+    }
+
+    @Override
+    @NotNull
+    public String getReturnedValue(@NotNull TabPlayer p) {
+        for (String permission : sortedGroups.keySet()) {
+            if (p.hasPermission(permission)) {
+                return permission + " (#" + sortedGroups.get(permission.toLowerCase()) + " in list)";
+            }
+        }
+        return "NO PERMISSION";
     }
 }

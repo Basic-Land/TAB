@@ -13,43 +13,41 @@ import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.features.types.*;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.util.DumpUtils;
 import me.neznamy.tab.shared.util.OnlinePlayers;
 import me.neznamy.tab.shared.util.cache.StringToComponentCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Feature handler for BelowName feature
+ * Feature handler for scoreboard objective with BELOW_NAME display slot (under name tag).
  */
+@Getter
 public class BelowName extends RefreshableFeature implements JoinListener, QuitListener, Loadable,
-        WorldSwitchListener, ServerSwitchListener, CustomThreaded, ProxyFeature, VanishListener {
+        WorldSwitchListener, ServerSwitchListener, CustomThreaded, ProxyFeature, VanishListener, Dumpable {
 
     /** Objective name used by this feature */
     public static final String OBJECTIVE_NAME = "TAB-BelowName";
 
-    @Getter
     private final StringToComponentCache cache = new StringToComponentCache("BelowName", 1000);
 
-    @Getter
     private final ThreadExecutor customThread = new ThreadExecutor("TAB Belowname Objective Thread");
 
-    @Getter
     private OnlinePlayers onlinePlayers;
 
     private final BelowNameConfiguration configuration;
 
-    private final BelowNameTitleRefresher textRefresher = new BelowNameTitleRefresher(this, customThread);
+    private final BelowNameTitleRefresher titleRefresher = new BelowNameTitleRefresher(this);
     private final DisableChecker disableChecker;
 
     @Nullable
     private final ProxySupport proxy = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PROXY_SUPPORT);
 
     /**
-     * Constructs new instance and registers disable condition checker and text refresher to feature manager.
+     * Constructs new instance and registers disable condition checker and title refresher to feature manager.
      *
      * @param   configuration
      *          Feature configuration
@@ -58,7 +56,7 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
         this.configuration = configuration;
         disableChecker = new DisableChecker(this, TAB.getInstance().getPlaceholderManager().getConditionManager().getByNameOrExpression(configuration.getDisableCondition()), this::onDisableConditionChange, p -> p.belowNameData.disabled);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.BELOW_NAME + "-Condition", disableChecker);
-        TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.BELOW_NAME_TEXT, textRefresher);
+        TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.BELOW_NAME_TEXT, titleRefresher);
         if (proxy != null) {
             proxy.registerMessage(BelowNameProxyPlayerData.class, in -> new BelowNameProxyPlayerData(in, this));
         }
@@ -76,22 +74,20 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
                 register(loaded);
             }
             values.put(loaded, getValue(loaded));
-            sendProxyMessage(loaded.getUniqueId(), values.get(loaded), loaded.belowNameData.numberFormat.get());
+            sendProxyMessage(loaded.getUniqueId(), values.get(loaded), loaded.belowNameData.fancyValue.get());
         }
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             for (Map.Entry<TabPlayer, Integer> entry : values.entrySet()) {
-                TabPlayer target = entry.getKey();
-                if (!sameServerAndWorld(viewer, target)) continue;
-                setScore(viewer, target, entry.getValue(), target.belowNameData.numberFormat.getFormat(viewer));
+                setScore(viewer, entry.getKey(), entry.getValue(), entry.getKey().belowNameData.fancyValue.getFormat(viewer));
             }
         }
     }
 
     private void loadProperties(@NotNull TabPlayer player) {
-        player.belowNameData.score = new Property(this, player, configuration.getValue());
-        player.belowNameData.numberFormat = new Property(this, player, configuration.getFancyValue());
-        player.belowNameData.text = new Property(textRefresher, player, configuration.getTitle());
-        player.belowNameData.defaultNumberFormat = new Property(textRefresher, player, configuration.getFancyValueDefault());
+        player.belowNameData.value = new Property(this, player, configuration.getValue());
+        player.belowNameData.fancyValue = new Property(this, player, configuration.getFancyValue());
+        player.belowNameData.title = new Property(titleRefresher, player, configuration.getTitle());
+        player.belowNameData.defaultNumberFormat = new Property(titleRefresher, player, configuration.getFancyValueDefault());
     }
 
     @Override
@@ -103,13 +99,13 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
         } else {
             register(connectedPlayer);
         }
-        int number = getValue(connectedPlayer);
-        Property fancy = connectedPlayer.belowNameData.numberFormat;
+        int value = getValue(connectedPlayer);
+        Property fancyValue = connectedPlayer.belowNameData.fancyValue;
+        fancyValue.update();
         for (TabPlayer all : onlinePlayers.getPlayers()) {
-            if (!sameServerAndWorld(connectedPlayer, all)) continue;
-            setScore(all, connectedPlayer, number, fancy.getFormat(all));
+            setScore(all, connectedPlayer, value, fancyValue.getFormat(all));
             if (all != connectedPlayer) {
-                setScore(connectedPlayer, all, getValue(all), all.belowNameData.numberFormat.getFormat(connectedPlayer));
+                setScore(connectedPlayer, all, getValue(all), all.belowNameData.fancyValue.getFormat(connectedPlayer));
             }
         }
         if (proxy != null) {
@@ -142,8 +138,7 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
         } else {
             register(p);
             for (TabPlayer all : onlinePlayers.getPlayers()) {
-                if (!sameServerAndWorld(p, all)) continue;
-                setScore(p, all, getValue(all), all.belowNameData.numberFormat.getFormat(p));
+                setScore(p, all, getValue(all), all.belowNameData.fancyValue.getFormat(p));
             }
             if (proxy != null) {
                 sendProxyMessage(p);
@@ -169,7 +164,7 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
      * @return  Current value for player
      */
     public int getValue(@NotNull TabPlayer p) {
-        String string = p.belowNameData.score.updateAndGet();
+        String string = p.belowNameData.value.updateAndGet();
         try {
             return Integer.parseInt(string);
         } catch (NumberFormatException e) {
@@ -190,26 +185,25 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
     @NotNull
     @Override
     public String getRefreshDisplayName() {
-        return "Updating BelowName value";
+        return "Updating value / fancy value";
     }
 
     @Override
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
-        if (refreshed.belowNameData.score == null) return; // Player not loaded yet (refresh called before onJoin)
-        int number = getValue(refreshed);
-        Property fancy = refreshed.belowNameData.numberFormat;
-        fancy.update();
+        if (refreshed.belowNameData.value == null) return; // Player not loaded yet (refresh called before onJoin)
+        int value = getValue(refreshed);
+        Property fancyValue = refreshed.belowNameData.fancyValue;
+        fancyValue.update();
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            if (!sameServerAndWorld(viewer, refreshed)) continue;
-            setScore(viewer, refreshed, number, fancy.getFormat(viewer));
+            setScore(viewer, refreshed, value, fancyValue.getFormat(viewer));
         }
-        sendProxyMessage(refreshed.getUniqueId(), number, fancy.get());
+        sendProxyMessage(refreshed.getUniqueId(), value, fancyValue.get());
     }
 
     private void register(@NotNull TabPlayer player) {
         player.getScoreboard().registerObjective(
                 OBJECTIVE_NAME,
-                cache.get(player.belowNameData.text.updateAndGet()),
+                cache.get(player.belowNameData.title.updateAndGet()),
                 Scoreboard.HealthDisplay.INTEGER,
                 cache.get(player.belowNameData.defaultNumberFormat.updateAndGet())
         );
@@ -225,33 +219,21 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
      *          Owner of the score
      * @param   value
      *          Numeric value of the score
-     * @param   fancyDisplay
+     * @param   fancyValue
      *          NumberFormat display of the score
      */
-    public void setScore(@NotNull TabPlayer viewer, @NotNull TabPlayer scoreHolder, int value, @NotNull String fancyDisplay) {
+    public void setScore(@NotNull TabPlayer viewer, @NotNull TabPlayer scoreHolder, int value, @NotNull String fancyValue) {
         if (viewer.belowNameData.disabled.get()) return;
-        if (!viewer.canSee(scoreHolder)) return; // Prevent hack clients from knowing vanished players are connected
-        viewer.getScoreboard().setScore(
-                OBJECTIVE_NAME,
-                scoreHolder.getNickname(),
-                value,
-                null, // Unused by this objective slot
-                cache.get(fancyDisplay)
-        );
-    }
-
-    /**
-     * Returns {@code true} if the two players are in the same server and world,
-     * {@code false} if not.
-     *
-     * @param   player1
-     *          First player
-     * @param   player2
-     *          Second player
-     * @return  {@code true} if players are in the same server and world, {@code false} otherwise
-     */
-    private boolean sameServerAndWorld(@NotNull TabPlayer player1, @NotNull TabPlayer player2) {
-        return player1.server == player2.server && player1.world == player2.world;
+        if (viewer.server != scoreHolder.server || viewer.world != scoreHolder.world) return; // Viewer definitely cannot see this player in game
+        if (viewer.canSee(scoreHolder)) {
+            viewer.getScoreboard().setScore(
+                    OBJECTIVE_NAME,
+                    scoreHolder.getNickname(),
+                    value,
+                    null, // Unused by this objective slot
+                    cache.get(fancyValue)
+            );
+        }
     }
 
     @Override
@@ -266,9 +248,8 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
 
     private void updatePlayer(@NotNull TabPlayer player) {
         for (TabPlayer all : onlinePlayers.getPlayers()) {
-            if (!sameServerAndWorld(all, player)) continue;
-            setScore(player, all, getValue(all), all.belowNameData.numberFormat.getFormat(player));
-            if (all != player) setScore(all, player, getValue(player), player.belowNameData.numberFormat.getFormat(all));
+            setScore(player, all, getValue(all), all.belowNameData.fancyValue.getFormat(player));
+            if (all != player) setScore(all, player, getValue(player), player.belowNameData.fancyValue.getFormat(all));
         }
     }
 
@@ -282,7 +263,7 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
         customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
             int value = getValue(player);
             for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-                setScore(viewer, player, value, player.belowNameData.numberFormat.get());
+                setScore(viewer, player, value, player.belowNameData.fancyValue.get());
             }
         }, getFeatureName(), TabConstants.CpuUsageCategory.NICKNAME_CHANGE_PROCESS));
     }
@@ -292,11 +273,61 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
         onlinePlayers.removePlayer(disconnectedPlayer);
     }
 
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "BelowName";
+    }
+
+    @Override
+    public void onVanishStatusChange(@NotNull TabPlayer player) {
+        if (player.isVanished()) return;
+        for (TabPlayer viewer : onlinePlayers.getPlayers()) {
+            setScore(viewer, player, getValue(player), player.belowNameData.fancyValue.getFormat(viewer));
+        }
+    }
+
+    @Override
+    @NotNull
+    public Object dump(@NotNull TabPlayer analyzed) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("configuration", configuration.getSection().getMap());
+        List<String> header = Arrays.asList("Player", "value", "fancy-value", "title", "Disabled with condition");
+        List<List<String>> players = Arrays.stream(onlinePlayers.getPlayers()).map(p -> Arrays.asList(
+                p.getName(),
+                p.belowNameData.value.get(),
+                p.belowNameData.fancyValue.get(),
+                p.belowNameData.title.get(),
+                String.valueOf(p.belowNameData.disabled.get())
+        )).collect(Collectors.toList());
+        if (proxy != null) {
+            players.addAll(proxy.getProxyPlayers().values().stream().map(p -> Arrays.asList(
+                    "[Proxy] " + p.getName(),
+                    p.getBelowname() == null ? "null" : String.valueOf(p.getBelowname().getValue()),
+                    p.getBelowname() == null ? "null" : p.getBelowname().getFancyValue(),
+                    "N/A",
+                    "N/A"
+            )).collect(Collectors.toList()));
+        }
+        map.put("current values for all players (without applying relational placeholders)", DumpUtils.tableToLines(header, players));
+        return map;
+    }
+
+    // ------------------
+    // ProxySupport
+    // ------------------
+
     @Override
     public void onJoin(@NotNull ProxyPlayer player) {
         updatePlayer(player);
     }
 
+    /**
+     * Updates belowname objective data of the specified player to all connected players.
+     *
+     * @param   player
+     *          Player to update
+     */
     public void updatePlayer(@NotNull ProxyPlayer player) {
         if (player.getBelowname() == null) return; // Player not loaded yet
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
@@ -311,16 +342,12 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
         }
     }
 
-    // ------------------
-    // ProxySupport
-    // ------------------
-
     private void sendProxyMessage(@NotNull TabPlayer player) {
         if (proxy == null) return;
         sendProxyMessage(
                 player.getUniqueId(),
                 getValue(player),
-                player.belowNameData.numberFormat.get()
+                player.belowNameData.fancyValue.get()
         );
     }
 
@@ -333,20 +360,6 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
     public void onProxyLoadRequest() {
         for (TabPlayer all : onlinePlayers.getPlayers()) {
             sendProxyMessage(all);
-        }
-    }
-
-    @NotNull
-    @Override
-    public String getFeatureName() {
-        return "BelowName";
-    }
-
-    @Override
-    public void onVanishStatusChange(@NotNull TabPlayer player) {
-        if (player.isVanished()) return;
-        for (TabPlayer viewer : onlinePlayers.getPlayers()) {
-            setScore(viewer, player, getValue(player), player.belowNameData.numberFormat.getFormat(viewer));
         }
     }
 }

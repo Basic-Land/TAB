@@ -16,6 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ProxySupportConfiguration {
 
+    @NotNull private final ConfigurationSection section;
     @NotNull private final String type;
     @NotNull private final String channelName;
     @NotNull private final String pluginName;
@@ -44,7 +45,7 @@ public class ProxySupportConfiguration {
             type = "PLUGIN";
         }
 
-        String channelName = ProjectVariables.PLUGIN_NAME + "_2_" + section.getString("channel-name-suffix", "TAB");
+        String channelName = ProjectVariables.PLUGIN_NAME + "_3_" + section.getString("channel-name-suffix", "TAB");
 
         ConfigurationSection plugin = section.getConfigurationSection("plugin");
         String pluginName = plugin.getString("name", "RedisBungee");
@@ -57,6 +58,7 @@ public class ProxySupportConfiguration {
         String rabbitmqUrl = rabbitmq.getString("url", "amqp://guest:guest@localhost:5672/%2F");
 
         return new ProxySupportConfiguration(
+                section,
                 type,
                 channelName,
                 pluginName,

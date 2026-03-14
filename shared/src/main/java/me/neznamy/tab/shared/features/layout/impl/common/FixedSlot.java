@@ -6,13 +6,16 @@ import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition.FixedSlotDefinition;
 import me.neznamy.tab.shared.features.layout.LayoutManagerImpl;
+import me.neznamy.tab.shared.features.layout.pattern.FixedSlotPattern;
+import me.neznamy.tab.shared.features.layout.pattern.LayoutPattern;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import me.neznamy.tab.shared.util.cache.StringToComponentCache;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
@@ -30,7 +33,8 @@ public class FixedSlot extends RefreshableFeature {
     @NonNull private final UUID id;
     @NonNull private final String text;
     @NonNull private final String skin;
-    private final int ping;
+    @Nullable private final String pingText;
+    private final int defaultPing;
 
     @NotNull
     @Override
@@ -50,8 +54,14 @@ public class FixedSlot extends RefreshableFeature {
         if (p.layoutData.currentLayout.fixedSlotSkins.get(this).update()) {
             p.getTabList().removeEntry(id);
             p.getTabList().addEntry(createEntry(p));
-        } else {
-            p.getTabList().updateDisplayName(id, cache.get(p.layoutData.currentLayout.fixedSlotTexts.get(this).updateAndGet()));
+            return;
+        }
+        if (p.layoutData.currentLayout.fixedSlotTexts.get(this).update()) {
+            p.getTabList().updateDisplayName(id, cache.get(p.layoutData.currentLayout.fixedSlotTexts.get(this).get()));
+        }
+        Property pingProperty = p.layoutData.currentLayout.fixedSlotPings.get(this);
+        if (pingProperty != null && pingProperty.update()) {
+            p.getTabList().updateLatency(id, parsePing(pingProperty.get(), p));
         }
     }
 
@@ -66,6 +76,12 @@ public class FixedSlot extends RefreshableFeature {
     public TabList.Entry createEntry(@NotNull TabPlayer viewer) {
         viewer.layoutData.currentLayout.fixedSlotTexts.put(this, new Property(this, viewer, text));
         viewer.layoutData.currentLayout.fixedSlotSkins.put(this, new Property(this, viewer, skin));
+        int ping = defaultPing;
+        if (pingText != null) {
+            Property pingProperty = new Property(this, viewer, pingText);
+            viewer.layoutData.currentLayout.fixedSlotPings.put(this, pingProperty);
+            ping = parsePing(pingProperty.updateAndGet(), viewer);
+        }
         return new TabList.Entry(
                 id,
                 manager.getConfiguration().getDirection().getEntryName(viewer, slot, LayoutManagerImpl.isTeamsEnabled()),
@@ -91,7 +107,7 @@ public class FixedSlot extends RefreshableFeature {
      * @return  New slot using given line or {@code null} if invalid
      */
     @NotNull
-    public static FixedSlot fromDefinition(@NotNull FixedSlotDefinition def, @NotNull LayoutPattern pattern, @NotNull LayoutManagerImpl manager) {
+    public static FixedSlot fromDefinition(@NotNull FixedSlotPattern def, @NotNull LayoutPattern pattern, @NotNull LayoutManagerImpl manager) {
         String skin;
         if (def.getSkin() != null && !def.getSkin().isEmpty()) {
             skin = def.getSkin();
@@ -107,9 +123,32 @@ public class FixedSlot extends RefreshableFeature {
                 manager.getUUID(def.getSlot()),
                 def.getText(),
                 skin,
-                def.getPing() == null ? manager.getConfiguration().getEmptySlotPing() : def.getPing()
+                def.getPing(),
+                manager.getConfiguration().getEmptySlotPing()
         );
         if (!def.getText().isEmpty()) TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.layoutSlot(pattern.getName(), def.getSlot()), f);
         return f;
+    }
+
+    private int parsePing(@NotNull String value, @NotNull TabPlayer viewer) {
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return defaultPing;
+        try {
+            return (int) Math.round(Double.parseDouble(trimmed));
+        } catch (NumberFormatException ignored) {
+            if (viewer instanceof ProxyTabPlayer && !((ProxyTabPlayer)viewer).isBridgeConnected()) return defaultPing;
+            if (pingText != null && pingText.contains("%")) {
+                TAB.getInstance().getConfigHelper().runtime().error(String.format(
+                        "Placeholder \"%s\" used as fixed slot ping in layout \"%s\" (slot %d) returned \"%s\" for player %s, which is not a valid number.",
+                        pingText, pattern.getName(), slot, trimmed, viewer.getName()
+                ));
+            } else {
+                TAB.getInstance().getConfigHelper().runtime().error(String.format(
+                        "Fixed slot ping \"%s\" in layout \"%s\" (slot %d) is not a valid number. Using default ping value.",
+                        pingText == null ? value : pingText, pattern.getName(), slot
+                ));
+            }
+            return defaultPing;
+        }
     }
 }

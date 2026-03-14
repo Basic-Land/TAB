@@ -6,9 +6,10 @@ import me.neznamy.tab.shared.BasicLandHandler;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.features.sorting.Sorting;
-import me.neznamy.tab.shared.placeholders.types.TabPlaceholder;
+import me.neznamy.tab.shared.placeholders.PlaceholderReference;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 
@@ -18,21 +19,21 @@ import java.util.LinkedHashMap;
 @RequiredArgsConstructor
 public abstract class SortingType {
 
+    /** Number to add to / subtract from to prevent incorrect sorting with negative values */
+    protected static final int DEFAULT_NUMBER = Integer.MAX_VALUE / 2;
+
     /** Sorting feature */
+    @NotNull
     protected final Sorting sorting;
 
     /** Display name of this sorting type */
     @Getter
+    @NotNull
     private final String displayName;
-
-    /** Number to add to / subtract from to prevent incorrect sorting with negative values */
-    protected final int DEFAULT_NUMBER = Integer.MAX_VALUE / 2;
     
     /** Placeholder to sort by, if sorting type uses it */
-    protected String sortingPlaceholder;
-
-    /** Flag tracking if this sorting type is valid or not. If not, it is disabled. */
-    protected final boolean valid;
+    @Nullable
+    protected PlaceholderReference sortingPlaceholder;
 
     /**
      * Constructs new instance with given parameter
@@ -40,16 +41,14 @@ public abstract class SortingType {
      * @param   sortingPlaceholder
      *          placeholder to sort by
      */
-    protected SortingType(Sorting sorting, String displayName, String sortingPlaceholder) {
+    protected SortingType(@NotNull Sorting sorting, @NotNull String displayName, @NotNull String sortingPlaceholder) {
         this.sorting = sorting;
         this.displayName = displayName;
         if (!sortingPlaceholder.startsWith("%") || !sortingPlaceholder.endsWith("%")) {
             TAB.getInstance().getConfigHelper().startup().invalidSortingPlaceholder(sortingPlaceholder, this);
-            valid = false;
         } else {
             sorting.addUsedPlaceholder(sortingPlaceholder);
-            this.sortingPlaceholder = sortingPlaceholder;
-            valid = true;
+            this.sortingPlaceholder = TAB.getInstance().getPlaceholderManager().getPlaceholderReference(sortingPlaceholder);
         }
     }
     
@@ -60,10 +59,10 @@ public abstract class SortingType {
      *          player to set placeholders for
      * @return  text with replaced placeholders
      */
-    protected String setPlaceholders(TabPlayer player) {
+    @NotNull
+    protected String setPlaceholders(@NotNull TabPlayer player) {
         if (sortingPlaceholder == null) return "";
-        TabPlaceholder placeholder = TAB.getInstance().getPlaceholderManager().getPlaceholder(sortingPlaceholder);
-        return placeholder.set(placeholder.getIdentifier(), player);
+        return sortingPlaceholder.getHandle().parse(player);
     }
 
     /**
@@ -73,7 +72,8 @@ public abstract class SortingType {
      *          Configured sorting values
      * @return  Converted map with priorities
      */
-    protected LinkedHashMap<String, Integer> convertSortingElements(String[] elements) {
+    @NotNull
+    protected LinkedHashMap<String, Integer> convertSortingElements(@NotNull String[] elements) {
         LinkedHashMap<String, Integer> sortedGroups = new LinkedHashMap<>();
         int index = 1;
         if (BasicLandHandler.use()) {
@@ -97,6 +97,7 @@ public abstract class SortingType {
      *          Number to convert
      * @return  3 characters long String of converted number with a base of 65534.
      */
+    @NotNull
     public String compressNumber(double number) {
         int wholePart = (int) number;
         int base = Character.MAX_VALUE - 1;
@@ -121,8 +122,6 @@ public abstract class SortingType {
      * Parses double in given string and returns it.
      * Returns second argument if string is not valid and prints a console warn.
      *
-     * @param   placeholder
-     *          Raw placeholder, used in error message
      * @param   output
      *          string to parse
      * @param   defaultValue
@@ -131,11 +130,11 @@ public abstract class SortingType {
      *          Player name used in error message
      * @return  parsed double or {@code defaultValue} if input is invalid
      */
-    public double parseDouble(@NotNull String placeholder, @NotNull String output, double defaultValue, TabPlayer player) {
+    public double parseDouble(@NotNull String output, double defaultValue, @NotNull TabPlayer player) {
         try {
             return Double.parseDouble(output.replace(",", "."));
         } catch (NumberFormatException e) {
-            TAB.getInstance().getConfigHelper().runtime().invalidInputForNumericSorting(this, placeholder, output, player);
+            TAB.getInstance().getConfigHelper().runtime().invalidInputForNumericSorting(this, sortingPlaceholder.getIdentifier(), output, player);
             return defaultValue;
         }
     }
@@ -148,4 +147,14 @@ public abstract class SortingType {
      * @return  an as-short-as-possible character sequence for unique sorting
      */
     public abstract String getChars(@NotNull TabPlayer p);
+
+    /**
+     * Returns user-friendly output of the sorting type with a note for dumping.
+     *
+     * @param   p
+     *          player to get value for
+     * @return  value used for sorting
+     */
+    @NotNull
+    public abstract String getReturnedValue(@NotNull TabPlayer p);
 }
