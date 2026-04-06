@@ -233,6 +233,7 @@ public class VelocityPlatform extends ProxyPlatform {
         for (String cmd : customCommands) {
             plugin.getServer().getCommandManager().unregister(cmd);
         }
+        customCommands.clear();
     }
 
     @Override

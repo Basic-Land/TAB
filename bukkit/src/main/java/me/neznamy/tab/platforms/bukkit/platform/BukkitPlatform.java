@@ -329,6 +329,7 @@ public class BukkitPlatform implements BackendPlatform {
             knownCommands.remove(command.getName() + ":" + command.getName());
             command.unregister(commandMap);
         }
+        customCommands.clear();
     }
 
     @Override

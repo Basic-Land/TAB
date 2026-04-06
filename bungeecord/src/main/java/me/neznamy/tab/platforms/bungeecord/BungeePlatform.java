@@ -327,6 +327,7 @@ public class BungeePlatform extends ProxyPlatform {
         for (Command cmd : customCommands) {
             ProxyServer.getInstance().getPluginManager().unregisterCommand(cmd);
         }
+        customCommands.clear();
     }
 
     @Override
