@@ -70,7 +70,12 @@ public class ConditionPlaceholder {
                 isRelational = placeholderDefinition.startsWith("%rel_");
             }
         }
-        this.realPlaceholder = TAB.getInstance().getPlaceholderManager().getPlaceholderReference(realPlaceholder);
+        // Can be null during plugin startup and config conversion, this value is not actually used, just avoid NPE
+        if (TAB.getInstance().getPlaceholderManager() != null) {
+            this.realPlaceholder = TAB.getInstance().getPlaceholderManager().getPlaceholderReference(realPlaceholder);
+        } else {
+            this.realPlaceholder = null;
+        }
     }
 
     /**
