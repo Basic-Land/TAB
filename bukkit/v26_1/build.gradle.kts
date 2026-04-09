@@ -4,5 +4,5 @@ dependencies {
 }
 
 tasks.compileJava {
-    options.release.set(25) // Required to compile the code
+    options.release.set(21) // Included library "jtracy" requires Java 21
 }
