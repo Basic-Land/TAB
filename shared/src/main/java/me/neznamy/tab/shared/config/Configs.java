@@ -78,8 +78,8 @@ public class Configs {
         }
         if (config.getMysql() != null) {
             try {
-                // Load relocated shaded driver for java connector to recognize it and avoid "No suitable driver found" error
-                Class.forName("me.neznamy.tab.libs.com.mysql.cj.jdbc.Driver");
+                //Avoid "No suitable driver found" error
+                Class.forName("com.mysql.cj.jdbc.Driver");
 
                 mysql = new MySQL(config.getMysql());
                 mysql.openConnection();
