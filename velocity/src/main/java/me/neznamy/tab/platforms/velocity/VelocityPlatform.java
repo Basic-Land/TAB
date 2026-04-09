@@ -255,7 +255,9 @@ public class VelocityPlatform extends ProxyPlatform {
         }
         map.put("VelocityScoreboardAPI", vsapiString);
         Map<String, Object> plugins = new LinkedHashMap<>();
-        for (PluginContainer p : plugin.getServer().getPluginManager().getPlugins()) {
+        PluginContainer[] pluginArray = plugin.getServer().getPluginManager().getPlugins().toArray(new PluginContainer[0]);
+        Arrays.sort(pluginArray, Comparator.comparing(p -> p.getDescription().getName().orElse("null"), String.CASE_INSENSITIVE_ORDER));
+        for (PluginContainer p : pluginArray) {
             plugins.put(p.getDescription().getId(), p.getDescription().getVersion().orElse("null"));
         }
         map.put("plugins", plugins);

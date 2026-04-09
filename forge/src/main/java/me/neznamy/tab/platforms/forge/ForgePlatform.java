@@ -271,7 +271,9 @@ public record ForgePlatform(MinecraftServer server) implements BackendPlatform {
         map.put("server-version", SharedConstants.getCurrentVersion().name());
         map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
         Map<String, Object> mods = new LinkedHashMap<>();
-        for (IModInfo mod : ModList.get().getMods()) {
+        IModInfo[] modArray = ModList.get().getMods().toArray(new IModInfo[0]);
+        Arrays.sort(modArray, Comparator.comparing(IModInfo::getModId, String.CASE_INSENSITIVE_ORDER));
+        for (IModInfo mod : modArray) {
             mods.put(mod.getModId(), mod.getVersion().toString());
         }
         map.put("mods", mods);

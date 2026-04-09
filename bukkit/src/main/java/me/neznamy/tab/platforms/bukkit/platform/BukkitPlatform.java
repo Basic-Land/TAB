@@ -439,15 +439,20 @@ public class BukkitPlatform implements BackendPlatform {
         map.put("server-name", Bukkit.getName());
         map.put("server-version", serverVersionInfo.getMinecraftVersion());
         map.put("craftbukkit-package", serverVersionInfo.getServerPackage());
+        map.put("nms-implementation", serverVersionInfo.getImplementationProvider().getClass().getName());
         map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
         Map<String, Object> plugins = new LinkedHashMap<>();
-        for (Plugin p : Bukkit.getPluginManager().getPlugins()) {
+        Plugin[] pluginArray = Bukkit.getPluginManager().getPlugins();
+        Arrays.sort(pluginArray, Comparator.comparing(p -> p.getDescription().getName(), String.CASE_INSENSITIVE_ORDER));
+        for (Plugin p : pluginArray) {
             plugins.put(p.getDescription().getName(), p.getDescription().getVersion());
         }
         map.put("plugins", plugins);
         if (placeholderAPI) {
             Map<String, String> expansions = new LinkedHashMap<>();
-            for (PlaceholderExpansion p : PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansions()) {
+            PlaceholderExpansion[] expansionArray = PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansions().toArray(new PlaceholderExpansion[0]);
+            Arrays.sort(expansionArray, Comparator.comparing(PlaceholderExpansion::getIdentifier, String.CASE_INSENSITIVE_ORDER));
+            for (PlaceholderExpansion p : expansionArray) {
                 expansions.put(p.getIdentifier(), p.getVersion());
             }
             map.put("placeholderapi-expansions", expansions);
