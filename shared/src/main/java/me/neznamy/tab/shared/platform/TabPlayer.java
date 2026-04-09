@@ -383,7 +383,7 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
         data.put("world", world.getName());
         data.put("permissionGroup", permissionGroup);
         data.put("temporaryGroup", temporaryGroup);
-        data.put("bedrockPlayer", bedrockPlayer);
+        data.put("bedrockPlayer", bedrockPlayer + " (floodgate is installed: " + FloodgateHook.getInstance().isInstalled() + ")");
         data.put("protocolVersion", versionId);
         data.put("gameVersion", version.getFriendlyName());
         data.put("loaded", loaded);
