@@ -104,7 +104,7 @@ public class ServerVersionInfo {
         paperVersions.put(ProtocolVersion.V1_21_11, "paper_1_21_11");
         paperVersions.put(ProtocolVersion.V26_1, "paper_1_21_11");  // v26_1 works too
         paperVersions.put(ProtocolVersion.V26_1_1, "paper_1_21_11");  // v26_1 works too
-        paperVersions.put(ProtocolVersion.V26_1_2, "paper_1_21_11");  // v26_1_2 works too
+        paperVersions.put(ProtocolVersion.V26_1_2, "paper_1_21_11");  // v26_1 works too
 
         if (serverVersion == ProtocolVersion.UNKNOWN) {
             throw new IllegalStateException(String.format(
