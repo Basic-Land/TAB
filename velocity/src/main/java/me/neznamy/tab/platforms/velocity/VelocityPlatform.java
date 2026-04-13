@@ -67,45 +67,57 @@ public class VelocityPlatform extends ProxyPlatform {
      */
     public VelocityPlatform(@NotNull VelocityTAB plugin) {
         this.plugin = plugin;
-        if (plugin.getServer().getPluginManager().isLoaded("velocity-scoreboard-api")) {
-            try {
-                ScoreboardManager.getInstance();
-                scoreboardAPI = true;
-                plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Display.class, e -> {
-                    TAB tab = TAB.getInstance();
-                    if (tab.isPluginDisabled()) return;
-                    tab.getCPUManager().runTask(() -> {
-                        TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
-                        if (player != null) tab.getFeatureManager().onDisplayObjective(player, e.getNewSlot().ordinal(), e.getObjective().getName());
-                    });
-                });
-                plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Unregister.class, e -> {
-                    TAB tab = TAB.getInstance();
-                    if (tab.isPluginDisabled()) return;
-                    tab.getCPUManager().runTask(() -> {
-                        TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
-                        if (player != null) tab.getFeatureManager().onObjective(player, Scoreboard.ObjectiveAction.UNREGISTER, e.getObjective().getName());
-                    });
-                });
-            } catch (IllegalStateException ignored) {
-                // Scoreboard API failed to enable due to an error
-            }
-        } else {
-            logInfo(new TabTextComponent("==============================================================================", TabTextColor.RED));
-            logInfo(new TabTextComponent("Velocity does not have any sort of scoreboard API.", TabTextColor.RED));
-            logInfo(new TabTextComponent("As a result, many features cannot be implemented using the standard Velocity API.", TabTextColor.RED));
-            logInfo(new TabTextComponent("In order to enhance your experience, please consider installing VelocityScoreboardAPI " +
-                    "(https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/) plugin.", TabTextColor.RED));
-            logInfo(new TabTextComponent("Until then, the following features will not work:", TabTextColor.RED));
-            logInfo(new TabTextComponent("- scoreboard-teams", TabTextColor.RED));
-            logInfo(new TabTextComponent("- belowname-objective", TabTextColor.RED));
-            logInfo(new TabTextComponent("- playerlist-objective", TabTextColor.RED));
-            logInfo(new TabTextComponent("- scoreboard", TabTextColor.RED));
-            logInfo(new TabTextComponent("==============================================================================", TabTextColor.RED));
-        }
+        loadVSAPIHook();
         if (plugin.getServer().getPluginManager().isLoaded("premiumvanish")) {
             new VelocityPremiumVanishHook().register();
         }
+    }
+
+    private void loadVSAPIHook() {
+        Optional<PluginContainer> vsapi = plugin.getServer().getPluginManager().getPlugin("velocity-scoreboard-api");
+        if (vsapi.isEmpty()) {
+            logWarn(new TabTextComponent("==============================================================================", TabTextColor.RED));
+            logWarn(new TabTextComponent("Velocity does not have any sort of scoreboard API.", TabTextColor.RED));
+            logWarn(new TabTextComponent("As a result, many features cannot be implemented using the standard Velocity API.", TabTextColor.RED));
+            logWarn(new TabTextComponent("In order to enhance your experience, please consider installing VelocityScoreboardAPI " +
+                    "(https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/) plugin.", TabTextColor.RED));
+            logWarn(new TabTextComponent("Until then, the following features will not work:", TabTextColor.RED));
+            logWarn(new TabTextComponent("- scoreboard-teams", TabTextColor.RED));
+            logWarn(new TabTextComponent("- belowname-objective", TabTextColor.RED));
+            logWarn(new TabTextComponent("- playerlist-objective", TabTextColor.RED));
+            logWarn(new TabTextComponent("- scoreboard", TabTextColor.RED));
+            logWarn(new TabTextComponent("==============================================================================", TabTextColor.RED));
+            return;
+        }
+        String vsapiVersion = vsapi.get().getDescription().getVersion().orElse("null");
+        try {
+            ScoreboardManager.getInstance();
+            scoreboardAPI = true;
+            if (vsapiVersion.startsWith("1.")) {
+                logWarn(new TabTextComponent("Please update VelocityScoreboardAPI to version 2.0.0+ for optimal experience (" +
+                        "current version: " + vsapiVersion + ").", TabTextColor.RED));
+                return;
+            }
+        } catch (IllegalStateException ignored) {
+            // Scoreboard API failed to enable due to an error
+            return;
+        }
+        plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Display.class, e -> {
+            TAB tab = TAB.getInstance();
+            if (tab.isPluginDisabled()) return;
+            tab.getCPUManager().runTask(() -> {
+                TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
+                if (player != null) tab.getFeatureManager().onDisplayObjective(player, e.getNewSlot().ordinal(), e.getObjectiveName());
+            });
+        });
+        plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Unregister.class, e -> {
+            TAB tab = TAB.getInstance();
+            if (tab.isPluginDisabled()) return;
+            tab.getCPUManager().runTask(() -> {
+                TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
+                if (player != null) tab.getFeatureManager().onObjective(player, Scoreboard.ObjectiveAction.UNREGISTER, e.getObjectiveName());
+            });
+        });
     }
 
     @Override
