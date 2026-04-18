@@ -9,51 +9,51 @@ plugins {
 
 val platformPaths = setOf(
     ":bukkit",
-    ":bukkit:paper_1_20_5",
-    ":bukkit:paper_1_21_2",
-    ":bukkit:paper_1_21_4",
+//    ":bukkit:paper_1_20_5",
+//    ":bukkit:paper_1_21_2",
+//    ":bukkit:paper_1_21_4",
     ":bukkit:paper_1_21_9",
-    ":bukkit:paper_1_21_11",
-    ":bukkit:v1_7_R4",
-    ":bukkit:v1_8_R3",
-    ":bukkit:v1_9_R2",
-    ":bukkit:v1_10_R1",
-    ":bukkit:v1_11_R1",
-    ":bukkit:v1_12_R1",
-    ":bukkit:v1_13_R2",
-    ":bukkit:v1_14_R1",
-    ":bukkit:v1_15_R1",
-    ":bukkit:v1_16_R3",
-    ":bukkit:v1_17_R1",
-    ":bukkit:v1_18_R2",
-    ":bukkit:v1_19_R1",
-    ":bukkit:v1_19_R2",
-    ":bukkit:v1_10_R1",
-    ":bukkit:v1_19_R3",
-    ":bukkit:v1_20_R1",
-    ":bukkit:v1_20_R2",
-    ":bukkit:v1_20_R3",
-    ":bukkit:v1_20_R4",
-    ":bukkit:v1_21_R1",
-    ":bukkit:v1_21_R2",
-    ":bukkit:v1_21_R3",
-    ":bukkit:v1_21_R4",
-    ":bukkit:v1_21_R5",
-    ":bukkit:v1_21_R6",
-    ":bukkit:v1_21_R7",
-    ":bukkit:v26_1",
-    ":bungeecord",
-    ":velocity"
+    ":bukkit:paper_1_21_11"
+//    ":bukkit:v1_7_R4",
+//    ":bukkit:v1_8_R3",
+//    ":bukkit:v1_9_R2",
+//    ":bukkit:v1_10_R1",
+//    ":bukkit:v1_11_R1",
+//    ":bukkit:v1_12_R1",
+//    ":bukkit:v1_13_R2",
+//    ":bukkit:v1_14_R1",
+//    ":bukkit:v1_15_R1",
+//    ":bukkit:v1_16_R3",
+//    ":bukkit:v1_17_R1",
+//    ":bukkit:v1_18_R2",
+//    ":bukkit:v1_19_R1",
+//    ":bukkit:v1_19_R2",
+//    ":bukkit:v1_10_R1",
+//    ":bukkit:v1_19_R3",
+//    ":bukkit:v1_20_R1",
+//    ":bukkit:v1_20_R2",
+//    ":bukkit:v1_20_R3",
+//    ":bukkit:v1_20_R4",
+//    ":bukkit:v1_21_R1",
+//    ":bukkit:v1_21_R2",
+//    ":bukkit:v1_21_R3",
+//    ":bukkit:v1_21_R4",
+//    ":bukkit:v1_21_R5",
+//    ":bukkit:v1_21_R6",
+//    ":bukkit:v1_21_R7",
+//    ":bukkit:v26_1",
+//    ":bungeecord",
+//    ":velocity"
 )
 
-val moddedPaths = setOf(
-    ":fabric",
-    ":neoforge",
-    ":forge"
-)
+//val moddedPaths = setOf(
+//    ":fabric",
+//    ":neoforge",
+//    ":forge"
+//)
 
 val platforms: List<Project> = platformPaths.map { rootProject.project(it) }
-val moddedPlatforms: List<Project> = moddedPaths.map { rootProject.project(it) }
+//val moddedPlatforms: List<Project> = moddedPaths.map { rootProject.project(it) }
 
 tasks {
     shadowJar {
@@ -71,10 +71,10 @@ tasks {
             registerPlatform(p, task)
         }
 
-        moddedPlatforms.forEach { p ->
-            val task = p.tasks.named<Jar>("remapJar").get()
-            registerPlatform(p, task)
-        }
+//        moddedPlatforms.forEach { p ->
+//            val task = p.tasks.named<Jar>("remapJar").get()
+//            registerPlatform(p, task)
+//        }
     }
     build.get().dependsOn(shadowJar)
 }
