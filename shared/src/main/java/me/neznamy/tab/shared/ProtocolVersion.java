@@ -11,6 +11,9 @@ import org.jetbrains.annotations.NotNull;
 public enum ProtocolVersion {
 
     UNKNOWN,
+    V26_1_2 (775),
+    V26_1_1 (775),
+    V26_1   (775),
     V1_21_11 (774),
     V1_21_10 (773),
     V1_21_9 (773),
@@ -109,7 +112,11 @@ public enum ProtocolVersion {
      */
     ProtocolVersion(int networkId) {
         this.networkId = networkId;
-        minorVersion = Integer.parseInt(toString().split("_")[1]);
+        if (toString().startsWith("V1_")) {
+            minorVersion = Integer.parseInt(toString().split("_")[1]);
+        } else {
+            minorVersion = Integer.parseInt(toString().split("_")[0].substring(1));
+        }
         friendlyName = toString().substring(1).replace("_", ".");
     }
 

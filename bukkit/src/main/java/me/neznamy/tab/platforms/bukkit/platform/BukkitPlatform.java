@@ -1,21 +1,16 @@
 package me.neznamy.tab.platforms.bukkit.platform;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.SneakyThrows;
 import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
-import me.neznamy.tab.platforms.bukkit.BukkitEventListener;
-import me.neznamy.tab.platforms.bukkit.BukkitPipelineInjector;
-import me.neznamy.tab.platforms.bukkit.BukkitTabCommand;
-import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
+import me.neznamy.tab.platforms.bukkit.*;
 import me.neznamy.tab.platforms.bukkit.bossbar.BukkitBossBar;
 import me.neznamy.tab.platforms.bukkit.bossbar.ViaBossBar;
 import me.neznamy.tab.platforms.bukkit.features.BukkitTabExpansion;
 import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
 import me.neznamy.tab.platforms.bukkit.hook.BukkitPremiumVanishHook;
-import me.neznamy.tab.platforms.bukkit.provider.ImplementationProvider;
 import me.neznamy.tab.shared.*;
 import me.neznamy.tab.shared.backend.BackendPlatform;
 import me.neznamy.tab.shared.chat.TabTextColor;
@@ -72,8 +67,9 @@ public class BukkitPlatform implements BackendPlatform {
     @NotNull
     private final JavaPlugin plugin;
 
-    /** Server version */
-    private final ProtocolVersion serverVersion = ProtocolVersion.fromFriendlyName(Bukkit.getBukkitVersion().split("-")[0]);
+    /** Information about server version */
+    @NotNull
+    private final ServerVersionInfo serverVersionInfo = new ServerVersionInfo();
 
     /** Variables checking presence of other plugins to hook into */
     private final boolean placeholderAPI = ReflectionUtils.classExists("me.clip.placeholderapi.PlaceholderAPI");
@@ -86,15 +82,6 @@ public class BukkitPlatform implements BackendPlatform {
 
     /** Detection for presence of Paper's MSPT getter */
     private final boolean paperMspt = ReflectionUtils.methodExists(Bukkit.class, "getAverageTickTime");
-
-    /** Package name of the server implementation, null on Paper 1.20.5+ */
-    @Nullable
-    private final String serverPackage;
-
-    /** Implementation for creating new instances using content available on the server */
-    @NotNull
-    @Setter
-    private ImplementationProvider implementationProvider;
 
     private final boolean modernOnlinePlayers;
 
@@ -116,10 +103,7 @@ public class BukkitPlatform implements BackendPlatform {
     public BukkitPlatform(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
         modernOnlinePlayers = Bukkit.class.getMethod("getOnlinePlayers").getReturnType() == Collection.class;
-        String CRAFTBUKKIT_PACKAGE = Bukkit.getServer().getClass().getPackage().getName();
-        String[] array = CRAFTBUKKIT_PACKAGE.split("\\.");
-        serverPackage = array.length > 3 ? array[3] : null;
-        implementationProvider = findImplementationProvider();
+        logInfo(new TabTextComponent("Found NMS implementation: " + serverVersionInfo.getImplementationProvider().getClass().getName(), TabTextColor.GRAY));
         try {
             Object server = Bukkit.getServer().getClass().getMethod("getServer").invoke(Bukkit.getServer());
             recentTps = ((double[]) server.getClass().getField("recentTps").get(server));
@@ -131,63 +115,6 @@ public class BukkitPlatform implements BackendPlatform {
         }
         commandMap = (SimpleCommandMap) Bukkit.getServer().getClass().getMethod("getCommandMap").invoke(Bukkit.getServer());
         knownCommands = (Map<String, Command>) ReflectionUtils.getField(SimpleCommandMap.class, "knownCommands").get(commandMap);
-    }
-
-    @NotNull
-    @SneakyThrows
-    private ImplementationProvider findImplementationProvider() {
-        if (serverPackage == null) {
-            // Paper 1.20.5+, check for available module
-            String paperModule = getPaperModule();
-            if (paperModule != null) {
-                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit.paper_" + paperModule + ".PaperImplementationProvider").getConstructor().newInstance();
-            } else {
-                throw new UnsupportedOperationException();
-            }
-        } else {
-            // Paper <1.20.5 or Spigot
-            try {
-                // Does not actually support flat 1.19, but whatever, no one is using it anyway
-                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit." + serverPackage + ".NMSImplementationProvider").getConstructor().newInstance();
-            } catch (ClassNotFoundException ignored) {
-                throw new UnsupportedOperationException();
-            }
-        }
-    }
-
-    /**
-     * Returns name of the paper module that can be used on this server.
-     * If this server is not using paper or no module is available for any other reason,
-     * {@code null} is returned.
-     *
-     * @return  Name of the available paper module or {@code null} if not available
-     */
-    @Nullable
-    private String getPaperModule() {
-        if (!ReflectionUtils.classExists("org.bukkit.craftbukkit.CraftServer")) return null;
-        switch (serverVersion) {
-            case V1_20_5:
-            case V1_20_6:
-            case V1_21:
-            case V1_21_1:
-                return "1_20_5";
-            case V1_21_2:
-            case V1_21_3:
-                return "1_21_2";
-            case V1_21_4:
-            case V1_21_5:
-            case V1_21_6:
-            case V1_21_7:
-            case V1_21_8:
-                return "1_21_4";
-            case V1_21_9:
-            case V1_21_10:
-                return "1_21_9";
-            case V1_21_11:
-                return "1_21_11";
-            default:
-                return null;
-        }
     }
 
     @Override
@@ -310,7 +237,7 @@ public class BukkitPlatform implements BackendPlatform {
         Metrics metrics = new Metrics(plugin, TabConstants.BSTATS_PLUGIN_ID_BUKKIT);
         metrics.addCustomChart(new SimplePie(TabConstants.MetricsChart.PERMISSION_SYSTEM,
                 () -> TAB.getInstance().getGroupManager().getPermissionPlugin()));
-        metrics.addCustomChart(new SimplePie("tab_5_5_0_servers", serverVersion::getFriendlyName));
+        metrics.addCustomChart(new SimplePie("tab_6_0_0_servers", serverVersionInfo.getServerVersion()::getFriendlyName));
     }
 
     @Override
@@ -322,13 +249,13 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @NotNull
     public Object convertComponent(@NotNull TabComponent component) {
-        return implementationProvider.getComponentConverter().convert(component);
+        return serverVersionInfo.getImplementationProvider().getComponentConverter().convert(component);
     }
 
     @Override
     @NotNull
     public Scoreboard createScoreboard(@NotNull TabPlayer player) {
-        return implementationProvider.newScoreboard((BukkitTabPlayer) player);
+        return serverVersionInfo.getImplementationProvider().newScoreboard((BukkitTabPlayer) player);
     }
 
     @Override
@@ -350,7 +277,7 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @NotNull
     public TabList createTabList(@NotNull TabPlayer player) {
-        return implementationProvider.newTabList((BukkitTabPlayer) player);
+        return serverVersionInfo.getImplementationProvider().newTabList((BukkitTabPlayer) player);
     }
 
     @Override
@@ -360,17 +287,17 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     public boolean supportsListed() {
-        return serverVersion.getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId();
+        return serverVersionInfo.getServerVersion().getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId();
     }
 
     @Override
     public boolean supportsListOrder() {
-        return serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId();
+        return serverVersionInfo.getServerVersion().getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId();
     }
 
     @Override
     public boolean isSafeFromPacketEventsBug() {
-        return serverVersion.getMinorVersion() >= 13;
+        return serverVersionInfo.getServerVersion().getMinorVersion() >= 13;
     }
 
     @Override
@@ -402,6 +329,7 @@ public class BukkitPlatform implements BackendPlatform {
             knownCommands.remove(command.getName() + ":" + command.getName());
             command.unregister(commandMap);
         }
+        customCommands.clear();
     }
 
     @Override
@@ -460,7 +388,7 @@ public class BukkitPlatform implements BackendPlatform {
     public String toBukkitFormat(@NotNull TabComponent component) {
         StringBuilder sb = new StringBuilder();
         if (component.getModifier().getColor() != null) {
-            if (serverVersion.getNetworkId() >= ProtocolVersion.V1_16.getNetworkId()) {
+            if (serverVersionInfo.getServerVersion().getNetworkId() >= ProtocolVersion.V1_16.getNetworkId()) {
                 String hexCode = component.getModifier().getColor().getHexCode();
                 sb.append('§').append("x").append('§').append(hexCode.charAt(0)).append('§').append(hexCode.charAt(1))
                         .append('§').append(hexCode.charAt(2)).append('§').append(hexCode.charAt(3))
@@ -509,17 +437,22 @@ public class BukkitPlatform implements BackendPlatform {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("server-type", "Bukkit");
         map.put("server-name", Bukkit.getName());
-        map.put("server-version", Bukkit.getBukkitVersion().split("-")[0]);
-        map.put("craftbukkit-package", serverPackage);
+        map.put("server-version", serverVersionInfo.getMinecraftVersion());
+        map.put("craftbukkit-package", serverVersionInfo.getServerPackage());
+        map.put("nms-implementation", serverVersionInfo.getImplementationProvider().getClass().getName());
         map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
         Map<String, Object> plugins = new LinkedHashMap<>();
-        for (Plugin p : Bukkit.getPluginManager().getPlugins()) {
+        Plugin[] pluginArray = Bukkit.getPluginManager().getPlugins();
+        Arrays.sort(pluginArray, Comparator.comparing(p -> p.getDescription().getName(), String.CASE_INSENSITIVE_ORDER));
+        for (Plugin p : pluginArray) {
             plugins.put(p.getDescription().getName(), p.getDescription().getVersion());
         }
         map.put("plugins", plugins);
         if (placeholderAPI) {
             Map<String, String> expansions = new LinkedHashMap<>();
-            for (PlaceholderExpansion p : PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansions()) {
+            PlaceholderExpansion[] expansionArray = PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansions().toArray(new PlaceholderExpansion[0]);
+            Arrays.sort(expansionArray, Comparator.comparing(PlaceholderExpansion::getIdentifier, String.CASE_INSENSITIVE_ORDER));
+            for (PlaceholderExpansion p : expansionArray) {
                 expansions.put(p.getIdentifier(), p.getVersion());
             }
             map.put("placeholderapi-expansions", expansions);

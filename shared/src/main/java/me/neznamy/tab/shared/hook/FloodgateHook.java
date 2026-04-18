@@ -15,9 +15,11 @@ import java.util.UUID;
 public class FloodgateHook {
 
     /** Instance of the class */
-    @Getter private static final FloodgateHook instance = new FloodgateHook();
+    @Getter
+    private static final FloodgateHook instance = new FloodgateHook();
 
     /** Flag tracking if floodgate is installed or not */
+    @Getter
     private final boolean installed = ReflectionUtils.classExists("org.geysermc.floodgate.api.FloodgateApi");
 
     /**

@@ -327,6 +327,7 @@ public class BungeePlatform extends ProxyPlatform {
         for (Command cmd : customCommands) {
             ProxyServer.getInstance().getPluginManager().unregisterCommand(cmd);
         }
+        customCommands.clear();
     }
 
     @Override
@@ -338,7 +339,9 @@ public class BungeePlatform extends ProxyPlatform {
         map.put("server-version", plugin.getProxy().getVersion());
         map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
         Map<String, Object> plugins = new LinkedHashMap<>();
-        for (Plugin p : plugin.getProxy().getPluginManager().getPlugins()) {
+        Plugin[] pluginArray = plugin.getProxy().getPluginManager().getPlugins().toArray(new Plugin[0]);
+        Arrays.sort(pluginArray, Comparator.comparing(p -> p.getDescription().getName(), String.CASE_INSENSITIVE_ORDER));
+        for (Plugin p : pluginArray) {
             plugins.put(p.getDescription().getName(), p.getDescription().getVersion());
         }
         map.put("plugins", plugins);

@@ -286,7 +286,9 @@ public record FabricPlatform(MinecraftServer server) implements BackendPlatform 
         map.put("server-version", SharedConstants.getCurrentVersion().name());
         map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
         Map<String, Object> mods = new LinkedHashMap<>();
-        for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
+        ModContainer[] modArray = FabricLoader.getInstance().getAllMods().toArray(new ModContainer[0]);
+        Arrays.sort(modArray, Comparator.comparing(mod -> mod.getMetadata().getId(), String.CASE_INSENSITIVE_ORDER));
+        for (ModContainer mod : modArray) {
             mods.put(mod.getMetadata().getId(), mod.getMetadata().getVersion().getFriendlyString());
         }
         map.put("mods", mods);
