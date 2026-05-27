@@ -1,5 +1,5 @@
 plugins {
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.19"
 }
 
 repositories {
@@ -15,7 +15,7 @@ repositories {
     }
 }
 
-val version = "1.21.9-R0.1-SNAPSHOT"
+val version = "1.21.8-R0.1-SNAPSHOT"
 
 dependencies {
     implementation(projects.bukkit)
@@ -24,5 +24,5 @@ dependencies {
 }
 
 tasks.compileJava {
-    options.release.set(25)
+    options.release.set(21)
 }

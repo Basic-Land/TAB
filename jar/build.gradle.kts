@@ -12,7 +12,7 @@ val platformPaths = setOf(
 //    ":bukkit:paper_1_20_5",
 //    ":bukkit:paper_1_21_2",
 //    ":bukkit:paper_1_21_4",
-    ":bukkit:paper_1_21_9",
+//    ":bukkit:paper_1_21_9",
     ":bukkit:paper_1_21_11"
 //    ":bukkit:v1_7_R4",
 //    ":bukkit:v1_8_R3",
