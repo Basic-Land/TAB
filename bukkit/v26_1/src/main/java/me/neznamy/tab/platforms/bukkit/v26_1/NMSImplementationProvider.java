@@ -51,8 +51,8 @@ public class NMSImplementationProvider implements ImplementationProvider {
 
     @Override
     @NotNull
-    public TabListEntryTracker newTabListEntryTracker() {
-        return new NMSTabListEntryTracker();
+    public TabListEntryTracker newTabListEntryTracker(@NotNull Player player) {
+        return new NMSTabListEntryTracker(getChannel(player));
     }
 
     @Override

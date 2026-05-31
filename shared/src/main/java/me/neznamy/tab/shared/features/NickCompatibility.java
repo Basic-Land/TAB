@@ -68,12 +68,13 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
         cpu.getProcessingThread().execute(new TimedCaughtTask(cpu, () -> {
             if (nameTags != null && !player.teamData.isDisabled())
                 for (TabPlayer viewer : nameTags.getOnlinePlayers().getPlayers()) {
-                    viewer.getScoreboard().unregisterTeam(player.sortingData.getShortTeamName());
-                    viewer.getScoreboard().registerTeam(
+                    viewer.teamData.unregisterTeam(player);
+                    viewer.teamData.registerTeam(
+                            player,
                             player.sortingData.getShortTeamName(),
                             nameTags.getPrefixCache().get(player.teamData.prefix.getFormat(viewer)),
                             nameTags.getSuffixCache().get(player.teamData.suffix.getFormat(viewer)),
-                            nameTags.getTeamVisibility(player, viewer) ? Scoreboard.NameVisibility.ALWAYS : Scoreboard.NameVisibility.NEVER,
+                            player.teamData.getTeamVisibility(viewer) ? Scoreboard.NameVisibility.ALWAYS : Scoreboard.NameVisibility.NEVER,
                             player.teamData.getCollisionRule() ? Scoreboard.CollisionRule.ALWAYS : Scoreboard.CollisionRule.NEVER,
                             Collections.singletonList(player.getNickname()),
                             nameTags.getTeamOptions(),
@@ -91,8 +92,9 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
             if (nameTags != null && player.getNametag() != null) {
                 String teamName = player.getNametag().getResolvedTeamName();
                 for (TabPlayer viewer : nameTags.getOnlinePlayers().getPlayers()) {
-                    viewer.getScoreboard().unregisterTeam(teamName);
-                    viewer.getScoreboard().registerTeam(
+                    viewer.teamData.unregisterTeam(player);
+                    viewer.teamData.registerTeam(
+                            player,
                             teamName,
                             player.getNametag().getFeature().getPrefixCache().get(player.getNametag().getPrefix()),
                             player.getNametag().getFeature().getSuffixCache().get(player.getNametag().getSuffix()),

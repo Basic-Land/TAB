@@ -26,6 +26,7 @@ public class ForgeBossBar extends SafeBossBar<ServerBossEvent> {
     @NotNull
     public ServerBossEvent constructBossBar(@NotNull UUID id, @NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
         ServerBossEvent bar = new ServerBossEvent(
+                id,
                 title.convert(),
                 BossBarColor.valueOf(color.name()),
                 BossBarOverlay.valueOf(style.name())

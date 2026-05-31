@@ -1,6 +1,13 @@
 package me.neznamy.tab.shared.features.nametags;
 
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import me.neznamy.tab.shared.Property;
+import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
+import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
+import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -11,7 +18,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Class holding team data for players.
  */
+@RequiredArgsConstructor
 public class NameTagPlayerData {
+
+    /** Player this data belongs to */
+    private final TabPlayer player;
 
     /** Team name used for sorting */
     public String teamName;
@@ -48,6 +59,12 @@ public class NameTagPlayerData {
     /** Reasons why player's nametag is hidden for specific players */
     @NotNull
     private final Map<TabPlayer, EnumSet<NameTagInvisibilityReason>> nameTagInvisibilityReasonsRelational = new WeakHashMap<>();
+
+    /** Teams registered to this player mapped as team owner to team name */
+    private final Map<TabPlayer, String> registeredTeams = new HashMap<>();
+
+    /** Teams of proxy players registered to this player mapped as team owner to team name */
+    private final Map<ProxyPlayer, String> registeredProxyTeams = new HashMap<>();
 
     /**
      * Returns current collision rule. If forced using API, the forced value is returned.
@@ -167,5 +184,84 @@ public class NameTagPlayerData {
             return false;
         }
         return !nameTagInvisibilityReasonsRelational.get(viewer).isEmpty();
+    }
+
+    /**
+     * Returns {@code true} if nametag should be visible by given viewer, {@code false} if not.
+     *
+     * @param   viewer
+     *          Viewer to check nametag visibility for
+     * @return  {@code true} if nametag should be visible by given viewer, {@code false} if not
+     */
+    public boolean getTeamVisibility(@NonNull TabPlayer viewer) {
+        if (hasHiddenNametag()) return false; // At least 1 reason for invisible nametag exists
+        if (hasHiddenNametag(viewer)) return false; // At least 1 reason for invisible nametag for this viewer exists
+        if (viewer.teamData.invisibleNameTagView) return false; // Viewer does not want to see nametags
+        if (viewer.getVersion() == ProtocolVersion.V1_8 && player.hasInvisibilityPotion()) return false;
+        return true;
+    }
+
+    public void registerTeam(@NotNull TabPlayer target, @NotNull String teamName, @NotNull TabComponent prefix, @NotNull TabComponent suffix,
+                                 @NotNull Scoreboard.NameVisibility visibility, @NotNull Scoreboard.CollisionRule collision,
+                                 @NotNull Collection<String> players, int options, @NotNull EnumChatFormat color) {
+        registeredTeams.put(target, teamName);
+        player.getScoreboard().registerTeam(teamName, prefix, suffix, visibility, collision, players, options, color);
+    }
+
+    public void registerTeam(@NotNull ProxyPlayer target, @NotNull String teamName, @NotNull TabComponent prefix, @NotNull TabComponent suffix,
+                                 @NotNull Scoreboard.NameVisibility visibility, @NotNull Scoreboard.CollisionRule collision,
+                                 @NotNull Collection<String> players, int options, @NotNull EnumChatFormat color) {
+        registeredProxyTeams.put(target, teamName);
+        player.getScoreboard().registerTeam(teamName, prefix, suffix, visibility, collision, players, options, color);
+    }
+
+    /**
+     * Returns {@code true} if team with given owner is registered to this player, {@code false} if not.
+     *
+     * @param   teamOwner
+     *          Owner of the team to check
+     * @return  {@code true} if team with given owner is registered to this player, {@code false} if not
+     */
+    public boolean hasTeamRegistered(@NotNull TabPlayer teamOwner) {
+        return registeredTeams.containsKey(teamOwner);
+    }
+
+    /**
+     * Returns {@code true} if team with given owner is registered to this player, {@code false} if not.
+     *
+     * @param   teamOwner
+     *          Owner of the team to check
+     * @return  {@code true} if team with given owner is registered to this player, {@code false} if not
+     */
+    public boolean hasTeamRegistered(@NotNull ProxyPlayer teamOwner) {
+        return registeredProxyTeams.containsKey(teamOwner);
+    }
+
+    /**
+     * Safely unregisters team belonging to the given owner if registered before and removes it from the map.
+     * If not registered, nothing happens.
+     *
+     * @param   teamOwner
+     *          Owner of the team to unregister
+     */
+    public void unregisterTeam(@NotNull TabPlayer teamOwner) {
+        String teamName = registeredTeams.remove(teamOwner);
+        if (teamName != null) {
+            player.getScoreboard().unregisterTeam(teamName);
+        }
+    }
+
+    /**
+     * Safely unregisters team belonging to the given owner if registered before and removes it from the map.
+     * If not registered, nothing happens.
+     *
+     * @param   teamOwner
+     *          Owner of the team to unregister
+     */
+    public void unregisterTeam(@NotNull ProxyPlayer teamOwner) {
+        String teamName = registeredProxyTeams.remove(teamOwner);
+        if (teamName != null) {
+            player.getScoreboard().unregisterTeam(teamName);
+        }
     }
 }

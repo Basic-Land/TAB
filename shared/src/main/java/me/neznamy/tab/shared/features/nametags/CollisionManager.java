@@ -3,13 +3,18 @@ package me.neznamy.tab.shared.features.nametags;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
+import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.types.CustomThreaded;
 import me.neznamy.tab.shared.features.types.JoinListener;
 import me.neznamy.tab.shared.features.types.Loadable;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
+import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 /**
  * Class managing collision rule for players.
@@ -60,7 +65,7 @@ public class CollisionManager extends RefreshableFeature implements JoinListener
     public void refresh(@NotNull TabPlayer p, boolean force) {
         if (p.teamData.isDisabled()) return;
         if (!nameTags.getOnlinePlayers().contains(p)) return; // player is not loaded by this feature yet
-        nameTags.updateCollision(p, false);
+        updateCollision(p);
     }
 
     @Override
@@ -73,5 +78,41 @@ public class CollisionManager extends RefreshableFeature implements JoinListener
     @Override
     public String getFeatureName() {
         return nameTags.getFeatureName();
+    }
+
+    /**
+     * Updates collision of a player for everyone.
+     *
+     * @param   player
+     *          Player to update collision of
+     */
+    public void updateCollision(@NotNull TabPlayer player) {
+        for (TabPlayer viewer : nameTags.getOnlinePlayers().getPlayers()) {
+            if (viewer.teamData.hasTeamRegistered(player)) {
+                viewer.getScoreboard().updateTeam(
+                        player.teamData.teamName,
+                        player.teamData.getCollisionRule() ? Scoreboard.CollisionRule.ALWAYS : Scoreboard.CollisionRule.NEVER
+                );
+            }
+        }
+    }
+
+    public void setCollisionRule(@NotNull me.neznamy.tab.api.TabPlayer player, Boolean collision) {
+        ensureActive();
+        getCustomThread().execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+            TabPlayer p = (TabPlayer) player;
+            p.ensureLoaded();
+            if (Objects.equals(p.teamData.forcedCollision, collision)) return;
+            p.teamData.forcedCollision = collision;
+            updateCollision(p);
+        }, getFeatureName(), "Processing API call (setCollisionRule)"));
+    }
+
+    @Nullable
+    public Boolean getCollisionRule(@NotNull me.neznamy.tab.api.TabPlayer player) {
+        ensureActive();
+        TabPlayer p = (TabPlayer) player;
+        p.ensureLoaded();
+        return p.teamData.forcedCollision;
     }
 }

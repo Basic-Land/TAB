@@ -96,20 +96,21 @@ public class NameTagProxyPlayerData extends ProxyMessage {
             TabComponent suffix = feature.getSuffixCache().get(this.suffix);
             for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
                 if (oldData != null && resolvedTeamName.equals(oldData.resolvedTeamName)) {
-                    viewer.getScoreboard().updateTeam(
-                            oldData.teamName,
-                            prefix,
-                            suffix,
-                            nameVisibility,
-                            Scoreboard.CollisionRule.ALWAYS,
-                            feature.getTeamOptions(),
-                            lastColor.getLastStyle().toEnumChatFormat()
-                    );
-                } else {
-                    if (oldData != null) {
-                        viewer.getScoreboard().unregisterTeam(oldData.resolvedTeamName);
+                    if (viewer.teamData.hasTeamRegistered(target)) {
+                        viewer.getScoreboard().updateTeam(
+                                oldData.teamName,
+                                prefix,
+                                suffix,
+                                nameVisibility,
+                                Scoreboard.CollisionRule.ALWAYS,
+                                feature.getTeamOptions(),
+                                lastColor.getLastStyle().toEnumChatFormat()
+                        );
                     }
-                    viewer.getScoreboard().registerTeam(
+                } else {
+                    viewer.teamData.unregisterTeam(target);
+                    viewer.teamData.registerTeam(
+                            target,
                             resolvedTeamName,
                             prefix,
                             suffix,

@@ -13,6 +13,10 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
+
 /**
  * Implementation provider using direct NMS code for 1.7.10.
  */
@@ -42,10 +46,21 @@ public class NMSImplementationProvider implements ImplementationProvider {
 
     @Override
     @NotNull
-    public TabListEntryTracker newTabListEntryTracker() {
+    public TabListEntryTracker newTabListEntryTracker(@NotNull Player player) {
         return new TabListEntryTracker() {
+
             @Override
-            public void onPacketSend(@NotNull Object packet) {
+            public void inject() {
+            }
+
+            @Override
+            public boolean containsEntry(@NotNull UUID uuid) {
+                return true;
+            }
+
+            @Override
+            public @NotNull Collection<UUID> getEntries() {
+                return Collections.emptyList();
             }
         };
     }

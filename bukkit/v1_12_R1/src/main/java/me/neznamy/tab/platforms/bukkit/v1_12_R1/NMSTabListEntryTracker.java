@@ -1,8 +1,9 @@
 package me.neznamy.tab.platforms.bukkit.v1_12_R1;
 
 import com.mojang.authlib.GameProfile;
+import io.netty.channel.Channel;
 import lombok.SneakyThrows;
-import me.neznamy.tab.shared.platform.TabListEntryTracker;
+import me.neznamy.tab.shared.platform.NettyTabListEntryTracker;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.minecraft.server.v1_12_R1.PacketPlayOutPlayerInfo;
 import net.minecraft.server.v1_12_R1.PacketPlayOutPlayerInfo.EnumPlayerInfoAction;
@@ -14,12 +15,16 @@ import java.util.List;
 /**
  * Implementation of TabListEntryTracker.
  */
-public class NMSTabListEntryTracker extends TabListEntryTracker {
+public class NMSTabListEntryTracker extends NettyTabListEntryTracker {
 
     private static final Field ACTION = ReflectionUtils.getOnlyField(PacketPlayOutPlayerInfo.class, EnumPlayerInfoAction.class);
     private static final Field PLAYERS = ReflectionUtils.getOnlyField(PacketPlayOutPlayerInfo.class, List.class);
     private static final Class<?> PlayerInfoData = PacketPlayOutPlayerInfo.class.getDeclaredClasses()[0];
     private static final Field PlayerInfoData_Profile = ReflectionUtils.getOnlyField(PlayerInfoData, GameProfile.class);
+
+    public NMSTabListEntryTracker(@NotNull Channel channel) {
+        super(channel);
+    }
 
     @Override
     @SneakyThrows

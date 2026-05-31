@@ -55,10 +55,12 @@ public interface ImplementationProvider {
     /**
      * Creates a new instance of tab list entry tracker.
      *
+     * @param   player
+     *          Player to create tab list entry tracker for
      * @return  Newly created tab list entry tracker
      */
     @NotNull
-    TabListEntryTracker newTabListEntryTracker();
+    TabListEntryTracker newTabListEntryTracker(@NotNull Player player);
 
     /**
      * Returns ping of the given player.

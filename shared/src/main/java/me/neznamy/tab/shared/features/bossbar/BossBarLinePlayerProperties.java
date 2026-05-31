@@ -11,8 +11,7 @@ import me.neznamy.tab.shared.Property;
 public class BossBarLinePlayerProperties {
 
     /** Property holding BossBar title */
-    @NonNull
-    public final Property textProperty;
+    @NonNull public final Property textProperty;
 
     /** Property holding BossBar progress */
     @NonNull public final Property progressProperty;

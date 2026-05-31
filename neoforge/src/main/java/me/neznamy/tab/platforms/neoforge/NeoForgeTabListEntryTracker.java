@@ -1,6 +1,7 @@
 package me.neznamy.tab.platforms.neoforge;
 
-import me.neznamy.tab.shared.platform.TabListEntryTracker;
+import io.netty.channel.Channel;
+import me.neznamy.tab.shared.platform.NettyTabListEntryTracker;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import org.jetbrains.annotations.NotNull;
@@ -10,7 +11,11 @@ import java.util.UUID;
 /**
  * NeoForge implementation of TabListEntryTracker.
  */
-public class NeoForgeTabListEntryTracker extends TabListEntryTracker {
+public class NeoForgeTabListEntryTracker extends NettyTabListEntryTracker {
+
+    public NeoForgeTabListEntryTracker(@NotNull Channel channel) {
+        super(channel);
+    }
 
     @Override
     public void onPacketSend(@NotNull Object packet) {

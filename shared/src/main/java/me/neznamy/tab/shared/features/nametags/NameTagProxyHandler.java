@@ -5,7 +5,6 @@ import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.types.ProxyFeature;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
@@ -29,7 +28,7 @@ public class NameTagProxyHandler implements ProxyFeature {
                     player.teamData.teamName,
                     player.teamData.prefix.get(),
                     player.teamData.suffix.get(),
-                    feature.getTeamVisibility(player, player) ? Scoreboard.NameVisibility.ALWAYS : Scoreboard.NameVisibility.NEVER
+                    player.teamData.getTeamVisibility(player) ? Scoreboard.NameVisibility.ALWAYS : Scoreboard.NameVisibility.NEVER
             ));
         }
     }
@@ -47,16 +46,15 @@ public class NameTagProxyHandler implements ProxyFeature {
             // One of the two options is being forcibly unregistered when real player joined
             return;
         }
-        for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
-            ((SafeScoreboard<?>)viewer.getScoreboard()).unregisterTeamSafe(player.getNametag().getResolvedTeamName());
-        }
+        feature.unregisterTeam(player);
     }
 
     @Override
     public void onJoin(@NotNull ProxyPlayer player) {
         if (player.getNametag() == null) return; // Player not loaded yet
         for (TabPlayer viewer : feature.getOnlinePlayers().getPlayers()) {
-            viewer.getScoreboard().registerTeam(
+            viewer.teamData.registerTeam(
+                    player,
                     player.getNametag().getResolvedTeamName(),
                     feature.getPrefixCache().get(player.getNametag().getPrefix()),
                     feature.getSuffixCache().get(player.getNametag().getSuffix()),

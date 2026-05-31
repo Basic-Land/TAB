@@ -294,6 +294,19 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
                 put(bar.getName(), barMap);
             }
         }});
+        map.put("bossbars visible (= not toggled by user)", player.bossbarData.visible);
+        map.put("currently displayed bossbars", new LinkedHashMap<String, Object>() {{
+            for (Map.Entry<BossBarLine, BossBarLinePlayerProperties> line : player.bossbarData.visibleBossBars.entrySet()) {
+                LinkedHashMap<String, Object> barInfo = new LinkedHashMap<>();
+                BossBarLine bar = line.getKey();
+                BossBarLinePlayerProperties properties = line.getValue();
+                barInfo.put("text", properties.textProperty.get());
+                barInfo.put("progress", properties.progressProperty.get());
+                barInfo.put("color", properties.colorProperty.get());
+                barInfo.put("style", properties.styleProperty.get());
+                put(bar.getName(), barInfo);
+            }
+        }});
         return map;
     }
 }

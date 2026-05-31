@@ -1,15 +1,15 @@
 package me.neznamy.tab.shared.command;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.features.nametags.NameTag;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class SetCollisionCommand extends SubCommand {
 
@@ -34,7 +34,6 @@ public class SetCollisionCommand extends SubCommand {
                 return;
             }
             feature.setCollisionRule(target, Boolean.parseBoolean(args[1]));
-            feature.updateCollision(target, true);
         } else {
             sendMessage(sender, getMessages().getCollisionCommandUsage());
         }

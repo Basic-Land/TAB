@@ -1,6 +1,7 @@
 package me.neznamy.tab.platforms.bukkit.v1_19_R1;
 
-import me.neznamy.tab.shared.platform.TabListEntryTracker;
+import io.netty.channel.Channel;
+import me.neznamy.tab.shared.platform.NettyTabListEntryTracker;
 import net.minecraft.network.protocol.game.PacketPlayOutPlayerInfo;
 import net.minecraft.network.protocol.game.PacketPlayOutPlayerInfo.EnumPlayerInfoAction;
 import org.jetbrains.annotations.NotNull;
@@ -8,10 +9,14 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Implementation of TabListEntryTracker.
  */
-public class NMSTabListEntryTracker extends TabListEntryTracker {
+public class NMSTabListEntryTracker extends NettyTabListEntryTracker {
 
     private static final EnumPlayerInfoAction ADD_PLAYER = EnumPlayerInfoAction.valueOf("ADD_PLAYER");
     private static final EnumPlayerInfoAction REMOVE_PLAYER = EnumPlayerInfoAction.valueOf("REMOVE_PLAYER");
+
+    public NMSTabListEntryTracker(@NotNull Channel channel) {
+        super(channel);
+    }
 
     @Override
     public void onPacketSend(@NotNull Object packet) {

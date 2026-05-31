@@ -1,6 +1,5 @@
 package me.neznamy.tab.shared;
 
-import io.netty.channel.Channel;
 import lombok.Getter;
 import lombok.Setter;
 import me.neznamy.tab.api.TabAPI;
@@ -33,7 +32,6 @@ import org.yaml.snakeyaml.error.YAMLException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -263,19 +261,11 @@ public class TAB extends TabAPI {
      *
      * @param   player
      *          Player UUID
-     * @param   channel
-     *          Channel to inject the tracker to
      * @param   tracker
      *          TabList entry tracker
      */
-    public void addTablistTracker(@NotNull UUID player, @Nullable Channel channel, @NotNull TabListEntryTracker tracker) {
-        if (channel != null) {
-            if (!channel.pipeline().names().contains("packet_handler")) return; // Player got disconnected instantly or fake player
-            try {
-                channel.pipeline().addBefore("packet_handler", "TAB-TablistEntryTracker", tracker);
-            } catch (NoSuchElementException | IllegalArgumentException ignored) {
-            }
-        }
+    public void addTablistTracker(@NotNull UUID player, @NotNull TabListEntryTracker tracker) {
+        tracker.inject();
         tablistTrackers.put(player, tracker);
     }
 

@@ -1,22 +1,19 @@
 package me.neznamy.tab.platforms.fabric;
 
 import lombok.NonNull;
-import lombok.SneakyThrows;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
-import me.neznamy.tab.shared.util.ReflectionUtils;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.numbers.FixedFormat;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.TeamColor;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Field;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -24,11 +21,10 @@ import java.util.Optional;
  */
 public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
 
-    private static final ChatFormatting[] formats = ChatFormatting.values();
+    private static final Optional<TeamColor>[] colors = Arrays.stream(TeamColor.values()).map(Optional::of).toArray(Optional[]::new);
     private static final net.minecraft.world.scores.Team.CollisionRule[] collisions = net.minecraft.world.scores.Team.CollisionRule.values();
     private static final net.minecraft.world.scores.Team.Visibility[] visibilities = net.minecraft.world.scores.Team.Visibility.values();
     private static final Scoreboard dummyScoreboard = new Scoreboard();
-    private static final Field players = ReflectionUtils.getOnlyField(ClientboundSetPlayerTeamPacket.class, Collection.class);
 
     /**
      * Constructs new instance with given player.
@@ -118,7 +114,7 @@ public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
         PlayerTeam t = (PlayerTeam) team.getPlatformTeam();
         t.setAllowFriendlyFire((team.getOptions() & 0x01) != 0);
         t.setSeeFriendlyInvisibles((team.getOptions() & 0x02) != 0);
-        t.setColor(formats[team.getColor().ordinal()]);
+        t.setColor(colors[Math.min(team.getColor().ordinal(), colors.length - 1)]);
         t.setCollisionRule(collisions[team.getCollision().ordinal()]);
         t.setNameTagVisibility(visibilities[team.getVisibility().ordinal()]);
         t.setPlayerPrefix(team.getPrefix().convert());
@@ -126,7 +122,6 @@ public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
     }
 
     @Override
-    @SneakyThrows
     @NotNull
     public Object onPacketSend(@NonNull Object packet) {
         if (packet instanceof ClientboundSetDisplayObjectivePacket display) {
@@ -138,7 +133,7 @@ public class FabricScoreboard extends SafeScoreboard<FabricTabPlayer> {
         if (packet instanceof ClientboundSetPlayerTeamPacket team) {
             int method = getMethod(team);
             if (method != TeamAction.UPDATE) {
-                players.set(team, onTeamPacket(method, team.getName(), team.getPlayers()));
+                team.players = onTeamPacket(method, team.getName(), team.getPlayers());
             }
         }
         return packet;

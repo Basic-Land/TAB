@@ -8,11 +8,11 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # https://github.com/actions/checkout/releases
+      - uses: actions/checkout@v6 # https://github.com/actions/checkout/releases
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
       - name: Set up JDK 25
-        uses: actions/setup-java@v4 # https://github.com/actions/setup-java/releases
+        uses: actions/setup-java@v5 # https://github.com/actions/setup-java/releases
         with:
           distribution: 'temurin'
           java-version: 25
@@ -31,11 +31,15 @@ jobs:
         run: ./gradlew clean build
       - name: Rename JAR with Build Number
         run: |
-          original_jar=$(find jar/build/libs -type f -name "TAB-*.jar")
-          new_name=$(echo "$original_jar" | sed "s/TAB-\(.*\)\.jar/TAB-\1+${{ github.run_number }}.jar/")
-          mv "$original_jar" "$new_name"
+          find jar/build/libs -type f -name "TAB v*.jar" -print0 | while IFS= read -r -d '' original; do
+            dir=$(dirname "$original")
+            base=$(basename "$original")
+            new_base="${base%.jar}+${{ github.run_number }}.jar"
+            new_path="$dir/$new_base"
+            mv "$original" "$new_path"
+          done
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.3.3 # https://github.com/actions/upload-artifact/releases
         with:
           name: Click here to download
-          path: jar/build/libs/TAB-*+${{ github.run_number }}.jar
+          path: "jar/build/libs/TAB v*+${{ github.run_number }}.jar"

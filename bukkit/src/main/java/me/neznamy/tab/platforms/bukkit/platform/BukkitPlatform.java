@@ -143,7 +143,8 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @Nullable
     public PipelineInjector createPipelineInjector() {
-        return ReflectionUtils.classExists("io.netty.channel.Channel") ? new BukkitPipelineInjector() : null;
+        return serverVersionInfo.getServerVersion().getNetworkId() >= ProtocolVersion.V1_8.getNetworkId()
+                ? new BukkitPipelineInjector() : null;
     }
 
     @Override
@@ -237,7 +238,9 @@ public class BukkitPlatform implements BackendPlatform {
         Metrics metrics = new Metrics(plugin, TabConstants.BSTATS_PLUGIN_ID_BUKKIT);
         metrics.addCustomChart(new SimplePie(TabConstants.MetricsChart.PERMISSION_SYSTEM,
                 () -> TAB.getInstance().getGroupManager().getPermissionPlugin()));
-        metrics.addCustomChart(new SimplePie("tab_6_0_0_servers", serverVersionInfo.getServerVersion()::getFriendlyName));
+        metrics.addCustomChart(new SimplePie("tab_6_1_0_servers",
+                () -> serverVersionInfo.getServerName() + " " + serverVersionInfo.getServerVersion().getFriendlyName()));
+        metrics.addCustomChart(new SimplePie("tab_6_1_0_package", serverVersionInfo::getImplementationPackage));
     }
 
     @Override
@@ -368,11 +371,21 @@ public class BukkitPlatform implements BackendPlatform {
      * Runs task in the main thread for given entity.
      *
      * @param   entity
-     *          Entity's main thread
+     *          Entity to run the task for
      * @param   task
      *          Task to run
      */
     public void runSync(@NotNull Entity entity, @NotNull Runnable task) {
+        Bukkit.getScheduler().runTask(plugin, task);
+    }
+
+    /**
+     * Runs task in the global tick thread.
+     *
+     * @param   task
+     *          Task to run
+     */
+    public void runSyncGlobal(@NotNull Runnable task) {
         Bukkit.getScheduler().runTask(plugin, task);
     }
 

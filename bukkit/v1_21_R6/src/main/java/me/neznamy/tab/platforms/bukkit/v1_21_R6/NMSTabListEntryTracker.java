@@ -1,6 +1,7 @@
 package me.neznamy.tab.platforms.bukkit.v1_21_R6;
 
-import me.neznamy.tab.shared.platform.TabListEntryTracker;
+import io.netty.channel.Channel;
+import me.neznamy.tab.shared.platform.NettyTabListEntryTracker;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket.a;
@@ -11,9 +12,13 @@ import java.util.UUID;
 /**
  * Implementation of TabListEntryTracker.
  */
-public class NMSTabListEntryTracker extends TabListEntryTracker {
+public class NMSTabListEntryTracker extends NettyTabListEntryTracker {
 
     private static final a ADD_PLAYER = a.valueOf("ADD_PLAYER");
+
+    public NMSTabListEntryTracker(@NotNull Channel channel) {
+        super(channel);
+    }
 
     @Override
     public void onPacketSend(@NotNull Object packet) {

@@ -119,16 +119,11 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
 
     @Override
     public void updateGameMode(@NonNull TabPlayer target, int gameMode) {
+        // If entry is not in the tablist, that's okay, because:
+        // - If sent by global playerlist and not present, it's fine
+        // - If sent by spectator fix, gamemode will be overwritten in the packet later anyway
         if (containsEntry(target.getTablistId())) {
             updateGameMode(target.getTablistId(), gameMode);
-        } else {
-            // Entry is not in tablist. This could be on join. Delay and try again.
-            TAB.getInstance().getCpu().getTablistEntryCheckThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
-                // If entry was added in the meantime
-                if (containsEntry(target.getTablistId())) {
-                    updateGameMode(target.getTablistId(), gameMode);
-                }
-            }, TabConstants.Feature.SPECTATOR_FIX, "Delayed gamemode update"), 500);
         }
     }
 

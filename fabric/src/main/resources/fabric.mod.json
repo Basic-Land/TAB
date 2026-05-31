@@ -5,16 +5,16 @@
   "name": "@name@",
   "description": "@description@",
   "authors": ["@author@"],
-  "contributors": ["credits"],
+  "contributors": ["@credits@"],
   "environment": "server",
   "entrypoints": {
     "server": ["me.neznamy.tab.platforms.fabric.FabricTAB"]
   },
   "depends": {
     "fabric-api-base": "*",
-    "java": ">=21",
+    "java": ">=25",
     "minecraft": [
-      "1.21.11"
+      "26.2-pre.1"
     ]
   },
   "recommends": {

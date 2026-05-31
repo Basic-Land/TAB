@@ -133,6 +133,7 @@ public class TabConstants {
         public static final String NAME_TAGS = "NameTags";
         public static final String NAME_TAGS_COLLISION = "NameTagCollision";
         public static final String NAME_TAGS_VISIBILITY = "NameTagVisibility";
+        public static final String NAME_TAGS_PREFIX_SUFFIX = "NameTagPrefixSuffix";
         public static final String PLACEHOLDER_MANAGER = "PlaceholderManager";
         public static final String PING_SPOOF = "PingSpoof";
         public static final String PROXY_SUPPORT = "ProxySupport";

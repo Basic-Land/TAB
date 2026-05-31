@@ -13,7 +13,8 @@ tasks {
             "version" to project.version,
             "description" to project.description,
             "website" to rootProject.ext.get("website")!!.toString(),
-            "author" to rootProject.ext.get("author")!!.toString()
+            "author" to rootProject.ext.get("author")!!.toString(),
+            "credits" to rootProject.ext.get("credits")!!.toString()
         ))
     }
     javadoc {

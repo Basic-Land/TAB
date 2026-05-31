@@ -6,7 +6,7 @@ dependencyResolutionManagement {
         maven("https://repo.viaversion.com/") // ViaVersion
         maven("https://repo.william278.net/releases/") // VelocityScoreboardAPI
         maven("https://repo.codemc.org/repository/nms/") // CraftBukkit + NMS
-        maven("https://repo.papermc.io/repository/maven-public/") // paperweight, Velocity, Adventure
+        maven("https://repo.papermc.io/repository/maven-public/") // paperweight, Velocity, Adventure, BungeeCord-API
         maven("https://repo.extendedclip.com/content/repositories/placeholderapi/") // PlaceholderAPI
         maven("https://repo.opencollab.dev/maven-snapshots/") // Floodgate, Bungeecord-proxy
         maven("https://repo.purpurmc.org/snapshots") // Purpur
@@ -23,7 +23,6 @@ pluginManagement {
         maven("https://maven.architectury.dev/")
         gradlePluginPortal()
         mavenCentral()
-        mavenLocal()
     }
 }
 
@@ -40,13 +39,7 @@ include(":bukkit")
 include(":bukkit:paper_1_21_11")
 //include(":bukkit:v1_7_R4")
 //include(":bukkit:v1_8_R3")
-//include(":bukkit:v1_9_R2")
-//include(":bukkit:v1_10_R1")
-//include(":bukkit:v1_11_R1")
 //include(":bukkit:v1_12_R1")
-//include(":bukkit:v1_13_R2")
-//include(":bukkit:v1_14_R1")
-//include(":bukkit:v1_15_R1")
 //include(":bukkit:v1_16_R3")
 //include(":bukkit:v1_17_R1")
 //include(":bukkit:v1_18_R2")

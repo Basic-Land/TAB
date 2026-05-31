@@ -75,21 +75,21 @@ public class NameTagCommand extends SubCommand {
 
         if (action.equals("show")) {
             if (viewer != null) {
-                teams.showNameTag(player, viewer, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (show)", !silent);
+                teams.getVisibilityManager().showNameTag(player, viewer, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (show)", !silent);
             } else {
-                teams.showNameTag(player, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (show)", !silent);
+                teams.getVisibilityManager().showNameTag(player, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (show)", !silent);
             }
         } else if (action.equals("hide")) {
             if (viewer != null) {
-                teams.hideNameTag(player, viewer, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (hide)", !silent);
+                teams.getVisibilityManager().hideNameTag(player, viewer, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (hide)", !silent);
             } else {
-                teams.hideNameTag(player, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (hide)", !silent);
+                teams.getVisibilityManager().hideNameTag(player, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (hide)", !silent);
             }
         } else if (action.equals("toggle")) {
             if (viewer != null) {
-                teams.toggleNameTag(player, viewer, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (toggle)", !silent);
+                teams.getVisibilityManager().toggleNameTag(player, viewer, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (toggle)", !silent);
             } else {
-                teams.toggleNameTag(player, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (toggle)", !silent);
+                teams.getVisibilityManager().toggleNameTag(player, NameTagInvisibilityReason.HIDE_COMMAND, "Processing command (toggle)", !silent);
             }
         }
     }

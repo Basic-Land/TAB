@@ -165,7 +165,7 @@ public class TabTextColor {
     /**
      * Returns the closest legacy color of this color object.
      * If the color was defined in constructor, it's returned.
-     * Otherwise, the closest color is calculated the then returned.
+     * Otherwise, the closest color is calculated and then returned.
      *
      * @return  closest legacy color
      */

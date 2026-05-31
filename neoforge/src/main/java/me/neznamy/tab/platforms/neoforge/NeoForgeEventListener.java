@@ -22,8 +22,7 @@ public class NeoForgeEventListener implements EventListener<ServerPlayer> {
         eventBus.addListener((PlayerEvent.PlayerLoggedInEvent event) -> {
             TAB.getInstance().addTablistTracker(
                     event.getEntity().getUUID(),
-                    ((ServerPlayer) event.getEntity()).connection.getConnection().channel(),
-                    new NeoForgeTabListEntryTracker()
+                    new NeoForgeTabListEntryTracker(((ServerPlayer) event.getEntity()).connection.getConnection().channel())
             );
             join((ServerPlayer) event.getEntity());
         });

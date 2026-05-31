@@ -105,7 +105,7 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     public final ScoreboardPlayerData scoreboardData = new ScoreboardPlayerData();
 
     /** Data for scoreboard team */
-    public final NameTagPlayerData teamData = new NameTagPlayerData();
+    public final NameTagPlayerData teamData = new NameTagPlayerData(this);
 
     /** Data for Layout */
     public final LayoutManagerImpl.PlayerData layoutData = new LayoutManagerImpl.PlayerData();

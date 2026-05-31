@@ -19,8 +19,7 @@ public class ForgeEventListener implements EventListener<ServerPlayer> {
         PlayerEvent.PlayerLoggedInEvent.BUS.addListener(event -> {
             TAB.getInstance().addTablistTracker(
                     event.getEntity().getUUID(),
-                    ((ServerPlayer) event.getEntity()).connection.getConnection().channel(),
-                    new ForgeTabListEntryTracker()
+                    new ForgeTabListEntryTracker(((ServerPlayer) event.getEntity()).connection.getConnection().channel())
             );
             join((ServerPlayer) event.getEntity());
         });
