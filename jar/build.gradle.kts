@@ -66,8 +66,8 @@ tasks {
 
 //        moddedPlatforms.forEach { p ->
 //            val task = p.tasks.named<Jar>("jar").get()
-            registerPlatform(p, task)
-        }
+//            registerPlatform(p, task)
+//        }
     }
 
     val shadowJarVanilla = register<ShadowJar>("shadowJarVanilla") {
@@ -83,8 +83,8 @@ tasks {
 
         platforms.forEach { p ->
             val task = p.tasks.named<ShadowJar>("shadowJar").get()
-//            registerPlatform(p, task)
-//        }
+            registerPlatform(p, task)
+        }
     }
 
     build.get().dependsOn(shadowJar, shadowJarVanilla)

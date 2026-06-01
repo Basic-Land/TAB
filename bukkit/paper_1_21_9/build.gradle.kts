@@ -15,7 +15,7 @@ repositories {
     }
 }
 
-val version = "1.21.8-R0.1-SNAPSHOT"
+val version = "1.21.9-R0.1-SNAPSHOT"
 
 dependencies {
     implementation(projects.bukkit)
