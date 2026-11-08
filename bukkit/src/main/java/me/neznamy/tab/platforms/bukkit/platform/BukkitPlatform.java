@@ -72,7 +72,7 @@ public class BukkitPlatform implements BackendPlatform {
     private final ServerVersionInfo serverVersionInfo = new ServerVersionInfo();
 
     /** Variables checking presence of other plugins to hook into */
-    private final boolean placeholderAPI = ReflectionUtils.classExists("me.clip.placeholderapi.PlaceholderAPI");
+    private final boolean placeholderAPI = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
 
     /** Spigot field for tracking TPS, the array is final and only being modified instead of re-instantiated */
     private double[] recentTps;
@@ -238,9 +238,9 @@ public class BukkitPlatform implements BackendPlatform {
         Metrics metrics = new Metrics(plugin, TabConstants.BSTATS_PLUGIN_ID_BUKKIT);
         metrics.addCustomChart(new SimplePie(TabConstants.MetricsChart.PERMISSION_SYSTEM,
                 () -> TAB.getInstance().getGroupManager().getPermissionPlugin()));
-        metrics.addCustomChart(new SimplePie("tab_6_1_0_servers",
+        metrics.addCustomChart(new SimplePie("tab_6_2_x_servers",
                 () -> serverVersionInfo.getServerName() + " " + serverVersionInfo.getServerVersion().getFriendlyName()));
-        metrics.addCustomChart(new SimplePie("tab_6_1_0_package", serverVersionInfo::getImplementationPackage));
+        metrics.addCustomChart(new SimplePie("tab_6_2_x_package", serverVersionInfo::getImplementationPackage));
     }
 
     @Override
@@ -387,6 +387,11 @@ public class BukkitPlatform implements BackendPlatform {
      */
     public void runSyncGlobal(@NotNull Runnable task) {
         Bukkit.getScheduler().runTask(plugin, task);
+    }
+
+    @Override
+    public boolean hasLineOfSight(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
+        return ((Player) viewer.getPlayer()).hasLineOfSight((Player) target.getPlayer());
     }
 
     /**

@@ -5,6 +5,7 @@
   * [Backend only](#backend-only)
   * [Proxy only](#proxy-only)
 * [PlaceholderAPI](#placeholderapi)
+* [MiniPlaceholders](#miniplaceholders)
 * [Relational placeholders](#relational-placeholders)
   * [About](#about-1)
   * [Usage](#usage)
@@ -107,7 +108,9 @@ Full list of placeholders (general + feature specific):
 | Identifier                        | Description                                                                                                                                                                                                                                                                     |
 |-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `%tab_replace_<placeholder>%`     | Applies [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements) to a PlaceholderAPI placeholder (for example `%tab_replace_essentials_vanished%`)                                                                 |
-| `%tab_placeholder_<placeholder>%` | returns value of tab's internal placeholder (such as `%tab_placeholder_animation:name%` for `%animation:name%`) (this also applies [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements) to them if configured) |
+| `%tab_placeholder_<placeholder>%` | Returns value of tab's internal placeholder (this also applies [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements) to them if configured). <br />Example: `%tab_placeholder_animation:name%` for `%animation:name%` |
+| `%rel_tab_replace_<rel_placeholder>%`     | Applies [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements) to a **relationnal** PlaceholderAPI placeholder |
+| `%rel_tab_placeholder_<rel_placeholder>%` | Returns value of tab's internal **relational** placeholder (this also applies [Placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements) to them if configured). It may look strange that the `rel` is twice in there, but there's no other way. The first one tells PlaceholderAPI that this is a relational placeholder, the second one is part of the TAB's identifier, which also uses it to mark the placeholder as relational. <br />Example: `%rel_tab_placeholder_rel_condition:name%` for `%rel_condition:name%` |
 
 **BossBar**:
 
@@ -143,18 +146,24 @@ Full list of placeholders (general + feature specific):
 | `%tab_customtabname_raw%` | Player's current raw customtabname with placeholder identifiers. |
 | `%tab_tabsuffix_raw%`     | Player's current raw tabsuffix with placeholder identifiers.     |
 
+# MiniPlaceholders
+On **Velocity**, TAB integrates with [MiniPlaceholders](https://github.com/MiniPlaceholders/MiniPlaceholders) when the plugin is installed. TAB automatically detects and resolves MiniPlaceholders placeholders in config text, including global, per-player, and relational ones. Placeholders use angle brackets, with the expansion and name separated by an underscore (for example `<luckperms_prefix>`), and arguments added after a colon (for example `<luckperms_meta:key>`). See the [MiniPlaceholders placeholder list](https://miniplaceholders.github.io/docs/user-guide/Placeholders) for all available placeholders. TAB also registers its own expansion, offering placeholders such as `<tab_tabprefix>` and `<tab_placeholder:name>`. The `%placeholder%` syntax remains reserved for [PlaceholderAPI](https://github.com/PlaceholderAPI/PlaceholderAPI) (via TAB Bridge on Velocity).
+
+> [!WARNING]
+> TAB's gradient syntax (`<#RRGGBB>Text</#RRGGBB>`) is a compatibility layer that TAB rewrites before parsing, it is more fragile than native [MiniMessage](https://docs.advntr.dev/minimessage/format.html) gradients (`<gradient:#RRGGBB:#RRGGBB>Text</gradient>`). On **Velocity**, this is especially problematic because [MiniPlaceholders](https://github.com/MiniPlaceholders/MiniPlaceholders) parses MiniMessage *before* TAB can rewrite its gradient syntax. For example, placeholder output like `<#E0B11E>MyServer</#FF0000>` is interpreted by MiniPlaceholders as a hex color tag (`<#E0B11E>`), but `</#FF0000>` is not recognized as a gradient closing tag, so the formatting breaks. Prefer native MiniMessage syntax in placeholder output (e.g. `<gradient:#E0B11E:#FF0000>MyServer</gradient>`). See [How to use Minecraft components - MiniMessage](https://github.com/NEZNAMY/TAB/wiki/How-to-use-Minecraft-components#minimessage) for more information.
+
 # Relational placeholders
 ## About
 Unlike classic placeholders which take either 0
 (placeholders with the same output for all players) or 1 (per-player placeholders) players,
 relational placeholders take in 2 players.
-The first usage was to display relation between two players, specifically enemies / allies (red / green) for factions,
+The first ever recorded usage was to display relation between two players, specifically enemies / allies (red / green) for factions,
 allowing players to see faction names of other players colored based on relation.
 While the usage is not limited to this, the name of the 2-player placeholder type has been established as "relational"
-and will be called that everywhere.
+and will be called that everywhere. These placeholders only make sense in functions that allow 2 players to see each other - chat, nametags (+ belowname), tablist formatting (+ objective). Other places, such as scoreboard, bossbar or header/footer don't make sense and don't support these placeholders, as there is no other player to use.
 
 ## Usage
-TAB does not offer any internal relational placeholders. However, it has full support for PlaceholderAPI placeholders. You can also register your own relational placeholders using the [API](#relational-placeholders-1). In PlaceholderAPI, all relational placeholder identifiers must start with `%rel_`. This rule is adopted and used in TAB as well (including those registered via API).
+TAB offers [relational conditions](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Conditional-placeholders#relational-conditions) as well as full support for PlaceholderAPI placeholders. You can also register your own relational placeholders using the [API](#relational-placeholders-1). In PlaceholderAPI, all relational placeholder identifiers must start with `%rel_`. This rule is adopted and used in TAB as well (including those registered via API).
 
 When passing players into the function, first player is the player viewing the text, second player is the one text is being displayed on.  
 Code wise, the PlaceholderAPI request function becomes
@@ -168,7 +177,27 @@ To properly distinguish viewer/target (if needed), your relational placeholder e
 
 # Refreshing
 ## Refresh intervals
-TAB is refreshing placeholders in intervals. For internal placeholders it's using values I found the most optimal and set directly in the plugin. Refresh intervals for PlaceholderAPI placeholders can be [configured](https://github.com/NEZNAMY/TAB/wiki/Optimizing-the-plugin#2---placeholder-refresh-intervals).
+Internal placeholders use a value hardcoded into the plugin by default. PlaceholderAPI placeholders use `default-refresh-interval` by default.
+
+To begin, find this part in your config
+```yml
+placeholder-refresh-intervals:
+  default-refresh-interval: 500
+  "%server_uptime%": 1000
+  "%server_tps_1_colored%": 1000
+  "%player_health%": 200
+  "%player_ping%": 1000
+  "%vault_prefix%": 1000
+  "%rel_factionsuuid_relation_color%": 500
+```
+Refresh interval is in milliseconds. It must be divisible by 50.
+
+Keep in mind that CPU measurement is reset every 10 seconds.
+This means that if you configure a higher refresh interval than 10000,
+there will be intervals when placeholder didn't refresh at all,
+making it look like the CPU is perfect, while on the next refresh it may be high.
+For this reason, if you want to cleanly track usage, keep the interval at 10000 at most.
+Using a higher interval will help if needed, but may lead to misleading info in cpu output.
 
 ## Sync refreshing
 By default, all placeholders are refreshed asynchronously,

@@ -12,7 +12,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * An interface with methods that are called in universal code,
@@ -35,6 +38,19 @@ public interface Platform {
      *          placeholder's identifier
      */
     void registerUnknownPlaceholder(@NotNull String identifier);
+
+    /**
+     * Detects additional placeholders in text using platform-specific syntax.
+     * On Velocity with MiniPlaceholders, this detects {@code <placeholder>} syntax.
+     *
+     * @param   text
+     *          text to detect placeholders in
+     * @return  list of detected placeholder identifiers
+     */
+    @NotNull
+    default List<String> detectAdditionalPlaceholders(@NotNull String text) {
+        return Collections.emptyList();
+    }
 
     /**
      * Creates instance for all online players and adds them to the plugin
@@ -236,4 +252,47 @@ public interface Platform {
      */
     @NotNull
     Object dump();
+
+    /**
+     * Runs task in the global server thread when the platform requires it.
+     * Platforms without a server thread requirement can run the task directly.
+     *
+     * @param   task
+     *          Task to run
+     */
+    default void runSyncGlobal(@NotNull Runnable task) {
+        task.run();
+    }
+
+    /**
+     * Returns {@code true} if the viewer has a clear line of sight to target.
+     * Platforms that cannot calculate block occlusion should return {@code true}
+     * after regular visibility checks are satisfied.
+     *
+     * @param   viewer
+     *          Viewer
+     * @param   target
+     *          Target being viewed
+     * @return  {@code true} if line of sight is clear, {@code false} if blocked
+     */
+    default boolean hasLineOfSight(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
+        return true;
+    }
+
+    /**
+     * Checks block line of sight without assuming that all entities share a server thread.
+     * The callback receives one result per input check, in the same order. Platforms with
+     * region-owned entities can override this to complete the checks asynchronously.
+     */
+    default void requestLineOfSight(@NotNull List<LineOfSightCheck> checks, @NotNull Consumer<boolean[]> callback) {
+        runSyncGlobal(() -> {
+            boolean[] results = new boolean[checks.size()];
+            for (int i = 0; i < checks.size(); i++) {
+                LineOfSightCheck check = checks.get(i);
+                results[i] = !check.getViewer().isOnline() || !check.getTarget().isOnline() ||
+                        hasLineOfSight(check.getViewer(), check.getTarget());
+            }
+            callback.accept(results);
+        });
+    }
 }

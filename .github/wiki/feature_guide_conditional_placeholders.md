@@ -10,9 +10,12 @@
   * [Using in a field where condition is expected (short format)](#using-in-a-field-where-condition-is-expected-short-format)
   * [Relational conditions](#relational-conditions)
 * [Refresh interval](#refresh-interval)
+* [Additional info](#additional-info)
+  * [Additional note 1 - Choosing the correct AND / OR type](#additional-note-1---choosing-the-correct-and--or-type)
 * [Examples](#examples)
   * [Example 1 - Chaining conditional placeholders](#example-1---chaining-conditional-placeholders)
   * [Example 2 - Combining AND and OR](#example-2---combining-and-and-or)
+  * [Example 3 - Showing vanish status only for staff members](#example-3---showing-vanish-status-only-for-staff-members)
 
 # About
 Conditions / conditional placeholders allow you
@@ -52,6 +55,9 @@ condition must contain the altered output.
 To see the exact output of a placeholder including color codes, use `/tab parse <player> <placeholder>`.
 
 ## Permission
+> [!WARNING]
+> Giving someone OP status will automatically give them all permissions, which will make all the permission checks in conditions pass.
+
 | Operation             | Description                     | Example                                                                                      |
 |-----------------------|---------------------------------|----------------------------------------------------------------------------------------------|
 | `permission:<value>`  | Permission requirement          | `permission:my.permission` will pass if player has `my.permission` permission                |
@@ -146,8 +152,9 @@ There are 2 ways to use it:
 * display-condition of layout player groups (which is currently the only feature supporting it as it would not make sense elsewhere)
 * A placeholder using `%rel_condition:<condition>%` syntax
 
-If trying to use relational condition in `%condition:name%` syntax, it will return a warning text instead of evaluating the condition.
-Same the other way around, if trying to use standard condition in `%rel_condition:name%` syntax, it will return a warning text.
+Using `%viewer:...%` will upgrade the condition to a relational condition and standard version will no longer be available.  
+If trying to use relational condition in `%condition:name%` syntax, it will return a warning text instead of evaluating the condition.  
+Same the other way around - if trying to use standard condition in `%rel_condition:name%` syntax, it will return a warning text.
 
 # Refresh interval
 Conditions are just placeholders after all, and, as such, they must be refreshed periodically.
@@ -156,6 +163,13 @@ They are based on placeholders used inside (subconditions, true/false values).
 Permission checks count as 1000ms.  
 To configure refresh intervals of placeholders,
 check out the [Optimization guide](https://github.com/NEZNAMY/TAB/wiki/Optimizing-the-plugin#2---all-platforms-placeholder-refresh-intervals).
+
+# Additional Info
+## Additional note 1 - Choosing the correct AND / OR type
+Sometimes you want to combine multiple expressions using `AND` or `OR`. When doing this, you must pick the correct one based on your needs.  
+A common mistake is trying to turn spoken language directly into config, which can be wrong.
+
+For example, you say you want to display scoreboard in servers `server1` **and** `server2`. As such, you may accidentally use `type: AND` or `;` in short format (`%server%=server1;%server%=server2`). This is, however, wrong, because that would mean your server must be `server1` **and** `server2` at the same time, which is obviously impossible. The correct type is `OR` here (`|`). So instead of thinking "I want to display scoreboard in `server1` **and** `server2`", you should think "I want to display scoreboard if player is in `server1` **or** `server2`.
 
 # Examples
 ## Example 1 - Chaining conditional placeholders
@@ -203,3 +217,26 @@ conditions:
     type: AND
 ```
 Then, use condition `main` as the display condition (or as a placeholder - `%condition:main%`). Note that `true`/`false` values were not defined, as such, they default to `true` and `false`, respectively. Therefore, we use the placeholder from the condition and check if the result is `true`. Then, check if player is also in the specified server.
+
+## Example 3 - Showing vanish status only for staff members
+This example shows you how to show some text on vanished players, but only available to see to staff members. For that, we will use a relational condition.  
+We want to create a condition that checks for 2 things - target player is vanished and the viewer has permission. If both of them are met (`AND`), some text should display. Otherwise, nothing should display.  
+Let's build the individual components of the condition:
+* Vanish placeholder - in this example, we will use `%essentials_vanished%`. The placeholder returns `yes` if player is vanished, otherwise `no`. If you configured [placeholder output replacements](https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Placeholder-output-replacements) for the vanish placeholder, you will either need to use the replaced output, or remove the replacement (since you aren't going to use the placeholder directly anyway). To check what exactly a placeholder returns, you can run `/tab parse <player> <placeholder>`.
+* Staff check - for the lack of a better idea, let's name our permission `my.permission`. The important part is that we want to check this permission for the player who is looking at the tablist, not the target player who is vanished. Following the guide on relational placeholders, we will use `%viewer:player_has_permission_my.permission%`. We need to compare it to the "true" value, (typically `yes`), just like with vanish placeholder. See above for more info.
+* true / false texts - The `true` value will be set to the value to show if target player is vanished and viewer has the permission. `false` value will be displayed otherwise. This will probably remain empty.
+
+After combining all of this, here is what the condition may look like:
+```
+conditions:
+  vanish:
+    conditions:
+      - '%viewer:player_has_permission_my.permission%=yes'
+      - '%essentials_vanished%=yes'
+    type: AND
+    true: ' &7&l[V]&r'
+    false: ''
+```
+You may replace the leading space in `true` value with a trailing one based on your needs. Afterwards, use the placeholder using `%rel_condition:vanish%` in `tabprefix` / `tabsuffix` for example.
+
+The usefulness of this example is questionable, but the purpose of examples is to teach afterall, not to just be copied over to your config (I know you have been doing that!). This one is, however, useful, because unvanishing will result in TAB instantly formatting the player name before placeholders are periodically updated, which would otherwise result in a small flash of vanished text visible for everyone for a split second after unvanishing.

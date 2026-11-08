@@ -13,6 +13,14 @@ dependencyResolutionManagement {
         maven("https://jitpack.io") // PremiumVanish, Vault, YamlAssist, RedisBungee
         maven("https://mvn.lib.co.nz/public") // LibsDisguises
         maven("https://repo.william278.net/velocity/") // Velocity-proxy
+        exclusiveContent {
+            forRepository {
+                maven("https://repo.fandmc.cn/repository/maven-public/") // Fand
+            }
+            filter {
+                includeGroup("io.fand")
+            }
+        }
     }
 }
 
@@ -37,14 +45,13 @@ include(":bukkit")
 //include(":bukkit:paper_1_21_4")
 //include(":bukkit:paper_1_21_9")
 include(":bukkit:paper_1_21_11")
+include(":bukkit:paper_26_2")
 //include(":bukkit:v1_7_R4")
 //include(":bukkit:v1_8_R3")
 //include(":bukkit:v1_12_R1")
 //include(":bukkit:v1_16_R3")
 //include(":bukkit:v1_17_R1")
 //include(":bukkit:v1_18_R2")
-//include(":bukkit:v1_19_R1")
-//include(":bukkit:v1_19_R2")
 //include(":bukkit:v1_19_R3")
 //include(":bukkit:v1_20_R1")
 //include(":bukkit:v1_20_R2")
@@ -58,8 +65,10 @@ include(":bukkit:paper_1_21_11")
 //include(":bukkit:v1_21_R6")
 //include(":bukkit:v1_21_R7")
 //include(":bukkit:v26_1")
+//include(":bukkit:v26_2")
 //include(":bungeecord")
 //include(":fabric")
 //include(":neoforge")
 //include(":forge")
+//include(":fand")
 include(":jar")

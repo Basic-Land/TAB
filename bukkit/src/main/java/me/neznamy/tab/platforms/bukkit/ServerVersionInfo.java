@@ -95,6 +95,8 @@ public class ServerVersionInfo {
         spigotVersions.put(ProtocolVersion.V26_1, "v26_1");
         spigotVersions.put(ProtocolVersion.V26_1_1, "v26_1");
         spigotVersions.put(ProtocolVersion.V26_1_2, "v26_1");
+        spigotVersions.put(ProtocolVersion.V26_2, "v26_2");
+        spigotVersions.put(ProtocolVersion.V26_3, "v26_2");
 
         Map<ProtocolVersion, String> paperVersions = new LinkedHashMap<>();
         paperVersions.put(ProtocolVersion.V1_20_5, "paper_1_20_5");
@@ -114,11 +116,13 @@ public class ServerVersionInfo {
         paperVersions.put(ProtocolVersion.V26_1, "paper_1_21_11");  // v26_1 works too
         paperVersions.put(ProtocolVersion.V26_1_1, "paper_1_21_11");  // v26_1 works too
         paperVersions.put(ProtocolVersion.V26_1_2, "paper_1_21_11");  // v26_1 works too
+        paperVersions.put(ProtocolVersion.V26_2, "paper_26_2");  // v26_2 works too
+        paperVersions.put(ProtocolVersion.V26_3, "paper_26_2");
 
         if (serverVersion == ProtocolVersion.UNKNOWN) {
             throw new IllegalStateException(String.format(
-                    "Unknown server version (%s), cannot find implementation.",
-                    minecraftVersion
+                    "Unknown server version (%s %s), cannot find implementation.",
+                    serverName, minecraftVersion
             ));
         }
         String implementation = (serverName.equals("Paper") ? paperVersions : spigotVersions).get(serverVersion);
