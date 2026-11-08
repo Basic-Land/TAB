@@ -52,7 +52,7 @@ val platformPaths = setOf(
 //    ":forge"
 //)
 
-val brokenPlatforms: List<Project> = brokenPlatformPaths.map { rootProject.project(it) }
+//val brokenPlatforms: List<Project> = brokenPlatformPaths.map { rootProject.project(it) }
 val platforms: List<Project> = platformPaths.map { rootProject.project(it) }
 //val moddedPlatforms: List<Project> = moddedPaths.map { rootProject.project(it) }
 
@@ -78,22 +78,22 @@ tasks {
 //        }
     }
 
-    val shadowJarBrokenPaper = register<ShadowJar>("shadowJarBrokenPaper") {
-        description = "Shadows only Paper versions 1.20.5 - 1.21.4, which break if jar has classes compiled with Java 24+."
-        archiveFileName.set("TAB v${project.version} - Paper 1.20.5 - 1.21.4.jar")
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+//    val shadowJarBrokenPaper = register<ShadowJar>("shadowJarBrokenPaper") {
+//        description = "Shadows only Paper versions 1.20.5 - 1.21.4, which break if jar has classes compiled with Java 24+."
+//        archiveFileName.set("TAB v${project.version} - Paper 1.20.5 - 1.21.4.jar")
+//        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+//
+//        fun registerPlatform(project: Project, jarTask: AbstractArchiveTask) {
+//            dependsOn(jarTask)
+//            dependsOn(project.tasks.withType<Jar>())
+//            from(zipTree(jarTask.archiveFile))
+//        }
+//
+//        brokenPlatforms.forEach { p ->
+//            val task = p.tasks.named<ShadowJar>("shadowJar").get()
+//            registerPlatform(p, task)
+//        }
+//    }
 
-        fun registerPlatform(project: Project, jarTask: AbstractArchiveTask) {
-            dependsOn(jarTask)
-            dependsOn(project.tasks.withType<Jar>())
-            from(zipTree(jarTask.archiveFile))
-        }
-
-        brokenPlatforms.forEach { p ->
-            val task = p.tasks.named<ShadowJar>("shadowJar").get()
-            registerPlatform(p, task)
-        }
-    }
-
-    build.get().dependsOn(shadowJar, shadowJarBrokenPaper)
+    build.get().dependsOn(shadowJar, /*shadowJarBrokenPaper*/)
 }
